@@ -1,8 +1,18 @@
 """ViewSets and API views for the boutique management system API v1."""
+import csv
+import io
+import logging
+import secrets
+import string
+import unicodedata
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import (
     Sum, Avg, Count, F, Q, DecimalField, Exists, OuterRef,
@@ -10,6 +20,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce, TruncDate, TruncMonth, TruncYear
 from django.utils import timezone
+from django.utils.text import slugify
 
 from rest_framework import viewsets, mixins, status, filters
 from rest_framework.decorators import action
@@ -112,11 +123,178 @@ from api.v1.permissions import (
 )
 
 User = get_user_model()
+logger = logging.getLogger("boutique")
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _normalize_header(value: str) -> str:
+    """Normalize CSV header labels to support french/english aliases."""
+    cleaned = (value or "").strip().lower()
+    cleaned = unicodedata.normalize("NFKD", cleaned)
+    cleaned = "".join(ch for ch in cleaned if not unicodedata.combining(ch))
+    for ch in (" ", "-", "_", "/", "\\", ".", "(", ")", ":"):
+        cleaned = cleaned.replace(ch, "")
+    return cleaned
+
+
+def _row_value(row: dict, header_map: dict, *aliases: str) -> str:
+    """Return the first non-empty value matching one of the provided aliases."""
+    for alias in aliases:
+        key = header_map.get(_normalize_header(alias))
+        if key is None:
+            continue
+        raw = row.get(key)
+        if raw is None:
+            continue
+        text = str(raw).strip()
+        if text != "":
+            return text
+    return ""
+
+
+def _parse_decimal_field(
+    raw_value: str,
+    *,
+    field_label: str,
+    allow_blank: bool = False,
+    default: Decimal = Decimal("0.00"),
+) -> Decimal:
+    value = (raw_value or "").strip()
+    if not value:
+        if allow_blank:
+            return default
+        raise ValueError(f"{field_label} est requis.")
+    normalized = value.replace(" ", "").replace(",", ".")
+    try:
+        return Decimal(normalized)
+    except (InvalidOperation, TypeError):
+        raise ValueError(f"{field_label} invalide.")
+
+
+def _parse_bool_field(raw_value: str, *, default: bool = True) -> bool:
+    value = (raw_value or "").strip().lower()
+    if not value:
+        return default
+    if value in {"1", "true", "yes", "oui", "vrai", "on"}:
+        return True
+    if value in {"0", "false", "no", "non", "faux", "off"}:
+        return False
+    return default
+
+
+def _decode_uploaded_csv(uploaded_file) -> str:
+    """Decode uploaded CSV content with utf-8 fallback and size guard."""
+    if not uploaded_file:
+        raise ValidationError({"file": "Aucun fichier CSV fourni."})
+    max_size = 5 * 1024 * 1024
+    if getattr(uploaded_file, "size", 0) and uploaded_file.size > max_size:
+        raise ValidationError({"file": "Le fichier depasse 5 Mo."})
+
+    raw = uploaded_file.read()
+    if not raw:
+        raise ValidationError({"file": "Le fichier CSV est vide."})
+
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            return raw.decode("latin-1")
+        except UnicodeDecodeError:
+            raise ValidationError(
+                {"file": "Encodage CSV non supporte (utilisez UTF-8)."}
+            )
+
+
+def _build_csv_dict_reader(content: str) -> csv.DictReader:
+    """Build a DictReader with automatic delimiter detection."""
+    sample = content[:4096]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;|\t")
+    except csv.Error:
+        dialect = csv.excel
+    return csv.DictReader(io.StringIO(content), dialect=dialect)
+
+
+def _unique_slug_for_enterprise(
+    model_class,
+    *,
+    enterprise_id,
+    base_value: str,
+    fallback: str,
+    exclude_pk=None,
+) -> str:
+    """Generate a slug unique within the same enterprise."""
+    base_slug = slugify(base_value or fallback) or fallback
+    slug = base_slug
+    index = 2
+    while True:
+        qs = model_class.objects.filter(enterprise_id=enterprise_id, slug=slug)
+        if exclude_pk:
+            qs = qs.exclude(pk=exclude_pk)
+        if not qs.exists():
+            return slug
+        slug = f"{base_slug}-{index}"
+        index += 1
+
+
+def _generate_secure_password(length: int = 14) -> str:
+    """Generate a random password that passes Django validators."""
+    charset = string.ascii_letters + string.digits + "!@#$%*_-+=?"
+    target_len = max(length, 12)
+    for _ in range(64):
+        candidate = "".join(secrets.choice(charset) for _ in range(target_len))
+        if not any(c.islower() for c in candidate):
+            continue
+        if not any(c.isupper() for c in candidate):
+            continue
+        if not any(c.isdigit() for c in candidate):
+            continue
+        if not any(c in "!@#$%*_-+=?" for c in candidate):
+            continue
+        try:
+            validate_password(candidate)
+        except DjangoValidationError:
+            continue
+        return candidate
+    raise ValidationError(
+        {"user_password": "Impossible de generer un mot de passe valide. Reessayez."}
+    )
+
+
+def _send_setup_credentials_email(
+    *,
+    to_email: str,
+    user_name: str,
+    password: str,
+    enterprise_name: str,
+    store_name: str,
+) -> str:
+    """Send account credentials to the created enterprise admin email."""
+    base = (getattr(settings, "FRONTEND_URL", "") or "http://localhost:3000").rstrip("/")
+    login_url = f"{base}/login"
+    subject = "Vos acces SimaStock"
+    body = (
+        f"Bonjour {user_name},\n\n"
+        "Votre compte administrateur a ete cree.\n\n"
+        f"Entreprise: {enterprise_name}\n"
+        f"Boutique: {store_name}\n"
+        f"Email: {to_email}\n"
+        f"Mot de passe: {password}\n\n"
+        f"Connexion: {login_url}\n\n"
+        "Pensez a changer votre mot de passe apres votre premiere connexion.\n"
+    )
+    send_mail(
+        subject=subject,
+        message=body,
+        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+        recipient_list=[to_email],
+        fail_silently=False,
+    )
+    return login_url
+
 
 def _user_store_ids(user):
     """Return a list of store IDs the user has access to."""
@@ -253,6 +431,15 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
         ser = EnterpriseSetupSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         d = ser.validated_data
+        raw_password = d.get('user_password') or ''
+        password_generated = not bool(raw_password.strip())
+        user_password = _generate_secure_password() if password_generated else raw_password
+
+        if not password_generated:
+            try:
+                validate_password(raw_password)
+            except DjangoValidationError as exc:
+                raise ValidationError({'user_password': list(exc.messages)})
 
         with transaction.atomic():
             enterprise = Enterprise.objects.create(
@@ -282,7 +469,7 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
             )
             user = User.objects.create_user(
                 email=d['user_email'],
-                password=d['user_password'],
+                password=user_password,
                 first_name=d['user_first_name'],
                 last_name=d['user_last_name'],
                 phone=d.get('user_phone', ''),
@@ -290,10 +477,31 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
             )
             StoreUser.objects.create(user=user, store=store, is_default=True)
 
+        email_sent = False
+        login_url = (getattr(settings, "FRONTEND_URL", "") or "http://localhost:3000").rstrip("/") + "/login"
+        try:
+            login_url = _send_setup_credentials_email(
+                to_email=user.email,
+                user_name=user.get_full_name() or user.email,
+                password=user_password,
+                enterprise_name=enterprise.name,
+                store_name=store.name,
+            )
+            email_sent = True
+        except Exception:
+            logger.exception("Failed to send enterprise setup credentials to %s", user.email)
+
         return Response({
             'enterprise': EnterpriseSerializer(enterprise).data,
             'store': StoreSerializer(store).data,
             'admin_user': UserSerializer(user).data,
+            'credentials': {
+                'email': user.email,
+                'password': user_password,
+                'password_generated': password_generated,
+                'email_sent': email_sent,
+                'login_url': login_url,
+            },
         }, status=status.HTTP_201_CREATED)
 
 
@@ -625,7 +833,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
-        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+        if self.action in ('create', 'update', 'partial_update', 'destroy', 'import_csv'):
             return [IsManagerOrAdmin()]
         return [IsAuthenticated()]
 
@@ -677,6 +885,193 @@ class ProductViewSet(viewsets.ModelViewSet):
             raise ValidationError({'detail': 'Image introuvable.'})
         img.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['post'], url_path='import-csv')
+    def import_csv(self, request):
+        """Bulk import products from CSV file.
+
+        Expected columns (aliases supported):
+        - name/nom
+        - sku
+        - selling_price/prix_vente (required)
+        - cost_price/prix_achat (optional)
+        - barcode/code_barres (optional)
+        - category/categorie (optional, auto-created)
+        - brand/marque (optional, auto-created)
+        - description (optional)
+        - is_active/actif (optional)
+        """
+        content = _decode_uploaded_csv(request.FILES.get('file'))
+        reader = _build_csv_dict_reader(content)
+        if not reader.fieldnames:
+            raise ValidationError({'file': 'En-tetes CSV introuvables.'})
+
+        header_map = {
+            _normalize_header(col): col
+            for col in reader.fieldnames
+            if col is not None and str(col).strip() != ""
+        }
+        if not header_map:
+            raise ValidationError({'file': 'Le CSV ne contient aucun en-tete exploitable.'})
+
+        enterprise_id = _require_user_enterprise_id(request.user)
+        categories = {
+            c.name.strip().lower(): c
+            for c in Category.objects.filter(enterprise_id=enterprise_id)
+        }
+        brands = {
+            b.name.strip().lower(): b
+            for b in Brand.objects.filter(enterprise_id=enterprise_id)
+        }
+
+        total_rows = 0
+        created = 0
+        updated = 0
+        skipped = 0
+        error_count = 0
+        errors = []
+
+        for line_no, row in enumerate(reader, start=2):
+            total_rows += 1
+            row_values = [
+                str(v).strip() if v is not None else ""
+                for v in row.values()
+            ]
+            if not any(row_values):
+                skipped += 1
+                continue
+
+            try:
+                name = _row_value(row, header_map, 'name', 'nom', 'produit', 'product_name')
+                sku = _row_value(row, header_map, 'sku', 'reference', 'ref', 'code')
+                if not name:
+                    raise ValueError('Nom produit manquant.')
+                if not sku:
+                    raise ValueError('SKU manquant.')
+
+                selling_price = _parse_decimal_field(
+                    _row_value(row, header_map, 'selling_price', 'prix_vente', 'price', 'prix'),
+                    field_label='prix_vente',
+                    allow_blank=False,
+                )
+                cost_price = _parse_decimal_field(
+                    _row_value(row, header_map, 'cost_price', 'prix_achat', 'purchase_price'),
+                    field_label='prix_achat',
+                    allow_blank=True,
+                    default=Decimal('0.00'),
+                )
+                if selling_price < 0:
+                    raise ValueError('prix_vente ne peut pas etre negatif.')
+                if cost_price < 0:
+                    raise ValueError('prix_achat ne peut pas etre negatif.')
+
+                barcode = _row_value(row, header_map, 'barcode', 'code_barres', 'codebarres', 'ean')
+                description = _row_value(row, header_map, 'description', 'desc')
+                is_active = _parse_bool_field(
+                    _row_value(row, header_map, 'is_active', 'actif', 'active'),
+                    default=True,
+                )
+
+                category = None
+                category_name = _row_value(row, header_map, 'category', 'categorie')
+                if category_name:
+                    cat_key = category_name.lower()
+                    category = categories.get(cat_key)
+                    if category is None:
+                        category = Category.objects.create(
+                            enterprise_id=enterprise_id,
+                            name=category_name,
+                            slug=_unique_slug_for_enterprise(
+                                Category,
+                                enterprise_id=enterprise_id,
+                                base_value=category_name,
+                                fallback='categorie',
+                            ),
+                            is_active=True,
+                        )
+                        categories[cat_key] = category
+
+                brand = None
+                brand_name = _row_value(row, header_map, 'brand', 'marque')
+                if brand_name:
+                    brand_key = brand_name.lower()
+                    brand = brands.get(brand_key)
+                    if brand is None:
+                        brand = Brand.objects.create(
+                            enterprise_id=enterprise_id,
+                            name=brand_name,
+                            slug=_unique_slug_for_enterprise(
+                                Brand,
+                                enterprise_id=enterprise_id,
+                                base_value=brand_name,
+                                fallback='marque',
+                            ),
+                            is_active=True,
+                        )
+                        brands[brand_key] = brand
+
+                product = Product.objects.filter(
+                    enterprise_id=enterprise_id,
+                    sku=sku,
+                ).first()
+                if product:
+                    product.name = name
+                    product.slug = _unique_slug_for_enterprise(
+                        Product,
+                        enterprise_id=enterprise_id,
+                        base_value=sku,
+                        fallback='produit',
+                        exclude_pk=product.pk,
+                    )
+                    product.barcode = barcode
+                    product.description = description
+                    product.category = category
+                    product.brand = brand
+                    product.cost_price = cost_price
+                    product.selling_price = selling_price
+                    product.is_active = is_active
+                    product.save(
+                        update_fields=[
+                            'name', 'slug', 'barcode', 'description',
+                            'category', 'brand', 'cost_price', 'selling_price',
+                            'is_active', 'updated_at',
+                        ]
+                    )
+                    updated += 1
+                else:
+                    Product.objects.create(
+                        enterprise_id=enterprise_id,
+                        name=name,
+                        slug=_unique_slug_for_enterprise(
+                            Product,
+                            enterprise_id=enterprise_id,
+                            base_value=sku,
+                            fallback='produit',
+                        ),
+                        sku=sku,
+                        barcode=barcode,
+                        description=description,
+                        category=category,
+                        brand=brand,
+                        cost_price=cost_price,
+                        selling_price=selling_price,
+                        is_active=is_active,
+                    )
+                    created += 1
+            except Exception as exc:
+                error_count += 1
+                if len(errors) < 50:
+                    errors.append({'line': line_no, 'message': str(exc)})
+
+        return Response({
+            'detail': "Import CSV termine.",
+            'total_rows': total_rows,
+            'created': created,
+            'updated': updated,
+            'skipped': skipped,
+            'error_count': error_count,
+            'errors': errors,
+        })
 
     @action(detail=False, methods=['get'], url_path='available')
     def available(self, request):
@@ -1139,6 +1534,11 @@ class CustomerViewSet(viewsets.ModelViewSet):
     search_fields = ['first_name', 'last_name', 'phone']
     ordering_fields = ['last_name', 'created_at', 'is_active']
 
+    def get_permissions(self):
+        if self.action == 'import_csv':
+            return [IsManagerOrAdmin()]
+        return [IsAuthenticated()]
+
     def get_queryset(self):
         qs = super().get_queryset()
         return _filter_queryset_by_enterprise(qs, self.request.user)
@@ -1147,6 +1547,129 @@ class CustomerViewSet(viewsets.ModelViewSet):
         """Inject enterprise from user's stores."""
         enterprise_id = _require_user_enterprise_id(self.request.user)
         serializer.save(enterprise_id=enterprise_id)
+
+    @action(detail=False, methods=['post'], url_path='import-csv')
+    def import_csv(self, request):
+        """Bulk import customers from CSV file."""
+        content = _decode_uploaded_csv(request.FILES.get('file'))
+        reader = _build_csv_dict_reader(content)
+        if not reader.fieldnames:
+            raise ValidationError({'file': 'En-tetes CSV introuvables.'})
+
+        header_map = {
+            _normalize_header(col): col
+            for col in reader.fieldnames
+            if col is not None and str(col).strip() != ""
+        }
+        if not header_map:
+            raise ValidationError({'file': 'Le CSV ne contient aucun en-tete exploitable.'})
+
+        enterprise_id = _require_user_enterprise_id(request.user)
+        base_qs = Customer.objects.filter(enterprise_id=enterprise_id, is_default=False)
+
+        total_rows = 0
+        created = 0
+        updated = 0
+        skipped = 0
+        error_count = 0
+        errors = []
+
+        for line_no, row in enumerate(reader, start=2):
+            total_rows += 1
+            row_values = [
+                str(v).strip() if v is not None else ""
+                for v in row.values()
+            ]
+            if not any(row_values):
+                skipped += 1
+                continue
+
+            try:
+                first_name = _row_value(row, header_map, 'first_name', 'prenom', 'firstname')
+                last_name = _row_value(row, header_map, 'last_name', 'nom', 'lastname')
+                full_name = _row_value(row, header_map, 'full_name', 'nom_complet', 'client')
+                if full_name and (not first_name or not last_name):
+                    chunks = [chunk for chunk in full_name.split(' ') if chunk]
+                    if chunks:
+                        if not first_name:
+                            first_name = chunks[0]
+                        if not last_name:
+                            last_name = " ".join(chunks[1:]) if len(chunks) > 1 else chunks[0]
+
+                phone = _row_value(row, header_map, 'phone', 'telephone', 'tel', 'numero')
+                email = _row_value(row, header_map, 'email', 'mail').lower()
+                address = _row_value(row, header_map, 'address', 'adresse')
+                company = _row_value(row, header_map, 'company', 'entreprise', 'societe')
+                tax_id = _row_value(row, header_map, 'tax_id', 'taxid', 'numero_fiscal')
+                notes = _row_value(row, header_map, 'notes', 'note')
+                is_active = _parse_bool_field(
+                    _row_value(row, header_map, 'is_active', 'actif', 'active'),
+                    default=True,
+                )
+
+                if not first_name:
+                    raise ValueError('Prenom manquant.')
+                if not last_name:
+                    raise ValueError('Nom manquant.')
+                if not phone:
+                    raise ValueError('Telephone manquant.')
+
+                customer = None
+                if email:
+                    customer = base_qs.filter(email__iexact=email).first()
+                if customer is None:
+                    customer = base_qs.filter(
+                        phone=phone,
+                        first_name__iexact=first_name,
+                        last_name__iexact=last_name,
+                    ).first()
+
+                if customer:
+                    customer.first_name = first_name
+                    customer.last_name = last_name
+                    customer.phone = phone
+                    customer.email = email
+                    customer.address = address
+                    customer.company = company
+                    customer.tax_id = tax_id
+                    customer.notes = notes
+                    customer.is_active = is_active
+                    customer.save(
+                        update_fields=[
+                            'first_name', 'last_name', 'phone', 'email',
+                            'address', 'company', 'tax_id', 'notes',
+                            'is_active', 'updated_at',
+                        ]
+                    )
+                    updated += 1
+                else:
+                    Customer.objects.create(
+                        enterprise_id=enterprise_id,
+                        first_name=first_name,
+                        last_name=last_name,
+                        phone=phone,
+                        email=email,
+                        address=address,
+                        company=company,
+                        tax_id=tax_id,
+                        notes=notes,
+                        is_active=is_active,
+                    )
+                    created += 1
+            except Exception as exc:
+                error_count += 1
+                if len(errors) < 50:
+                    errors.append({'line': line_no, 'message': str(exc)})
+
+        return Response({
+            'detail': "Import CSV termine.",
+            'total_rows': total_rows,
+            'created': created,
+            'updated': updated,
+            'skipped': skipped,
+            'error_count': error_count,
+            'errors': errors,
+        })
 
 
 # ---------------------------------------------------------------------------

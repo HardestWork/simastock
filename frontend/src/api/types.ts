@@ -772,14 +772,38 @@ export interface EnterpriseSetupPayload {
   user_last_name: string;
   user_phone: string;
   user_role: 'ADMIN' | 'MANAGER';
-  user_password: string;
-  user_password_confirm: string;
+  user_password?: string;
+  user_password_confirm?: string;
+}
+
+export interface ProvisionedCredentials {
+  email: string;
+  password: string;
+  password_generated: boolean;
+  email_sent: boolean;
+  login_url: string;
 }
 
 export interface EnterpriseSetupResponse {
   enterprise: Enterprise;
   store: Store;
   admin_user: User;
+  credentials: ProvisionedCredentials;
+}
+
+export interface CsvImportError {
+  line: number;
+  message: string;
+}
+
+export interface CsvImportResult {
+  detail: string;
+  total_rows: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  error_count: number;
+  errors: CsvImportError[];
 }
 
 // ---------------------------------------------------------------------------

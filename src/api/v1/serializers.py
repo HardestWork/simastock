@@ -172,7 +172,11 @@ class EnterpriseSerializer(serializers.ModelSerializer):
 
 
 class EnterpriseSetupSerializer(serializers.Serializer):
-    """Flat serializer for one-step enterprise + store + admin user creation."""
+    """Flat serializer for one-step enterprise + store + admin user creation.
+
+    ``user_password`` is optional: when omitted, backend generates a secure
+    password and emails credentials to the created admin user.
+    """
 
     # Enterprise
     enterprise_name = serializers.CharField(max_length=255)
@@ -197,8 +201,8 @@ class EnterpriseSetupSerializer(serializers.Serializer):
     user_last_name = serializers.CharField(max_length=150)
     user_phone = serializers.CharField(max_length=30, required=False, allow_blank=True, default='')
     user_role = serializers.ChoiceField(choices=['ADMIN', 'MANAGER'], required=False, default='ADMIN')
-    user_password = serializers.CharField(min_length=8, write_only=True)
-    user_password_confirm = serializers.CharField(min_length=8, write_only=True)
+    user_password = serializers.CharField(required=False, allow_blank=True, write_only=True, default='')
+    user_password_confirm = serializers.CharField(required=False, allow_blank=True, write_only=True, default='')
 
     def validate_enterprise_code(self, value):
         if Enterprise.objects.filter(code=value).exists():
@@ -216,10 +220,17 @@ class EnterpriseSetupSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        if attrs['user_password'] != attrs['user_password_confirm']:
-            raise serializers.ValidationError(
-                {'user_password_confirm': 'Les mots de passe ne correspondent pas.'}
-            )
+        password = attrs.get('user_password', '')
+        password_confirm = attrs.get('user_password_confirm', '')
+        if password or password_confirm:
+            if len(password) < 8:
+                raise serializers.ValidationError(
+                    {'user_password': 'Le mot de passe doit contenir au moins 8 caracteres.'}
+                )
+            if password != password_confirm:
+                raise serializers.ValidationError(
+                    {'user_password_confirm': 'Les mots de passe ne correspondent pas.'}
+                )
         return attrs
 
 

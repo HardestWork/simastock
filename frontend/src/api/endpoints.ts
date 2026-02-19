@@ -37,6 +37,7 @@ import type {
   ForecastSummary,
   StockValueTrend,
   DailyStatistics,
+  CsvImportResult,
   StoreUserRecord,
   CapabilityPreset,
   PaginatedResponse,
@@ -263,6 +264,12 @@ export const productApi = {
   delete: (id: string) =>
     apiClient.delete(`products/${id}/`),
 
+  importCsv: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return apiClient.post<CsvImportResult>('products/import-csv/', fd).then((r) => r.data);
+  },
+
   uploadImage: (productId: string, file: File, isPrimary = false) => {
     const fd = new FormData();
     fd.append('image', file);
@@ -354,6 +361,12 @@ export const customerApi = {
 
   delete: (id: string) =>
     apiClient.delete(`customers/${id}/`),
+
+  importCsv: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return apiClient.post<CsvImportResult>('customers/import-csv/', fd).then((r) => r.data);
+  },
 };
 
 // ---------------------------------------------------------------------------

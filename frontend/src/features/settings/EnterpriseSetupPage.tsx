@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { enterpriseApi } from '@/api/endpoints';
-import type { EnterpriseSetupPayload } from '@/api/types';
-import { ArrowLeft, Save, Loader2, AlertCircle, CheckCircle2, Building2, Store, UserCog } from 'lucide-react';
+import type { EnterpriseSetupPayload, EnterpriseSetupResponse } from '@/api/types';
+import { ArrowLeft, Save, Loader2, AlertCircle, CheckCircle2, Building2, Store, UserCog, Copy, Mail } from 'lucide-react';
 import type { AxiosError } from 'axios';
 
 const inputClass =
@@ -54,11 +54,15 @@ export default function EnterpriseSetupPage() {
   const [userPasswordConfirm, setUserPasswordConfirm] = useState('');
 
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [setupResult, setSetupResult] = useState<EnterpriseSetupResponse | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const mutation = useMutation({
     mutationFn: (data: EnterpriseSetupPayload) => enterpriseApi.setup(data),
-    onSuccess: () => setSuccess(true),
+    onSuccess: (data: EnterpriseSetupResponse) => {
+      setSetupResult(data);
+      setCopied(false);
+    },
     onError: (err: unknown) => setError(extractError(err)),
   });
 
@@ -70,8 +74,6 @@ export default function EnterpriseSetupPage() {
     userEmail.trim() !== '' &&
     userFirstName.trim() !== '' &&
     userLastName.trim() !== '' &&
-    userPassword.trim() !== '' &&
-    userPasswordConfirm.trim() !== '' &&
     !mutation.isPending;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -79,12 +81,12 @@ export default function EnterpriseSetupPage() {
     if (!canSubmit) return;
     setError(null);
 
-    if (userPassword !== userPasswordConfirm) {
+    if ((userPassword.trim() || userPasswordConfirm.trim()) && userPassword !== userPasswordConfirm) {
       setError('Les mots de passe ne correspondent pas.');
       return;
     }
 
-    mutation.mutate({
+    const payload: EnterpriseSetupPayload = {
       enterprise_name: entName.trim(),
       enterprise_code: entCode.trim(),
       enterprise_currency: entCurrency.trim() || 'FCFA',
@@ -103,9 +105,12 @@ export default function EnterpriseSetupPage() {
       user_last_name: userLastName.trim(),
       user_phone: userPhone.trim(),
       user_role: userRole,
-      user_password: userPassword,
-      user_password_confirm: userPasswordConfirm,
-    });
+    };
+    if (userPassword.trim() || userPasswordConfirm.trim()) {
+      payload.user_password = userPassword;
+      payload.user_password_confirm = userPasswordConfirm;
+    }
+    mutation.mutate(payload);
   };
 
   const resetForm = () => {
@@ -113,20 +118,93 @@ export default function EnterpriseSetupPage() {
     setSubscriptionStart(''); setSubscriptionEnd('');
     setStoreName(''); setStoreCode(''); setStoreAddress(''); setStorePhone(''); setStoreEmail('');
     setUserEmail(''); setUserFirstName(''); setUserLastName(''); setUserPhone('');
-    setUserRole('MANAGER'); setUserPassword(''); setUserPasswordConfirm('');
-    setError(null); setSuccess(false);
+    setUserRole('ADMIN'); setUserPassword(''); setUserPasswordConfirm('');
+    setError(null); setSetupResult(null); setCopied(false);
     mutation.reset();
   };
 
-  if (success) {
+  const copyCredentials = async () => {
+    if (!setupResult) return;
+    const { credentials } = setupResult;
+    const text = [
+      `Entreprise: ${setupResult.enterprise.name}`,
+      `Boutique: ${setupResult.store.name}`,
+      `Email: ${credentials.email}`,
+      `Mot de passe: ${credentials.password}`,
+      `Connexion: ${credentials.login_url}`,
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      setError("Impossible de copier automatiquement les identifiants.");
+    }
+  };
+
+  if (setupResult) {
+    const { credentials } = setupResult;
+    const mailSubject = encodeURIComponent('Vos acces SimaStock');
+    const mailBody = encodeURIComponent(
+      [
+        `Bonjour ${setupResult.admin_user.first_name || ''} ${setupResult.admin_user.last_name || ''},`,
+        '',
+        'Votre compte administrateur est pret.',
+        `Entreprise: ${setupResult.enterprise.name}`,
+        `Boutique: ${setupResult.store.name}`,
+        `Email: ${credentials.email}`,
+        `Mot de passe: ${credentials.password}`,
+        `Connexion: ${credentials.login_url}`,
+      ].join('\n'),
+    );
+    const manualMailto = `mailto:${encodeURIComponent(credentials.email)}?subject=${mailSubject}&body=${mailBody}`;
+
     return (
       <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <CheckCircle2 size={48} className="mx-auto text-green-500 mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Entreprise creee avec succes</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            L'entreprise, la boutique et l'utilisateur administrateur ont ete crees.
-          </p>
+        <div className="bg-white rounded-xl border border-gray-200 p-8">
+          <div className="text-center mb-6">
+            <CheckCircle2 size={48} className="mx-auto text-green-500 mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Entreprise creee avec succes</h2>
+            <p className="text-sm text-gray-500">
+              L'entreprise, la boutique et l'utilisateur administrateur ont ete crees.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-6">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Identifiants de connexion</h3>
+            <div className="text-sm text-gray-700 space-y-1">
+              <div><span className="font-medium">Email:</span> {credentials.email}</div>
+              <div><span className="font-medium">Mot de passe:</span> {credentials.password}</div>
+              <div><span className="font-medium">Connexion:</span> {credentials.login_url}</div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              {credentials.password_generated
+                ? "Mot de passe genere automatiquement."
+                : "Mot de passe saisi manuellement."}
+            </p>
+            <p className={`text-xs mt-1 ${credentials.email_sent ? 'text-emerald-600' : 'text-amber-700'}`}>
+              {credentials.email_sent
+                ? "Les identifiants ont ete envoyes par email."
+                : "L'envoi email a echoue. Utilisez Copier ou Envoyer ci-dessous."}
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={copyCredentials}
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-white"
+              >
+                <Copy size={14} />
+                {copied ? 'Copie' : 'Copier'}
+              </button>
+              <a
+                href={manualMailto}
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-white"
+              >
+                <Mail size={14} />
+                Envoyer
+              </a>
+            </div>
+          </div>
+
           <div className="flex items-center justify-center gap-3">
             <button
               onClick={resetForm}
@@ -297,15 +375,20 @@ export default function EnterpriseSetupPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mot de passe <span className="text-red-500">*</span>
+                Mot de passe
               </label>
-              <input type="password" value={userPassword} onChange={(e) => setUserPassword(e.target.value)} className={inputClass} placeholder="Min. 8 caracteres" required />
+              <input type="password" value={userPassword} onChange={(e) => setUserPassword(e.target.value)} className={inputClass} placeholder="Laisser vide pour generation automatique" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Confirmer <span className="text-red-500">*</span>
+                Confirmer
               </label>
-              <input type="password" value={userPasswordConfirm} onChange={(e) => setUserPasswordConfirm(e.target.value)} className={inputClass} placeholder="Confirmer le mot de passe" required />
+              <input type="password" value={userPasswordConfirm} onChange={(e) => setUserPasswordConfirm(e.target.value)} className={inputClass} placeholder="Confirmer le mot de passe" />
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-500">
+                Si le mot de passe est vide, il sera genere automatiquement et envoye a l'email du compte.
+              </p>
             </div>
           </div>
         </div>

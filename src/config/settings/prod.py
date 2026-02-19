@@ -64,7 +64,12 @@ if any("localhost" in origin or "127.0.0.1" in origin for origin in CORS_ALLOWED
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")  # noqa: F405
 EMAIL_PORT = env.int("EMAIL_PORT", default=587)  # noqa: F405
-EMAIL_USE_TLS = True
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)  # noqa: F405
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)  # noqa: F405
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise ImproperlyConfigured(
+        "EMAIL_USE_TLS et EMAIL_USE_SSL ne peuvent pas etre actifs en meme temps.",
+    )
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")  # noqa: F405
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")  # noqa: F405
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER or "webmaster@localhost")  # noqa: F405

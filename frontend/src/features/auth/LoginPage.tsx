@@ -1,6 +1,6 @@
 /** Login page with email + password form. */
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/auth/auth-store';
 
 export default function LoginPage() {
@@ -76,6 +76,11 @@ export default function LoginPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
               placeholder="Votre mot de passe"
             />
+            <div className="mt-2 text-right">
+              <Link to="/forgot-password" className="text-xs text-primary hover:underline">
+                Mot de passe oublie ?
+              </Link>
+            </div>
           </div>
 
           <button
