@@ -1,0 +1,50 @@
+{% extends "base/base.html" %}
+{% load boutique_tags %}
+
+{% block title %}Fermer le shift{% endblock %}
+
+{% block breadcrumb %}
+<div class="max-w-lg mx-auto mt-8 mb-4">
+    <h1 class="text-2xl font-bold text-gray-900">Fermer le shift</h1>
+    <p class="text-sm text-gray-500 mt-1">Ouvert a {{ shift.opened_at|date:"H:i" }} par {{ shift.cashier.get_full_name }}</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="bg-gray-50 rounded-lg p-4 mb-6 space-y-2">
+            <div class="flex justify-between text-sm"><span class="text-gray-500">Fond de caisse</span><span class="font-medium">{{ shift.opening_float|currency }}</span></div>
+            <div class="flex justify-between text-sm"><span class="text-gray-500">Ventes du shift</span><span class="font-medium">{{ totals.total_sales|default:shift.total_sales|currency }}</span></div>
+            <div class="flex justify-between text-sm"><span class="text-gray-500">Paiements cash</span><span class="font-medium">{{ totals.total_cash_payments|default:shift.total_cash_payments|currency }}</span></div>
+            <div class="flex justify-between text-sm"><span class="text-gray-500">Paiements mobile</span><span class="font-medium">{{ totals.total_mobile_payments|default:shift.total_mobile_payments|currency }}</span></div>
+            <div class="flex justify-between text-sm"><span class="text-gray-500">Paiements banque</span><span class="font-medium">{{ totals.total_bank_payments|default:shift.total_bank_payments|currency }}</span></div>
+            <hr>
+            <div class="flex justify-between font-bold"><span>Especes attendues</span><span class="text-primary-700">{{ totals.expected_cash|default:shift.expected_cash|currency }}</span></div>
+        </div>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div>
+                <label for="{{ form.closing_cash.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Especes comptees en caisse</label>
+                {{ form.closing_cash }}
+                {% if form.closing_cash.errors %}<p class="mt-1 text-xs text-red-600">{{ form.closing_cash.errors|join:", " }}</p>{% endif %}
+            </div>
+            <div>
+                <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                {{ form.notes }}
+                {% if form.notes.errors %}<p class="mt-1 text-xs text-red-600">{{ form.notes.errors|join:", " }}</p>{% endif %}
+            </div>
+
+            <button type="submit" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors">
+                Fermer le shift
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

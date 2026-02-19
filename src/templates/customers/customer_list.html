@@ -1,0 +1,79 @@
+{% extends "base/base.html" %}
+{% load boutique_tags humanize %}
+
+{% block title %}Clients{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Clients</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ page_obj.paginator.count }} client(s)</p>
+    </div>
+    <a href="{% url 'customers:customer-create' %}" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+        <i class="fas fa-plus mr-2"></i>Nouveau client
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+    <form method="get" class="flex gap-3">
+        <input type="text" name="search" value="{{ request.GET.search }}" placeholder="Nom, téléphone, entreprise..."
+               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+        <button type="submit" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
+            <i class="fas fa-search mr-1"></i>Rechercher
+        </button>
+    </form>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead>
+            <tr class="bg-gray-50 border-b border-gray-100">
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Client</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Téléphone</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Entreprise</th>
+                <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Encours crédit</th>
+                <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for customer in page_obj %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-5 py-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center">
+                            <span class="text-sm font-bold text-primary-700">{{ customer.first_name|first }}{{ customer.last_name|first }}</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">{{ customer.full_name }}</p>
+                            <p class="text-xs text-gray-500">{{ customer.email }}</p>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-5 py-3 text-sm text-gray-600">{{ customer.phone }}</td>
+                <td class="px-5 py-3 text-sm text-gray-600">{{ customer.company|default:"-" }}</td>
+                <td class="px-5 py-3 text-sm text-right">
+                    {% if customer.credit_balance %}
+                    <span class="font-medium {% if customer.credit_balance > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                        {{ customer.credit_balance|currency }}
+                    </span>
+                    {% else %}
+                    <span class="text-gray-400">—</span>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-3 text-right">
+                    <a href="{% url 'customers:customer-detail' customer.id %}" class="px-3 py-1 text-sm text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded-lg">
+                        Détails
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="px-5 py-12 text-center text-gray-500">Aucun client trouvé</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

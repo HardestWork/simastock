@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 18mm 12mm 12mm;
+            @top-center {
+                content: element(simple-running-header);
+            }
+        }
+        @page:first {
+            margin-top: 12mm;
+            @top-center {
+                content: none;
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10pt;
+            color: #1f2a37;
+        }
+        .avoid-break {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .running-header {
+            position: running(simple-running-header);
+            font-size: 8pt;
+            color: #4b5563;
+            border-bottom: 1px solid #d1d5db;
+            padding: 4px 0;
+        }
+        .running-header .left,
+        .running-header .right {
+            display: inline-block;
+            width: 49%;
+            vertical-align: top;
+        }
+        .running-header .right { text-align: right; }
+
+        .header {
+            display: table;
+            width: 100%;
+            margin-bottom: 14px;
+            border-bottom: 2px solid {{ invoice_config.primary_color|default:"#0F4C9A" }};
+            padding-bottom: 10px;
+        }
+        .header-left,
+        .header-right {
+            display: table-cell;
+            vertical-align: top;
+        }
+        .header-right { text-align: right; width: 42%; }
+        .logo {
+            margin-bottom: 6px;
+        }
+        .logo img {
+            height: 68px;
+            width: auto;
+            max-width: 240px;
+        }
+        .company-name {
+            font-size: 20pt;
+            font-weight: 700;
+            color: {{ invoice_config.primary_color|default:"#0F4C9A" }};
+            margin: 0 0 4px;
+        }
+        .small-info {
+            margin: 2px 0;
+            font-size: 8.6pt;
+            color: #4b5563;
+        }
+        .doc-title {
+            font-size: 24pt;
+            font-weight: 800;
+            color: {{ invoice_config.primary_color|default:"#0F4C9A" }};
+            margin: 0 0 8px;
+            text-transform: uppercase;
+        }
+        .meta-line {
+            margin: 2px 0;
+            font-size: 9pt;
+        }
+        .meta-line .label {
+            display: inline-block;
+            min-width: 66px;
+            color: #4b5563;
+            font-weight: 700;
+        }
+        .meta-line .value {
+            color: #111827;
+            font-weight: 700;
+        }
+
+        .section-title {
+            margin: 12px 0 6px;
+            font-size: 10.5pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: {{ invoice_config.primary_color|default:"#0F4C9A" }};
+            border-bottom: 1px solid #d1d5db;
+            padding-bottom: 3px;
+        }
+        .client-box {
+            border: 1px solid #e5e7eb;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+            background: #fbfdff;
+        }
+        .client-row {
+            margin: 3px 0;
+            font-size: 9pt;
+        }
+        .client-label {
+            display: inline-block;
+            min-width: 88px;
+            color: #4b5563;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        thead { display: table-header-group; }
+        thead th {
+            background: #f3f4f6;
+            color: #111827;
+            font-size: 8.8pt;
+            text-transform: uppercase;
+            border: 1px solid #d1d5db;
+            padding: 7px 8px;
+            text-align: left;
+        }
+        tbody tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        tbody td {
+            border: 1px solid #e5e7eb;
+            padding: 7px 8px;
+            font-size: 9pt;
+        }
+        .center { text-align: center; }
+        .right { text-align: right; }
+
+        .totals {
+            width: 44%;
+            margin-left: auto;
+            margin-top: 10px;
+            border: 1px solid #d1d5db;
+            padding: 8px 10px;
+            background: #fafafa;
+        }
+        .total-row {
+            display: table;
+            width: 100%;
+            margin: 3px 0;
+            font-size: 9.5pt;
+        }
+        .total-label,
+        .total-value {
+            display: table-cell;
+            vertical-align: top;
+        }
+        .total-value { text-align: right; font-weight: 700; }
+        .grand {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid #d1d5db;
+            font-size: 12pt;
+            font-weight: 800;
+            color: {{ invoice_config.primary_color|default:"#0F4C9A" }};
+        }
+
+        .notes-wrap {
+            margin-top: 12px;
+            border: 1px solid #e5e7eb;
+            padding: 8px 10px;
+            font-size: 8.8pt;
+            color: #374151;
+            white-space: pre-line;
+        }
+        .signature {
+            margin-top: 12px;
+            width: 42%;
+            margin-left: auto;
+            text-align: center;
+            color: #334155;
+        }
+        .signature .line {
+            border-top: 1px solid #d1d5db;
+            margin-bottom: 7px;
+        }
+        .signature .label {
+            font-size: 9pt;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .signature .name {
+            font-size: 14pt;
+            font-style: italic;
+            font-weight: 700;
+            color: {{ invoice_config.primary_color|default:"#0F4C9A" }};
+        }
+        .footer {
+            margin-top: 10px;
+            padding-top: 6px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 8pt;
+            color: #6b7280;
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body>
+    <div class="running-header">
+        <div class="left">{{ invoice_config.business_name }}</div>
+        <div class="right">{{ document.title }} - {{ document.number }}</div>
+    </div>
+
+    <div class="header avoid-break">
+        <div class="header-left">
+            {% if invoice_config.logo_uri %}
+            <div class="logo">
+                <img src="{{ invoice_config.logo_uri }}" alt="Logo">
+            </div>
+            {% endif %}
+            <p class="company-name">{{ invoice_config.business_name }}</p>
+            {% if store.address %}<p class="small-info">{{ store.address }}</p>{% endif %}
+            <p class="small-info">
+                {% if store.phone %}{{ store.phone }}{% endif %}
+                {% if store.phone and store.email %} - {% endif %}
+                {% if store.email %}{{ store.email }}{% endif %}
+            </p>
+            {% if invoice_config.website %}<p class="small-info">{{ invoice_config.website }}</p>{% endif %}
+        </div>
+        <div class="header-right">
+            <p class="doc-title">{{ document.title }}</p>
+            <p class="meta-line"><span class="label">Numero:</span> <span class="value">{{ document.number }}</span></p>
+            <p class="meta-line"><span class="label">Date:</span> <span class="value">{{ sale.created_at|date:"d/m/Y" }}</span></p>
+            {% if document.valid_until %}
+            <p class="meta-line"><span class="label">Validite:</span> <span class="value">{{ invoice_config.offer_validity_days }} jours</span></p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="section-title">Client</div>
+    <div class="client-box avoid-break">
+        <p class="client-row"><span class="client-label">Nom:</span> {% if sale.customer %}{{ sale.customer.full_name }}{% else %}Client anonyme{% endif %}</p>
+        <p class="client-row"><span class="client-label">Telephone:</span> {% if sale.customer and sale.customer.phone %}{{ sale.customer.phone }}{% endif %}</p>
+        <p class="client-row"><span class="client-label">Email:</span> {% if sale.customer and sale.customer.email %}{{ sale.customer.email }}{% endif %}</p>
+        <p class="client-row"><span class="client-label">Adresse:</span> {% if sale.customer and sale.customer.address %}{{ sale.customer.address }}{% endif %}</p>
+    </div>
+
+    <div class="section-title">Produits / Services</div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 6%">N</th>
+                <th style="width: 46%">Designation</th>
+                <th class="center" style="width: 10%">Qte</th>
+                <th class="right" style="width: 18%">Prix Unit.</th>
+                <th class="right" style="width: 20%">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in sale.items.all %}
+            <tr>
+                <td class="center">{{ forloop.counter }}</td>
+                <td>{{ item.product_name }}</td>
+                <td class="center">{{ item.quantity }}</td>
+                <td class="right">{{ item.unit_price|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+                <td class="right"><strong>{{ item.line_total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals avoid-break">
+        <div class="total-row">
+            <div class="total-label">Sous-total:</div>
+            <div class="total-value">{{ sale.subtotal|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
+        </div>
+        {% if invoice_config.vat_enabled or sale.tax_amount > 0 %}
+        <div class="total-row">
+            <div class="total-label">
+                {% if invoice_config.vat_enabled %}
+                TVA ({{ invoice_config.vat_rate }}%):
+                {% else %}
+                TVA:
+                {% endif %}
+            </div>
+            <div class="total-value">{{ sale.tax_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
+        </div>
+        {% endif %}
+        {% if sale.discount_amount > 0 %}
+        <div class="total-row">
+            <div class="total-label">Remise:</div>
+            <div class="total-value">-{{ sale.discount_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
+        </div>
+        {% endif %}
+        <div class="total-row grand">
+            <div class="total-label">TOTAL TTC:</div>
+            <div class="total-value">{{ sale.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
+        </div>
+    </div>
+
+    {% if invoice_config.terms or sale.notes %}
+    <div class="notes-wrap avoid-break">
+        {% if invoice_config.terms %}<strong>Conditions:</strong><br>{{ invoice_config.terms }}<br>{% endif %}
+        {% if sale.notes %}<strong>Observations:</strong><br>{{ sale.notes }}{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="signature avoid-break">
+        <div class="line"></div>
+        <div class="label">Signature & Cachet</div>
+        <div class="name">{{ invoice_config.business_name }}</div>
+    </div>
+
+    <div class="footer avoid-break">
+        {% if invoice_config.footer %}{{ invoice_config.footer }}<br>{% endif %}
+        Genere le {{ now|date:"d/m/Y a H:i" }}
+    </div>
+</body>
+</html>

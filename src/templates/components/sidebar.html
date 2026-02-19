@@ -1,0 +1,218 @@
+{% load static boutique_tags account_tags %}
+<!-- Mobile overlay -->
+<div x-show="mobileMenuOpen" x-cloak @click="mobileMenuOpen = false"
+     class="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"></div>
+
+<!-- Sidebar -->
+<aside class="fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar text-white transition-all duration-300"
+       :class="[
+           sidebarOpen ? 'w-64' : 'w-20',
+           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+       ]">
+    <!-- Logo -->
+    <div class="flex items-center h-16 px-4 border-b border-gray-700">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-store text-white text-lg"></i>
+            </div>
+            <span x-show="sidebarOpen" x-cloak class="font-bold text-lg whitespace-nowrap">Boutique Pro</span>
+        </div>
+    </div>
+
+    <!-- Store selector -->
+    {% if user_stores|length > 1 %}
+    <div class="px-3 py-3 border-b border-gray-700" x-show="sidebarOpen" x-cloak>
+        <form method="post" action="{% url 'stores:switch' %}">
+            {% csrf_token %}
+            <select name="store_id" onchange="this.form.submit()"
+                    class="w-full bg-sidebar-hover text-white text-sm rounded-lg px-3 py-2 border border-gray-600 focus:border-primary-500 focus:outline-none">
+                {% for s in user_stores %}
+                <option value="{{ s.id }}" {% if s.id == current_store.id %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Navigation -->
+    <nav class="flex-1 overflow-y-auto scrollbar-thin py-4 px-3 space-y-1">
+        <!-- Dashboard -->
+        <a href="{% url 'dashboard:index' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'dashboard:*' %}">
+            <i class="fas fa-chart-pie w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Tableau de bord</span>
+        </a>
+
+        <!-- POS / Ventes -->
+        {% if user|has_role:"SALES,MANAGER,ADMIN" and current_store|store_feature_enabled:"sales_pos" %}
+        <div class="pt-4 pb-1" x-show="sidebarOpen" x-cloak>
+            <span class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ventes</span>
+        </div>
+        <a href="{% url 'sales:sale-create' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'sales:sale-create' 'sales:sale-detail' 'sales:sale-edit' 'sales:sale-add-item' 'sales:sale-remove-item' 'sales:sale-update-qty' 'sales:sale-submit' 'sales:sale-cancel' 'sales:refund-create' 'sales:sale-receipt' 'sales:sale-invoice' 'sales:sale-ticket' %}">
+            <i class="fas fa-cart-plus w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Nouvelle vente</span>
+        </a>
+        <a href="{% url 'sales:my-sales' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'sales:my-sales' 'sales:sale-list' %}">
+            <i class="fas fa-receipt w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Mes ventes</span>
+        </a>
+        {% endif %}
+
+        <!-- Caisse -->
+        {% if user|has_role:"CASHIER,MANAGER,ADMIN" and current_store|store_feature_enabled:"cashier_operations" %}
+        <div class="pt-4 pb-1" x-show="sidebarOpen" x-cloak>
+            <span class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Caisse</span>
+        </div>
+        <a href="{% url 'cashier:dashboard' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'cashier:dashboard' %}">
+            <i class="fas fa-cash-register w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Caisse</span>
+        </a>
+        <a href="{% url 'cashier:pending-sales' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'cashier:pending-sales' 'cashier:process-payment' %}">
+            <i class="fas fa-clock w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>En attente</span>
+        </a>
+        <a href="{% url 'cashier:shift-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'cashier:shift-open' 'cashier:shift-close' 'cashier:shift-list' 'cashier:shift-detail' 'cashier:shift-report-pdf' %}">
+            <i class="fas fa-history w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Shifts</span>
+        </a>
+        {% endif %}
+
+        <!-- Catalogue -->
+        {% if user|has_role:"MANAGER,ADMIN,STOCKER" %}
+        <div class="pt-4 pb-1" x-show="sidebarOpen" x-cloak>
+            <span class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Catalogue</span>
+        </div>
+        <a href="{% url 'catalog:product-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'catalog:product-*' %}">
+            <i class="fas fa-boxes-stacked w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Produits</span>
+        </a>
+        <a href="{% url 'catalog:category-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'catalog:category-*' 'catalog:brand-*' %}">
+            <i class="fas fa-tags w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Categories</span>
+        </a>
+        {% endif %}
+
+        <!-- Stock -->
+        {% if user|has_role:"MANAGER,ADMIN,STOCKER" and current_store|store_feature_enabled:"stock_management" %}
+        <div class="pt-4 pb-1" x-show="sidebarOpen" x-cloak>
+            <span class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Stock</span>
+        </div>
+        <a href="{% url 'stock:stock-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'stock:stock-list' 'stock:stock-adjust' %}">
+            <i class="fas fa-warehouse w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Niveaux stock</span>
+        </a>
+        <a href="{% url 'stock:movement-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'stock:movement-list' %}">
+            <i class="fas fa-exchange-alt w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Mouvements</span>
+        </a>
+        {% if current_store|store_feature_enabled:"stock_entries" %}
+        <a href="{% url 'stock:stock-entry' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'stock:stock-entry' %}">
+            <i class="fas fa-arrow-down w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Entrees</span>
+        </a>
+        {% endif %}
+        <a href="{% url 'stock:count-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'stock:count-*' %}">
+            <i class="fas fa-clipboard-check w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Inventaires</span>
+        </a>
+
+        {% if current_store|store_feature_enabled:"purchases_management" %}
+        <div class="pt-4 pb-1" x-show="sidebarOpen" x-cloak>
+            <span class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Achats</span>
+        </div>
+        <a href="{% url 'purchases:supplier-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'purchases:supplier-list' %}">
+            <i class="fas fa-truck w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Fournisseurs</span>
+        </a>
+        <a href="{% url 'purchases:purchase-order-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'purchases:purchase-order-list' %}">
+            <i class="fas fa-file-invoice w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Bons de commande</span>
+        </a>
+        <a href="{% url 'purchases:receipt-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'purchases:receipt-list' %}">
+            <i class="fas fa-box-open w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Receptions</span>
+        </a>
+        {% endif %}
+        {% endif %}
+
+        <!-- Clients & Credit -->
+        <div class="pt-4 pb-1" x-show="sidebarOpen" x-cloak>
+            <span class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Clients</span>
+        </div>
+        <a href="{% url 'customers:customer-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'customers:*' %}">
+            <i class="fas fa-users w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Clients</span>
+        </a>
+        {% if current_store|store_feature_enabled:"credit_management" %}
+        <a href="{% url 'credits:account-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'credits:*' %}">
+            <i class="fas fa-credit-card w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Credit</span>
+        </a>
+        {% endif %}
+
+        <!-- Rapports -->
+        {% if user|has_role:"MANAGER,ADMIN" and current_store|store_feature_enabled:"reports_center" %}
+        <div class="pt-4 pb-1" x-show="sidebarOpen" x-cloak>
+            <span class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rapports</span>
+        </div>
+        <a href="{% url 'reports:reports-index' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'reports:*' %}">
+            <i class="fas fa-chart-bar w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Rapports</span>
+        </a>
+        {% if current_store|store_feature_enabled:"enabled" and current_store|store_feature_enabled:"dashboard_strategic" %}
+        <a href="{% url 'analytics:strategic-dashboard' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'analytics:*' %}">
+            <i class="fas fa-brain w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Dashboard DG</span>
+        </a>
+        {% endif %}
+        {% endif %}
+
+        <!-- Admin -->
+        {% if user|has_role:"ADMIN" %}
+        <div class="pt-4 pb-1" x-show="sidebarOpen" x-cloak>
+            <span class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Administration</span>
+        </div>
+        <a href="{% url 'accounts:user-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'accounts:user-*' %}">
+            <i class="fas fa-user-shield w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Utilisateurs</span>
+        </a>
+        <a href="{% url 'stores:enterprise-detail' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'stores:enterprise-*' %}">
+            <i class="fas fa-building w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Entreprise</span>
+        </a>
+        <a href="{% url 'stores:store-list' %}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-sidebar-hover {% nav_active 'stores:store-*' 'stores:switch' %}">
+            <i class="fas fa-store w-5 text-center"></i>
+            <span x-show="sidebarOpen" x-cloak>Boutiques</span>
+        </a>
+        {% endif %}
+    </nav>
+
+    <!-- Collapse button -->
+    <div class="hidden lg:flex items-center justify-center p-3 border-t border-gray-700">
+        <button @click="sidebarOpen = !sidebarOpen"
+                class="w-8 h-8 rounded-lg bg-sidebar-hover flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+            <i class="fas" :class="sidebarOpen ? 'fa-chevron-left' : 'fa-chevron-right'"></i>
+        </button>
+    </div>
+</aside>

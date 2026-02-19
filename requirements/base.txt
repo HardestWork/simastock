@@ -1,0 +1,29 @@
+# Core
+Django>=5.1,<5.2
+psycopg2-binary>=2.9
+django-environ>=0.11
+
+# API
+djangorestframework>=3.15
+djangorestframework-simplejwt>=5.3
+django-filter>=24.1
+django-cors-headers>=4.3
+django-allauth>=0.63
+cryptography>=42.0
+requests>=2.32
+
+# Async tasks
+celery>=5.4
+redis>=5.0
+django-celery-beat>=2.6
+django-celery-results>=2.5
+
+# PDF
+WeasyPrint>=62.0
+
+# Excel
+openpyxl>=3.1
+
+# Utils
+Pillow>=10.2
+python-dateutil>=2.9

@@ -1,0 +1,13 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block content %}
+<div style="margin: 0 0 16px 0;">
+  <a href="{% url 'admin:system-overview' %}"
+     style="display:inline-block;padding:10px 14px;background:#1d4ed8;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+    Vue globale administrateur
+  </a>
+</div>
+{{ block.super }}
+{% endblock %}
+

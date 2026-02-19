@@ -1,0 +1,8 @@
+Bonjour {{ user.get_full_name|default:user.email }},
+
+Merci d'avoir cree un compte.
+Veuillez confirmer votre adresse e-mail en cliquant sur ce lien :
+
+{{ verification_url }}
+
+Si vous n'etes pas a l'origine de cette demande, ignorez cet e-mail.

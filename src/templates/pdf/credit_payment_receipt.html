@@ -1,0 +1,153 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A4; margin: 20mm; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #333; line-height: 1.5; }
+
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #2563eb; }
+        .company-info h1 { font-size: 24pt; color: #2563eb; margin-bottom: 5px; }
+        .company-info p { font-size: 9pt; color: #666; }
+        .invoice-meta { text-align: right; }
+        .invoice-meta h2 { font-size: 20pt; color: #333; margin-bottom: 10px; }
+        .invoice-meta .label { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .invoice-meta .value { font-size: 11pt; font-weight: bold; color: #333; }
+
+        .parties { display: flex; justify-content: space-between; margin-bottom: 30px; }
+        .party { width: 48%; }
+        .party h3 { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .party p { font-size: 10pt; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        thead th { background: #f8fafc; padding: 10px 12px; text-align: left; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.5px; color: #666; border-bottom: 2px solid #e2e8f0; }
+        thead th.right { text-align: right; }
+        tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 10pt; }
+        tbody td.right { text-align: right; }
+        tbody tr:nth-child(even) { background: #fafbfc; }
+
+        .totals { width: 340px; margin-left: auto; }
+        .totals .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 10pt; }
+        .totals .row.total { border-top: 2px solid #333; padding-top: 10px; margin-top: 5px; font-size: 14pt; font-weight: bold; color: #2563eb; }
+        .totals .row .label { color: #666; }
+
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+        .footer p { font-size: 8pt; color: #999; text-align: center; white-space: pre-line; }
+
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 9pt; font-weight: bold; background: #dcfce7; color: #166534; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-info">
+            {% if invoice_config.logo_uri %}
+            <p style="margin-bottom: 8px;">
+                <img src="{{ invoice_config.logo_uri }}" alt="Logo" style="height:72px; width:auto; max-width:220px;">
+            </p>
+            {% endif %}
+            <h1>{{ invoice_config.business_name }}</h1>
+            {% if store.address %}<p>{{ store.address }}</p>{% endif %}
+            <p>
+                {% if store.phone %}Tel: {{ store.phone }}{% endif %}
+                {% if store.phone and store.email %} · {% endif %}
+                {% if store.email %}{{ store.email }}{% endif %}
+                {% if invoice_config.website %} · {{ invoice_config.website }}{% endif %}
+            </p>
+            {% if invoice_config.registration_number %}<p>RCCM: {{ invoice_config.registration_number }}</p>{% endif %}
+            {% if invoice_config.tax_id %}<p>NIF: {{ invoice_config.tax_id }}</p>{% endif %}
+        </div>
+        <div class="invoice-meta">
+            <h2>{{ invoice_config.document_title|default:"FACTURE" }}</h2>
+            <div><span class="label">No</span> <span class="value">CR-{{ entry.pk|slice:":8"|upper }}</span></div>
+            <div><span class="label">Date</span> <span class="value">{{ entry.created_at|date:"d/m/Y" }}</span></div>
+            <div style="margin-top: 8px;"><span class="status-badge">REMBOURSEE</span></div>
+        </div>
+    </div>
+
+    <div class="parties">
+        <div class="party">
+            <h3>Facture a</h3>
+            <p><strong>{{ account.customer.full_name }}</strong></p>
+            {% if account.customer.phone %}<p>{{ account.customer.phone }}</p>{% endif %}
+            {% if account.customer.email %}<p>{{ account.customer.email }}</p>{% endif %}
+        </div>
+        <div class="party">
+            <h3>Details</h3>
+            <p>Compte credit: {{ account.id|slice:":8"|upper }}</p>
+            <p>Traite par: {{ entry.created_by.get_full_name|default:"-" }}</p>
+            {% if entry.sale and entry.sale.invoice_number %}
+            <p>Vente liee: {{ entry.sale.invoice_number }}</p>
+            {% endif %}
+            <p>Reference: {% if entry.reference %}{{ entry.reference }}{% else %}-{% endif %}</p>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 10%">#</th>
+                <th style="width: 60%">Designation</th>
+                <th class="right" style="width: 30%">Montant</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td><strong>Remboursement de credit client</strong></td>
+                <td class="right"><strong>{{ payment_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <div class="row">
+            <span class="label">Solde avant</span>
+            <span>{{ balance_before|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+        </div>
+        <div class="row">
+            <span class="label">Montant rembourse</span>
+            <span>-{{ payment_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+        </div>
+        <div class="row total">
+            <span>NOUVEAU SOLDE</span>
+            <span>{{ entry.balance_after|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+        </div>
+    </div>
+
+    <table style="margin-top: 28px;">
+        <thead>
+            <tr><th colspan="5">Historique des remboursements</th></tr>
+            <tr>
+                <th style="width: 20%;">Date</th>
+                <th style="width: 20%;">Document</th>
+                <th style="width: 25%;">Reference</th>
+                <th class="right" style="width: 15%;">Montant</th>
+                <th class="right" style="width: 20%;">Solde apres</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for history in reimbursement_history %}
+            <tr{% if history.is_current %} style="background:#eff6ff;"{% endif %}>
+                <td>{{ history.entry.created_at|date:"d/m/Y H:i" }}</td>
+                <td>CR-{{ history.entry.pk|slice:":8"|upper }}</td>
+                <td>{% if history.entry.reference %}{{ history.entry.reference }}{% else %}-{% endif %}</td>
+                <td class="right">{{ history.amount_paid|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+                <td class="right">{{ history.entry.balance_after|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">Aucun remboursement enregistre.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        {% if invoice_config.footer %}
+        <p>{{ invoice_config.footer }}</p>
+        {% else %}
+        <p>{{ invoice_config.business_name }}{% if store.address %} · {{ store.address }}{% endif %}</p>
+        {% endif %}
+        <p>Facture generee le {{ now|date:"d/m/Y a H:i" }}</p>
+    </div>
+</body>
+</html>

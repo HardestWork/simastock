@@ -1,0 +1,69 @@
+{% extends "base/base.html" %}
+{% load boutique_tags humanize %}
+
+{% block title %}Produits - Catalogue{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Produits</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ page_obj.paginator.count }} produit(s) au total</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{% url 'catalog:product-import' %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+            <i class="fas fa-file-import mr-2"></i>Importer
+        </a>
+        <a href="{% url 'catalog:product-export' %}?{{ request.GET.urlencode }}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+            <i class="fas fa-file-export mr-2"></i>Exporter
+        </a>
+        <a href="{% url 'catalog:product-create' %}" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+            <i class="fas fa-plus mr-2"></i>Nouveau produit
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+    <form id="product-filter-form"
+          method="get"
+          hx-get="{% url 'catalog:product-list' %}"
+          hx-target="#product-results"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          hx-trigger="submit, input changed delay:350ms from:input[name='search'], change from:select[name='category'], change from:select[name='brand']"
+          class="flex flex-wrap gap-3 items-end">
+        <div class="flex-1 min-w-[200px]">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Recherche</label>
+            <input type="text" name="search" value="{{ request.GET.search }}"
+                   placeholder="Nom, SKU, code barre..."
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+        </div>
+        <div class="w-48">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Categorie</label>
+            <select name="category" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <option value="">Toutes</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="w-48">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Marque</label>
+            <select name="brand" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <option value="">Toutes</option>
+                {% for b in brands %}
+                <option value="{{ b.id }}" {% if request.GET.brand == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
+            <i class="fas fa-filter mr-1"></i>Filtrer
+        </button>
+    </form>
+</div>
+
+<div id="product-results">
+    {% include "catalog/partials/product_table.html" %}
+</div>
+{% endblock %}

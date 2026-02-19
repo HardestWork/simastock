@@ -1,0 +1,159 @@
+{% extends "base/base.html" %}
+{% load boutique_tags humanize %}
+
+{% block title %}Rapports{% endblock %}
+
+{% block breadcrumb %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Rapports</h1>
+    <p class="text-sm text-gray-500 mt-1">Analyse et exports - {{ current_store.name }}</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+    <form method="get" class="flex flex-wrap gap-4 items-end">
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Date debut</label>
+            <input type="date" name="date_from" value="{{ request.GET.date_from|default:date_from }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Date fin</label>
+            <input type="date" name="date_to" value="{{ request.GET.date_to|default:date_to }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+            Appliquer
+        </button>
+    </form>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-chart-line text-blue-600 text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-900">Rapport ventes</h3>
+                <p class="text-xs text-gray-500">CA, marges, top produits</p>
+            </div>
+        </div>
+        <div class="space-y-2 mb-4">
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-500">CA brut</span>
+                <span class="font-bold">{{ kpis.today_sales|default:0|currency }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-500">CA net</span>
+                <span class="font-bold">{{ kpis.net_sales|default:0|currency }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-500">Nb ventes</span>
+                <span class="font-bold">{{ kpis.today_orders|default:0 }}</span>
+            </div>
+        </div>
+        <a href="{% url 'reports:sales-report' %}?date_from={{ date_from }}&date_to={{ date_to }}" class="block text-center py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100">
+            Voir le detail
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-warehouse text-green-600 text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-900">Rapport stock</h3>
+                <p class="text-xs text-gray-500">Niveaux, ruptures, rotation</p>
+            </div>
+        </div>
+        <div class="space-y-2 mb-4">
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-500">Valeur stock</span>
+                <span class="font-bold">{{ kpis.stock_value|default:0|currency }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-500">Alerte stock faible</span>
+                <span class="font-bold text-red-600">{{ kpis.low_stock_count|default:0 }}</span>
+            </div>
+        </div>
+        <a href="{% url 'reports:stock-report' %}" class="block text-center py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100">
+            Voir le detail
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-cash-register text-purple-600 text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-900">Rapport caisse</h3>
+                <p class="text-xs text-gray-500">Sessions, encaissements, ecarts</p>
+            </div>
+        </div>
+        <a href="{% url 'reports:cashier-report' %}?date_from={{ date_from }}&date_to={{ date_to }}" class="block text-center py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-100">
+            Voir le detail
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-credit-card text-orange-600 text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-900">Rapport credit</h3>
+                <p class="text-xs text-gray-500">Encours, retards, DSO</p>
+            </div>
+        </div>
+        <div class="space-y-2 mb-4">
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-500">Dossiers en retard</span>
+                <span class="font-bold text-orange-600">{{ kpis.overdue_credits_count|default:0 }}</span>
+            </div>
+        </div>
+        <a href="{% url 'reports:credit-report' %}" class="block text-center py-2 bg-orange-50 text-orange-700 rounded-lg text-sm font-medium hover:bg-orange-100">
+            Voir le detail
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-file-export text-gray-600 text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-900">Exports rapides</h3>
+                <p class="text-xs text-gray-500">CSV et Excel</p>
+            </div>
+        </div>
+        <div class="space-y-2">
+            <a href="{% url 'reports:export' %}?report_type=sales&format=excel&date_from={{ date_from }}&date_to={{ date_to }}" class="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-sm hover:bg-gray-100">
+                <i class="fas fa-file-excel text-green-600"></i> Ventes (Excel)
+            </a>
+            <a href="{% url 'reports:export' %}?report_type=stock&format=excel" class="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-sm hover:bg-gray-100">
+                <i class="fas fa-file-excel text-green-600"></i> Stock (Excel)
+            </a>
+            <a href="{% url 'reports:export' %}?report_type=credit&format=csv" class="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-sm hover:bg-gray-100">
+                <i class="fas fa-file-csv text-blue-600"></i> Credit (CSV)
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-brain text-indigo-700 text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-900">Module intelligent</h3>
+                <p class="text-xs text-gray-500">ABC, reappro, credit, fraude, previsions</p>
+            </div>
+        </div>
+        <a href="{% url 'analytics:strategic-dashboard' %}" class="block text-center py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-100">
+            Ouvrir dashboard DG
+        </a>
+    </div>
+</div>
+{% endblock %}

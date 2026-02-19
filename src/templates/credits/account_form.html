@@ -1,0 +1,41 @@
+{% extends "base/base.html" %}
+
+{% block title %}{{ page_title|default:"Compte credit" }}{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">{{ page_title|default:"Compte credit" }}</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ current_store.name }}</p>
+    </div>
+    <a href="{% url 'credits:account-list' %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">Retour comptes</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    {% if selected_customer %}
+    <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
+        Client selectionne: <strong>{{ selected_customer.full_name }}</strong> ({{ selected_customer.phone }})
+    </div>
+    {% endif %}
+
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label for="{{ form.credit_limit.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Plafond de credit</label>
+            {{ form.credit_limit }}
+            {% if form.credit_limit.errors %}<p class="mt-1 text-xs text-red-600">{{ form.credit_limit.errors|join:", " }}</p>{% endif %}
+        </div>
+
+        {% if request.GET.customer %}
+        <input type="hidden" name="customer" value="{{ request.GET.customer }}">
+        {% endif %}
+
+        <div class="flex gap-2">
+            <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">{{ submit_label|default:"Enregistrer" }}</button>
+            <a href="{% url 'credits:account-list' %}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

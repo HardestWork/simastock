@@ -1,0 +1,116 @@
+{% load socialaccount %}
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creer un compte - Boutique Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .form-control {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+    </style>
+</head>
+<body class="h-full bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center">
+    <div class="w-full max-w-md mx-4">
+        <div class="text-center mb-8">
+            <div class="w-20 h-20 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-user-plus text-white text-3xl"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-white">Creer un compte</h1>
+            <p class="text-blue-200 mt-1">Email et mot de passe. Entreprise optionnelle.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-2xl p-8">
+            {% if form.errors %}
+            <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-sm text-red-800">
+                    <i class="fas fa-exclamation-circle mr-1"></i>
+                    Veuillez corriger les erreurs du formulaire.
+                </p>
+                {% if form.non_field_errors %}
+                <p class="mt-1 text-xs text-red-700">{{ form.non_field_errors|join:", " }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                {% if next_url %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
+
+                <div>
+                    <label for="{{ form.company_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Entreprise (optionnel)</label>
+                    {{ form.company_name }}
+                    {% if form.company_name.errors %}<p class="mt-1 text-xs text-red-600">{{ form.company_name.errors|join:", " }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.store_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Premiere boutique</label>
+                    {{ form.store_name }}
+                    {% if form.store_name.errors %}<p class="mt-1 text-xs text-red-600">{{ form.store_name.errors|join:", " }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    {{ form.email }}
+                    {% if form.email.errors %}<p class="mt-1 text-xs text-red-600">{{ form.email.errors|join:", " }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Mot de passe *</label>
+                    {{ form.password1 }}
+                    {% if form.password1.errors %}<p class="mt-1 text-xs text-red-600">{{ form.password1.errors|join:", " }}</p>{% endif %}
+                    {% if form.password1.help_text %}
+                    <p class="mt-1 text-xs text-gray-500">{{ form.password1.help_text|safe }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Confirmer *</label>
+                    {{ form.password2 }}
+                    {% if form.password2.errors %}<p class="mt-1 text-xs text-red-600">{{ form.password2.errors|join:", " }}</p>{% endif %}
+                </div>
+
+                <button type="submit"
+                        class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors focus:ring-4 focus:ring-blue-200">
+                    Creer mon compte
+                </button>
+            </form>
+
+            {% if google_auth_enabled %}
+            <div class="my-5 flex items-center gap-3">
+                <div class="h-px bg-gray-200 flex-1"></div>
+                <span class="text-xs uppercase tracking-wide text-gray-400">Ou</span>
+                <div class="h-px bg-gray-200 flex-1"></div>
+            </div>
+
+            <a href="{% provider_login_url 'google' process='signup' next=next_url %}"
+               class="w-full inline-flex items-center justify-center gap-3 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                <i class="fab fa-google"></i>
+                S'inscrire avec Google
+            </a>
+            {% endif %}
+
+            <p class="text-sm text-gray-600 mt-5 text-center">
+                Deja un compte ?
+                <a href="{% url 'accounts:login' %}" class="text-blue-600 hover:text-blue-700 font-medium">Se connecter</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

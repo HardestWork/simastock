@@ -1,0 +1,80 @@
+{% extends "base/base.html" %}
+{% load boutique_tags humanize %}
+
+{% block title %}Rapport credit{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Rapport des credits</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ current_store.name }}</p>
+    </div>
+    <a href="{% url 'reports:reports-index' %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+        Retour rapports
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+    <div class="flex flex-wrap gap-3">
+        <a href="{% url 'reports:export' %}?report_type=credit&format=excel" class="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg text-sm">
+            Export Excel
+        </a>
+        <a href="{% url 'reports:export' %}?report_type=credit&format=csv" class="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg text-sm">
+            Export CSV
+        </a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Encours total</p>
+        <p class="mt-1 text-2xl font-bold text-orange-700">{{ report.total_outstanding|default:0|currency }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Montant en retard</p>
+        <p class="mt-1 text-2xl font-bold text-red-700">{{ report.overdue_amount|default:0|currency }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Dossiers en retard</p>
+        <p class="mt-1 text-2xl font-bold text-gray-900">{{ report.overdue_count|default:0 }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">DSO moyen</p>
+        <p class="mt-1 text-2xl font-bold text-gray-900">{{ report.avg_dso|default:0 }} j</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-100">
+        <h3 class="font-semibold text-gray-900">Encours par client</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-100">
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Client</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Telephone</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Ventes credit</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Encours</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for row in report.by_customer %}
+                <tr>
+                    <td class="px-5 py-3 text-sm text-gray-800">{{ row.customer_name }} {{ row.customer_last }}</td>
+                    <td class="px-5 py-3 text-sm text-gray-600">{{ row.customer_phone|default:"-" }}</td>
+                    <td class="px-5 py-3 text-sm text-right text-gray-700">{{ row.nb_sales }}</td>
+                    <td class="px-5 py-3 text-sm text-right font-medium {% if row.outstanding > 0 %}text-red-700{% else %}text-green-700{% endif %}">
+                        {{ row.outstanding|currency }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="px-5 py-8 text-center text-gray-500">Aucun encours client.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

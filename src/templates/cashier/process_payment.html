@@ -1,0 +1,299 @@
+{% extends "base/base.html" %}
+{% load boutique_tags humanize l10n %}
+
+{% block title %}Encaissement - {{ sale.invoice_number }}{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Encaissement</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ sale.invoice_number }} - Vendeur: {{ sale.seller.get_full_name }}</p>
+    </div>
+    <a href="{% url 'cashier:pending-sales' %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+        <i class="fas fa-arrow-left mr-2"></i>Retour
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6" x-data="paymentProcessor()" x-init="init()">
+    <div class="space-y-4">
+        {% if sale.customer %}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
+                    <span class="font-bold text-primary-700">{{ sale.customer.first_name|first }}{{ sale.customer.last_name|first }}</span>
+                </div>
+                <div>
+                    <p class="font-medium text-gray-900">{{ sale.customer.full_name }}</p>
+                    <p class="text-sm text-gray-500">{{ sale.customer.phone }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div class="px-5 py-4 border-b border-gray-100">
+                <h3 class="font-semibold text-gray-900">Articles ({{ sale.items.count }})</h3>
+            </div>
+            <div class="divide-y divide-gray-50">
+                {% for item in sale.items.all %}
+                <div class="flex items-center justify-between px-5 py-3">
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">{{ item.product_name }}</p>
+                        <p class="text-xs text-gray-500">{{ item.unit_price|currency }} x {{ item.quantity }}</p>
+                    </div>
+                    <span class="text-sm font-bold">{{ item.line_total|currency }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="px-5 py-4 bg-gray-50 rounded-b-xl space-y-1">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Sous-total</span>
+                    <span>{{ sale.subtotal|currency }}</span>
+                </div>
+                {% if sale.discount_amount > 0 %}
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Remise</span>
+                    <span class="text-red-600">-{{ sale.discount_amount|currency }}</span>
+                </div>
+                {% endif %}
+                <hr class="my-1">
+                <div class="flex justify-between font-bold text-lg">
+                    <span>Total</span>
+                    <span class="text-primary-700">{{ sale.total|currency }}</span>
+                </div>
+                {% if sale.amount_paid > 0 %}
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Deja paye</span>
+                    <span>{{ sale.amount_paid|currency }}</span>
+                </div>
+                <div class="flex justify-between font-bold text-red-600">
+                    <span>Reste a payer</span>
+                    <span>{{ sale.amount_due|currency }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="space-y-4">
+        <div x-show="errorMessage" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-center justify-between">
+            <span x-text="errorMessage"></span>
+            <button type="button" @click="retryLast()" x-show="retryAvailable" class="px-3 py-1 rounded bg-red-600 text-white text-xs">Reessayer</button>
+        </div>
+        <div x-show="successMessage" x-cloak class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+            <span x-text="successMessage"></span>
+        </div>
+
+        <form method="post" @submit.prevent="submitPayment()">
+            {% csrf_token %}
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-credit-card mr-2 text-primary-600"></i>Paiement
+                </h3>
+
+                <template x-for="(line, index) in paymentLines" :key="index">
+                    <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Mode</label>
+                                <select x-model="line.method" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                    <option value="CASH">Especes</option>
+                                    <option value="MOBILE_MONEY">Mobile Money</option>
+                                    <option value="BANK_TRANSFER">Virement bancaire</option>
+                                    <option value="CHEQUE">Cheque</option>
+                                    {% if sale.customer %}
+                                    <option value="CREDIT">Credit client</option>
+                                    {% endif %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Montant (FCFA)</label>
+                                <input type="text" x-model="line.amount" inputmode="decimal" autocomplete="off"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            </div>
+                        </div>
+                        <div x-show="line.method !== 'CASH'" class="mb-2">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Reference</label>
+                            <input type="text" x-model="line.reference" placeholder="No transaction..."
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <button type="button" x-show="paymentLines.length > 1" @click="removeLine(index)" class="text-xs text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash mr-1"></i>Supprimer
+                        </button>
+                    </div>
+                </template>
+
+                <button type="button" @click="addLine()"
+                        class="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-primary-400 hover:text-primary-600">
+                    <i class="fas fa-plus mr-2"></i>Ajouter un mode de paiement
+                </button>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Montants rapides</h3>
+                <div class="grid grid-cols-3 gap-2">
+                    {% for amount in quick_amounts %}
+                    <button type="button" @click="paymentLines[0].amount = '{{ amount|unlocalize }}'"
+                            class="py-2 bg-gray-100 hover:bg-primary-50 hover:text-primary-700 rounded-lg text-sm font-medium">
+                        {{ amount|floatformat:0|intcomma }} FCFA
+                    </button>
+                    {% endfor %}
+                    <button type="button" @click="paymentLines[0].amount = amountDue"
+                            class="py-2 bg-primary-50 text-primary-700 rounded-lg text-sm font-bold">
+                        Exact: {{ sale.amount_due|currency }}
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div class="space-y-2 mb-4">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Total a payer</span>
+                        <span class="font-bold">{{ sale.amount_due|currency }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Total saisi</span>
+                        <span class="font-bold" :class="totalEntered >= amountDue ? 'text-green-600' : 'text-red-600'" x-text="formatCurrency(totalEntered)"></span>
+                    </div>
+                    <div class="flex justify-between text-sm" x-show="change > 0">
+                        <span class="text-gray-500">Monnaie a rendre</span>
+                        <span class="font-bold text-blue-600" x-text="formatCurrency(change)"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Impression</label>
+                    <select x-model="printDocument" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="">Sans impression</option>
+                        <option value="receipt">Imprimer un recu</option>
+                        <option value="invoice">Imprimer facture definitive</option>
+                        <option value="proforma">Imprimer facture proforma</option>
+                        <option value="quote">Imprimer devis</option>
+                    </select>
+                </div>
+
+                <button type="submit"
+                        :disabled="submitting || totalEntered <= 0"
+                        class="w-full py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-lg">
+                    <span x-show="!submitting"><i class="fas fa-check-circle mr-2"></i>Encaisser</span>
+                    <span x-show="submitting"><i class="fas fa-spinner fa-spin mr-2"></i>Traitement...</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function paymentProcessor() {
+    return {
+        submitUrl: '{% url "cashier:process-payment" sale.id %}',
+        csrfToken: '{{ csrf_token }}',
+        amountDue: Number('{{ sale.amount_due|unlocalize }}'),
+        paymentLines: [{ method: 'CASH', amount: '{{ sale.amount_due|unlocalize }}', reference: '' }],
+        printDocument: '',
+        submitting: false,
+        errorMessage: '',
+        successMessage: '',
+        retryPayload: null,
+        get retryAvailable() { return this.retryPayload !== null; },
+        init() {},
+        normalizeAmount(value) {
+            if (value === null || value === undefined) return '';
+            return String(value).replace(',', '.').trim();
+        },
+        parseAmount(value) {
+            const parsed = Number.parseFloat(this.normalizeAmount(value));
+            return Number.isFinite(parsed) ? parsed : 0;
+        },
+        formatCurrency(value) {
+            return Number(value || 0).toLocaleString('fr-FR') + ' FCFA';
+        },
+        get totalEntered() {
+            return this.paymentLines.reduce((sum, line) => sum + this.parseAmount(line.amount), 0);
+        },
+        get change() {
+            const diff = this.totalEntered - this.amountDue;
+            return diff > 0 ? diff : 0;
+        },
+        addLine() {
+            this.paymentLines.push({ method: 'MOBILE_MONEY', amount: '', reference: '' });
+        },
+        removeLine(index) {
+            this.paymentLines.splice(index, 1);
+        },
+        buildPayload() {
+            const cleaned = this.paymentLines
+                .map((line) => ({
+                    method: line.method,
+                    amount: this.parseAmount(line.amount),
+                    reference: (line.reference || '').trim(),
+                }))
+                .filter((line) => line.amount > 0);
+            return cleaned;
+        },
+        setError(message) {
+            this.errorMessage = message || 'Operation impossible.';
+        },
+        async submitPayment(retryPayload = null) {
+            const payload = retryPayload || this.buildPayload();
+            this.errorMessage = '';
+            this.successMessage = '';
+
+            if (!payload.length) {
+                this.setError('Veuillez saisir au moins un paiement valide.');
+                this.retryPayload = null;
+                return;
+            }
+
+            this.submitting = true;
+            this.retryPayload = payload;
+            const form = new URLSearchParams();
+            form.append('payment_data', JSON.stringify(payload));
+            form.append('print_document', this.printDocument);
+            form.append('csrfmiddlewaretoken', this.csrfToken);
+
+            try {
+                const response = await fetch(this.submitUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: form,
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    this.setError(data.error || 'Paiement non valide.');
+                    return;
+                }
+
+                this.successMessage = data.message || 'Paiement enregistre.';
+                this.retryPayload = null;
+
+                if (data.print_document_url) {
+                    window.open(data.print_document_url, '_blank');
+                }
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+            } catch (error) {
+                this.setError('Erreur reseau. Reessayez.');
+            } finally {
+                this.submitting = false;
+            }
+        },
+        retryLast() {
+            if (this.retryPayload) {
+                this.submitPayment(this.retryPayload);
+            }
+        },
+    };
+}
+</script>
+{% endblock %}

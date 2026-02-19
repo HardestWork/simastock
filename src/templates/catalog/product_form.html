@@ -1,0 +1,232 @@
+{% extends "base/base.html" %}
+{% load boutique_tags l10n %}
+
+{% block title %}{% if form.instance.pk %}Modifier{% else %}Nouveau{% endif %} produit{% endblock %}
+
+{% block breadcrumb %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">{% if form.instance.pk %}Modifier le produit{% else %}Nouveau produit{% endif %}</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="max-w-4xl">
+    {% csrf_token %}
+    <input type="hidden" name="slug" value="{{ form.slug.value|default:'' }}">
+
+    {% if form.errors %}
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <p class="text-sm text-red-800 font-medium">Veuillez corriger les erreurs ci-dessous.</p>
+        <ul class="mt-2 text-sm text-red-700 list-disc list-inside">
+            {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                <li>{{ field }}: {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- General info -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-900 mb-4">Informations generales</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nom *</label>
+                    <input type="text" name="name" value="{{ form.name.value|default:'' }}" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">SKU *</label>
+                        <input type="text" name="sku" value="{{ form.sku.value|default:'' }}" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Code barre</label>
+                        <input type="text" name="barcode" value="{{ form.barcode.value|default:'' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                               placeholder="Laisser vide pour generation auto">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Categorie *</label>
+                        <input type="text" id="category-search" placeholder="Rechercher une categorie..."
+                               class="w-full mb-2 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <select name="category" id="category-select" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            {% for category in form.fields.category.queryset %}
+                            <option value="{{ category.id }}" {% if form.category.value|stringformat:'s' == category.id|stringformat:'s' %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Marque</label>
+                        <input type="text" id="brand-search" placeholder="Rechercher une marque..."
+                               class="w-full mb-2 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <select name="brand" id="brand-select"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <option value="">---------</option>
+                            {% for brand in form.fields.brand.queryset %}
+                            <option value="{{ brand.id }}" {% if form.brand.value|stringformat:'s' == brand.id|stringformat:'s' %}selected{% endif %}>
+                                {{ brand.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea name="description" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none">{{ form.description.value|default:'' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing / Stock -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="font-semibold text-gray-900 mb-4">Prix</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Prix d'achat (FCFA)</label>
+                        <input type="number" name="cost_price" value="{{ form.cost_price.value|unlocalize|default:'0' }}" min="0" step="0.01"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Prix de vente (FCFA) *</label>
+                        <input type="number" name="selling_price" value="{{ form.selling_price.value|unlocalize|default:'' }}" min="0" step="0.01" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="font-semibold text-gray-900 mb-4">Stock</h3>
+                {% if not form.instance.pk %}
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Quantite initiale</label>
+                        <input id="initial-quantity" type="number" name="initial_quantity"
+                               value="{{ form.initial_quantity.value|default:'0' }}"
+                               min="0" step="1"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <p class="text-xs text-gray-500 mt-1">Stock initial enregistre pour la boutique courante.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Quantite disponible</label>
+                        <input id="available-quantity" type="number" name="available_quantity"
+                               value="{{ form.available_quantity.value|default:'0' }}"
+                               readonly
+                               class="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-700">
+                    </div>
+                </div>
+                {% else %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Quantite disponible (boutique courante)</label>
+                    <input type="number" value="{{ form.available_quantity.value|default:'0' }}"
+                           readonly
+                           class="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-700">
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="font-semibold text-gray-900 mb-4">Statut</h3>
+                <label class="flex items-center gap-3">
+                    <input type="checkbox" name="is_active" {% if form.is_active.value %}checked{% endif %}
+                           class="rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                    <span class="text-sm text-gray-700">Produit actif (visible a la vente)</span>
+                </label>
+            </div>
+
+            <!-- Image upload -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="font-semibold text-gray-900 mb-4">Image</h3>
+                <input type="file" name="image" accept="image/*"
+                       class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100">
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center justify-end gap-3 mt-6">
+        <a href="{% url 'catalog:product-list' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium">
+            Annuler
+        </a>
+        <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+            <i class="fas fa-save mr-2"></i>{% if form.instance.pk %}Mettre a jour{% else %}Creer{% endif %}
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function setupSelectSearch(searchId, selectId) {
+    const searchInput = document.getElementById(searchId);
+    const select = document.getElementById(selectId);
+    if (!searchInput || !select) return;
+
+    const originalOptions = Array.from(select.options).map((option) => ({
+        value: option.value,
+        text: option.text,
+        selected: option.selected,
+    }));
+
+    const filterOptions = () => {
+        const term = searchInput.value.trim().toLowerCase();
+        const selectedValue = select.value;
+
+        const filtered = originalOptions.filter((option) => {
+            if (!term) return true;
+            return option.text.toLowerCase().includes(term);
+        });
+
+        select.innerHTML = "";
+        filtered.forEach((optionData) => {
+            const opt = document.createElement("option");
+            opt.value = optionData.value;
+            opt.text = optionData.text;
+            opt.selected = optionData.value === selectedValue;
+            select.appendChild(opt);
+        });
+
+        if (!Array.from(select.options).some((opt) => opt.selected)) {
+            const initiallySelected = originalOptions.find((option) => option.selected);
+            if (initiallySelected) {
+                const fallback = Array.from(select.options).find(
+                    (opt) => opt.value === initiallySelected.value
+                );
+                if (fallback) {
+                    fallback.selected = true;
+                }
+            }
+        }
+    };
+
+    searchInput.addEventListener('input', filterOptions);
+    filterOptions();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupSelectSearch('category-search', 'category-select');
+    setupSelectSearch('brand-search', 'brand-select');
+
+    const initialInput = document.getElementById('initial-quantity');
+    const availableInput = document.getElementById('available-quantity');
+    if (initialInput && availableInput) {
+        const syncAvailable = () => {
+            const qty = parseInt(initialInput.value || '0', 10);
+            availableInput.value = Number.isNaN(qty) || qty < 0 ? 0 : qty;
+        };
+        initialInput.addEventListener('input', syncAvailable);
+        syncAvailable();
+    }
+});
+</script>
+{% endblock %}

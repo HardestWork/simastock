@@ -1,0 +1,114 @@
+{% extends "base/base.html" %}
+
+{% block title %}Boutiques{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Boutiques</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ stores|length }} boutique(s) accessible(s)</p>
+    </div>
+    {% if user.is_admin or user.is_staff %}
+    <a href="{% url 'stores:store-create' %}"
+       class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+        <i class="fas fa-plus mr-2"></i>Nouvelle boutique
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+    <form method="get" class="flex flex-wrap items-end gap-3">
+        <div class="flex-1 min-w-[220px]">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Recherche</label>
+            <input type="text"
+                   name="q"
+                   value="{{ search_query }}"
+                   placeholder="Nom, code, adresse, telephone ou email"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+        </div>
+        <button type="submit"
+                class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+            <i class="fas fa-search mr-2"></i>Filtrer
+        </button>
+        {% if search_query %}
+        <a href="{% url 'stores:store-list' %}"
+           class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium">
+            Reinitialiser
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+{% if stores %}
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    {% for store in stores %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-4">
+        <div class="flex items-start justify-between gap-3">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">{{ store.name }}</h2>
+                <p class="text-xs text-gray-500 mt-1">Code: {{ store.code }}</p>
+            </div>
+            <div class="flex flex-col items-end gap-2">
+                {% if current_store and current_store.id == store.id %}
+                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-green-100 text-green-700">
+                    Active
+                </span>
+                {% endif %}
+                {% if store.id in default_store_ids %}
+                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-700">
+                    Par defaut
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="space-y-2 text-sm text-gray-600">
+            <div class="flex items-start gap-2">
+                <i class="fas fa-location-dot mt-0.5 text-gray-400"></i>
+                <span>{{ store.address|default:"-" }}</span>
+            </div>
+            <div class="flex items-start gap-2">
+                <i class="fas fa-phone mt-0.5 text-gray-400"></i>
+                <span>{{ store.phone|default:"-" }}</span>
+            </div>
+            <div class="flex items-start gap-2">
+                <i class="fas fa-envelope mt-0.5 text-gray-400"></i>
+                <span>{{ store.email|default:"-" }}</span>
+            </div>
+        </div>
+
+        <div class="mt-auto flex items-center gap-2">
+            <form method="post" action="{% url 'stores:switch' %}" class="flex-1">
+                {% csrf_token %}
+                <input type="hidden" name="store_id" value="{{ store.id }}">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit"
+                        {% if current_store and current_store.id == store.id %}disabled{% endif %}
+                        class="w-full px-3 py-2 rounded-lg text-sm font-medium {% if current_store and current_store.id == store.id %}bg-gray-100 text-gray-500 cursor-not-allowed{% else %}bg-primary-600 hover:bg-primary-700 text-white{% endif %}">
+                    {% if current_store and current_store.id == store.id %}
+                        Boutique active
+                    {% else %}
+                        Basculer ici
+                    {% endif %}
+                </button>
+            </form>
+            <a href="{% url 'stores:store-detail' store.id %}"
+               class="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium">
+                Details
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
+    <div class="mx-auto w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+        <i class="fas fa-store text-gray-400"></i>
+    </div>
+    <p class="text-sm font-medium text-gray-800">Aucune boutique trouvee.</p>
+    <p class="text-xs text-gray-500 mt-1">Essayez un autre filtre de recherche.</p>
+</div>
+{% endif %}
+{% endblock %}

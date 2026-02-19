@@ -1,0 +1,116 @@
+{% extends "base/base.html" %}
+{% load boutique_tags humanize %}
+
+{% block title %}Detail session de caisse{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Detail session de caisse</h1>
+        <p class="text-sm text-gray-500 mt-1">
+            Ouvert le {{ shift.opened_at|date:"d/m/Y H:i" }} - {{ shift.cashier.get_full_name }}
+        </p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{% url 'cashier:shift-report-pdf' shift.id %}"
+           class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm">
+            <i class="fas fa-file-pdf mr-2"></i>Exporter PDF
+        </a>
+        <a href="{% url 'cashier:shift-list' %}"
+           class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+            Retour
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="font-semibold text-gray-900">Paiements de la session</h3>
+                <span class="text-sm text-gray-500">{{ payments|length }} paiement(s)</span>
+            </div>
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Date</th>
+                        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Vente</th>
+                        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Methode</th>
+                        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Reference</th>
+                        <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Montant</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for payment in payments %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-5 py-3 text-sm text-gray-600">{{ payment.created_at|date:"d/m/Y H:i" }}</td>
+                        <td class="px-5 py-3 text-sm text-gray-700">{{ payment.sale.invoice_number|default:"Brouillon" }}</td>
+                        <td class="px-5 py-3 text-sm text-gray-700">{{ payment.get_method_display }}</td>
+                        <td class="px-5 py-3 text-sm text-gray-500">{{ payment.reference|default:"-" }}</td>
+                        <td class="px-5 py-3 text-sm font-bold text-gray-900 text-right">{{ payment.amount|currency }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-5 py-10 text-center text-gray-500">Aucun paiement sur cette session.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="space-y-4">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">Informations session</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Statut</span>
+                    <span class="font-medium">{{ shift.get_status_display }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Ouverture</span>
+                    <span class="font-medium">{{ shift.opened_at|date:"d/m/Y H:i" }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Fermeture</span>
+                    <span class="font-medium">
+                        {% if shift.closed_at %}{{ shift.closed_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}
+                    </span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Fond initial</span>
+                    <span class="font-medium">{{ shift.opening_float|currency }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Especes attendues</span>
+                    <span class="font-medium">{{ shift.expected_cash|currency }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Especes comptees</span>
+                    <span class="font-medium">{% if shift.closing_cash is not None %}{{ shift.closing_cash|currency }}{% else %}-{% endif %}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Ecart</span>
+                    <span class="font-medium">{% if shift.variance is not None %}{{ shift.variance|currency }}{% else %}-{% endif %}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">Totaux par methode</h3>
+            <div class="space-y-2 text-sm">
+                {% for method, amount in method_totals.items %}
+                <div class="flex justify-between">
+                    <span class="text-gray-500">{{ method }}</span>
+                    <span class="font-medium">{{ amount|currency }}</span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500">Aucun paiement enregistre.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

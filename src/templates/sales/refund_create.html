@@ -1,0 +1,111 @@
+{% extends "base/base.html" %}
+{% load boutique_tags %}
+
+{% block title %}Nouveau remboursement{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Nouveau remboursement</h1>
+        <p class="text-sm text-gray-500 mt-1">
+            Vente {% if sale.invoice_number %}{{ sale.invoice_number }}{% else %}{{ sale.id }}{% endif %}
+        </p>
+    </div>
+    <a href="{% url 'sales:sale-detail' sale.id %}"
+       class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+        Retour a la vente
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="font-semibold text-gray-900 mb-4">Details du remboursement</h3>
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div>
+                <label for="{{ form.amount.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                    Montant
+                </label>
+                {{ form.amount }}
+                {% if form.amount.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.amount.errors|join:", " }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="{{ form.refund_method.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                    Methode de remboursement
+                </label>
+                {{ form.refund_method }}
+                {% if form.refund_method.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.refund_method.errors|join:", " }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="{{ form.reason.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                    Raison
+                </label>
+                {{ form.reason }}
+                {% if form.reason.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.reason.errors|join:", " }}</p>
+                {% endif %}
+            </div>
+
+            <div class="flex gap-2">
+                <button type="submit"
+                        class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+                    Enregistrer le remboursement
+                </button>
+                <a href="{% url 'sales:sale-detail' sale.id %}"
+                   class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
+                    Annuler
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="space-y-4">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="font-semibold text-gray-900 mb-3">Resume paiement</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Total vente</span>
+                    <span class="font-medium">{{ sale.total|currency }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Montant paye</span>
+                    <span class="font-medium">{{ sale.amount_paid|currency }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Montant du</span>
+                    <span class="font-medium">{{ sale.amount_due|currency }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="font-semibold text-gray-900 mb-3">Historique des remboursements</h3>
+            <div class="space-y-2 text-sm">
+                {% for refund in sale.refunds.all %}
+                <div class="flex justify-between">
+                    <span class="text-gray-500">{{ refund.created_at|date:"d/m/Y H:i" }}</span>
+                    <span class="font-medium">{{ refund.amount|currency }}</span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500">Aucun remboursement enregistre.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base/base.html" %}
+{% load boutique_tags %}
+
+{% block title %}Utilisateurs{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Utilisateurs</h1>
+        <p class="text-sm text-gray-500 mt-1">Gestion des comptes et des roles</p>
+    </div>
+    <a href="{% url 'accounts:user-create' %}" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+        <i class="fas fa-user-plus mr-2"></i>Nouvel utilisateur
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+    <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <div class="md:col-span-2">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Recherche</label>
+            <input
+                type="text"
+                name="q"
+                value="{{ search_query }}"
+                placeholder="Nom, email ou telephone"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            >
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Role</label>
+            <select name="role" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <option value="">Tous</option>
+                {% for value, label in roles %}
+                <option value="{{ value }}" {% if current_role == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Statut</label>
+            <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <option value="">Tous</option>
+                <option value="active" {% if current_status == "active" %}selected{% endif %}>Actif</option>
+                <option value="inactive" {% if current_status == "inactive" %}selected{% endif %}>Inactif</option>
+            </select>
+        </div>
+        <div class="md:col-span-4 flex gap-2">
+            <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+                Filtrer
+            </button>
+            <a href="{% url 'accounts:user-list' %}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
+                Reinitialiser
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-100">
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Utilisateur</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Email</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Role</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Boutiques</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Statut</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for u in users %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-5 py-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center">
+                                <span class="text-sm font-bold text-primary-700">{{ u.first_name|first }}{{ u.last_name|first }}</span>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">{{ u.get_full_name|default:u.email }}</p>
+                                <p class="text-xs text-gray-500">{{ u.phone|default:"-" }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-5 py-3 text-sm text-gray-600">{{ u.email }}</td>
+                    <td class="px-5 py-3">
+                        <span class="px-2 py-1 text-xs font-medium rounded-full
+                            {% if u.role == 'ADMIN' %}bg-red-100 text-red-800
+                            {% elif u.role == 'MANAGER' %}bg-blue-100 text-blue-800
+                            {% elif u.role == 'SALES' %}bg-green-100 text-green-800
+                            {% elif u.role == 'CASHIER' %}bg-purple-100 text-purple-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ u.get_role_display }}
+                        </span>
+                    </td>
+                    <td class="px-5 py-3 text-sm text-right text-gray-700">{{ u.stores_count }}</td>
+                    <td class="px-5 py-3 text-center">
+                        {% if u.is_active %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Actif</span>
+                        {% else %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">Inactif</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        <a href="{% url 'accounts:user-edit' u.id %}" class="text-sm text-primary-600 hover:underline">Modifier</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-5 py-12 text-center text-gray-500">Aucun utilisateur trouve.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_paginated %}
+<div class="mt-4 flex items-center justify-center gap-2">
+    {% if page_obj.has_previous %}
+    <a href="?{{ query_string }}{% if query_string %}&{% endif %}page={{ page_obj.previous_page_number }}"
+       class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+        Precedent
+    </a>
+    {% endif %}
+    <span class="px-3 py-1.5 text-sm text-gray-600">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?{{ query_string }}{% if query_string %}&{% endif %}page={{ page_obj.next_page_number }}"
+       class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+        Suivant
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

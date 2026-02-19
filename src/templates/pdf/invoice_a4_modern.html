@@ -1,0 +1,545 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 8mm 10mm;
+            @top-center {
+                content: element(running-header);
+            }
+        }
+        @page:first {
+            margin-top: 8mm;
+            @top-center {
+                content: none;
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-size: 10pt;
+            color: #12305f;
+            background: #ffffff;
+        }
+        .running-header {
+            position: running(running-header);
+            border-bottom: 1px solid #d8e4f5;
+            padding: 4px 0 5px;
+            font-size: 8pt;
+            color: #0f3260;
+        }
+        .running-header .row {
+            display: table;
+            width: 100%;
+        }
+        .running-header .left,
+        .running-header .right {
+            display: table-cell;
+            vertical-align: middle;
+        }
+        .running-header .right { text-align: right; }
+        .avoid-break {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .sheet {
+            border: 1px solid #dbe6f5;
+            background: #ffffff;
+            overflow: hidden;
+            position: relative;
+        }
+        .hero {
+            color: #ffffff;
+            padding: 16px 20px 14px;
+            background:
+                linear-gradient(140deg, rgba(255,255,255,0.16) 8%, rgba(255,255,255,0) 9%) 0 0 / 320px 220px no-repeat,
+                linear-gradient(28deg, rgba(255,255,255,0.12) 18%, rgba(255,255,255,0) 19%) right top / 380px 220px no-repeat,
+                linear-gradient(120deg, {{ invoice_config.primary_color|default:"#0F4C9A" }}, {{ invoice_config.secondary_color|default:"#21A8F6" }});
+        }
+        .hero-row {
+            display: table;
+            width: 100%;
+        }
+        .hero-left,
+        .hero-right {
+            display: table-cell;
+            vertical-align: top;
+        }
+        .hero-right { text-align: right; }
+        .logo-wrap { margin-bottom: 6px; }
+        .logo-wrap img {
+            height: 96px;
+            width: auto;
+            max-width: 370px;
+        }
+        .brand-name {
+            margin: 0;
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+        }
+        .brand-sub {
+            margin-top: 3px;
+            font-size: 8pt;
+            font-weight: 600;
+            opacity: 0.95;
+        }
+        .hero-right p {
+            margin: 3px 0;
+            font-size: 8.5pt;
+            font-weight: 500;
+        }
+
+        .content {
+            padding: 14px 20px 18px;
+            position: relative;
+            background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+        }
+
+        .doc-header {
+            display: table;
+            width: 100%;
+            margin-bottom: 14px;
+        }
+        .doc-title,
+        .doc-meta {
+            display: table-cell;
+            vertical-align: top;
+        }
+        .doc-title {
+            width: 58%;
+            padding-right: 18px;
+        }
+        .doc-title h1 {
+            margin: 0;
+            font-size: 56px;
+            line-height: 1;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: {{ invoice_config.primary_color|default:"#0F4C9A" }};
+        }
+        .doc-title .line {
+            margin-top: 8px;
+            height: 2px;
+            background: linear-gradient(90deg, {{ invoice_config.primary_color|default:"#0F4C9A" }}, #d7e3f4);
+        }
+        .doc-meta {
+            width: 42%;
+            border-left: 2px solid #e4ebf7;
+            padding-left: 14px;
+        }
+        .meta-row {
+            border-bottom: 1px solid #e6edf9;
+            padding: 7px 0;
+            font-size: 9pt;
+        }
+        .meta-label {
+            font-weight: 700;
+            color: #113564;
+            display: inline-block;
+            min-width: 66px;
+        }
+        .meta-value {
+            color: {{ invoice_config.primary_color|default:"#0F4C9A" }};
+            font-weight: 800;
+        }
+
+        .section-title {
+            margin: 12px 0 8px;
+            padding: 7px 14px;
+            font-size: 18pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #ffffff;
+            background: linear-gradient(92deg, {{ invoice_config.primary_color|default:"#0F4C9A" }} 0%, {{ invoice_config.secondary_color|default:"#21A8F6" }} 88%);
+        }
+        .section-title.small {
+            font-size: 14pt;
+        }
+
+        .client-grid {
+            padding: 6px 2px 2px;
+            margin-bottom: 8px;
+        }
+        .client-row {
+            display: table;
+            width: 100%;
+            margin-bottom: 6px;
+        }
+        .client-cell {
+            display: table-cell;
+            vertical-align: top;
+            width: 50%;
+            padding-right: 12px;
+        }
+        .field-line {
+            border-bottom: 1px solid #b7c8e2;
+            min-height: 24px;
+            padding-top: 2px;
+            color: #173c6c;
+            font-weight: 600;
+        }
+        .field-label {
+            display: inline-block;
+            min-width: 96px;
+            font-weight: 700;
+            color: #163968;
+        }
+
+        .table-wrap {
+            margin-top: 6px;
+            border: 1px solid #ccd9ed;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        thead th {
+            background: linear-gradient(180deg, #e7effa, #d8e4f5);
+            color: #163968;
+            padding: 10px 9px;
+            text-align: left;
+            font-size: 11pt;
+            font-weight: 800;
+            border-right: 1px solid #c7d5ea;
+            display: table-cell;
+        }
+        thead { display: table-header-group; }
+        thead th:last-child { border-right: none; }
+        tbody td {
+            padding: 9px 9px;
+            border-top: 1px solid #d5e0f0;
+            border-right: 1px solid #d5e0f0;
+            font-size: 10.5pt;
+            color: #133664;
+        }
+        tbody tr td:last-child { border-right: none; }
+        tbody tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .col-center { text-align: center; }
+        .col-right { text-align: right; }
+        .strong { font-weight: 800; }
+
+        .summary-zone {
+            width: 48%;
+            margin-left: auto;
+            margin-top: 12px;
+        }
+        .summary-line {
+            display: table;
+            width: 100%;
+            border-bottom: 1px solid #dce6f4;
+            padding: 4px 0;
+            font-size: 18pt;
+        }
+        .summary-label, .summary-value {
+            display: table-cell;
+            vertical-align: middle;
+            font-size: 14pt;
+            color: #153866;
+            font-weight: 700;
+        }
+        .summary-label { width: 52%; }
+        .summary-value { text-align: right; }
+        .grand-total {
+            margin-top: 8px;
+            padding: 9px 12px;
+            color: #ffffff;
+            font-size: 20pt;
+            font-weight: 900;
+            background: linear-gradient(92deg, {{ invoice_config.primary_color|default:"#0F4C9A" }} 0%, {{ invoice_config.secondary_color|default:"#21A8F6" }} 92%);
+            text-transform: uppercase;
+        }
+        .grand-total span {
+            float: right;
+        }
+
+        .triple-grid {
+            display: table;
+            width: 100%;
+            margin-top: 16px;
+            table-layout: fixed;
+        }
+        .triple-col {
+            display: table-cell;
+            width: 33.33%;
+            vertical-align: top;
+            border: 1px solid #e1e9f6;
+            background: #f7faff;
+            padding: 12px 12px 10px;
+        }
+        .triple-col + .triple-col { border-left: none; }
+        .triple-col h4 {
+            margin: 0 0 8px;
+            font-size: 12pt;
+            color: #133664;
+            font-weight: 800;
+            border-bottom: 1px solid #d7e3f4;
+            padding-bottom: 6px;
+        }
+        .triple-col p,
+        .triple-col ul {
+            margin: 0;
+            color: #173b6a;
+            font-size: 10.3pt;
+            line-height: 1.4;
+            white-space: pre-line;
+        }
+        .triple-col ul {
+            padding-left: 16px;
+        }
+        .triple-col li {
+            margin: 4px 0;
+        }
+
+        .signature {
+            margin-top: 14px;
+            width: 40%;
+            margin-left: auto;
+            text-align: center;
+            color: #153866;
+        }
+        .signature .line {
+            height: 1px;
+            background: #c7d7ed;
+            margin-bottom: 8px;
+        }
+        .signature .label {
+            font-size: 13pt;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .signature .name {
+            font-size: 21pt;
+            font-style: italic;
+            font-weight: 700;
+            color: {{ invoice_config.primary_color|default:"#0F4C9A" }};
+        }
+
+        .footer-strip {
+            margin-top: 10px;
+            padding: 8px 18px 10px;
+            color: #173b6a;
+            font-size: 8.2pt;
+            line-height: 1.4;
+            border-top: 1px solid #dbe6f5;
+            background: #f7fbff;
+        }
+        .footer-strip .generated-at {
+            margin-top: 3px;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="running-header">
+        <div class="row">
+            <div class="left">
+                <strong>{{ invoice_config.business_name }}</strong>
+                {% if store.phone %} - {{ store.phone }}{% endif %}
+            </div>
+            <div class="right">
+                <strong>{{ document.title }}</strong> - {{ document.number }}
+            </div>
+        </div>
+    </div>
+    <div class="sheet">
+        <div class="hero avoid-break">
+            <div class="hero-row">
+                <div class="hero-left">
+                    {% if invoice_config.logo_uri %}
+                    <p class="logo-wrap">
+                        <img src="{{ invoice_config.logo_uri }}" alt="Logo">
+                    </p>
+                    {% else %}
+                    <h2 class="brand-name">{{ invoice_config.business_name }}</h2>
+                    {% endif %}
+                    <p class="brand-sub">{{ invoice_config.business_name }}</p>
+                </div>
+                <div class="hero-right">
+                    {% if store.address %}<p>{{ store.address }}</p>{% endif %}
+                    {% if store.phone %}<p>{{ store.phone }}</p>{% endif %}
+                    {% if store.email %}<p>{{ store.email }}</p>{% endif %}
+                    {% if invoice_config.website %}<p>{{ invoice_config.website }}</p>{% endif %}
+                    {% if invoice_config.registration_number %}<p>RCCM: {{ invoice_config.registration_number }}</p>{% endif %}
+                    {% if invoice_config.tax_id %}<p>IFU/NIF: {{ invoice_config.tax_id }}</p>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="doc-header avoid-break">
+                <div class="doc-title">
+                    <h1>{{ document.title }}</h1>
+                    <div class="line"></div>
+                </div>
+                <div class="doc-meta">
+                    <div class="meta-row"><span class="meta-label">N :</span> <span class="meta-value">{{ document.number }}</span></div>
+                    <div class="meta-row"><span class="meta-label">Date :</span> <span>{{ sale.created_at|date:"d/m/Y" }}</span></div>
+                    {% if document.valid_until %}
+                    <div class="meta-row"><span class="meta-label">Validite :</span> <span class="meta-value">{{ invoice_config.offer_validity_days }} jours</span></div>
+                    {% else %}
+                    <div class="meta-row"><span class="meta-label">Statut :</span>
+                        <span class="meta-value">
+                            {% if sale.status == "PAID" %}Payee{% elif sale.status == "PARTIALLY_PAID" %}Partielle{% else %}En attente{% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="section-title avoid-break">Client</div>
+            <div class="client-grid avoid-break">
+                <div class="client-row">
+                    <div class="client-cell" style="width: 100%; padding-right: 0;">
+                        <div class="field-line">
+                            <span class="field-label">Nom / Societe :</span>
+                            {% if sale.customer %}{{ sale.customer.full_name }}{% else %}Client anonyme{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="client-row">
+                    <div class="client-cell">
+                        <div class="field-line">
+                            <span class="field-label">Adresse :</span>
+                            {% if sale.customer and sale.customer.address %}{{ sale.customer.address }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="client-cell" style="padding-right: 0;">
+                        <div class="field-line">
+                            <span class="field-label">Telephone :</span>
+                            {% if sale.customer and sale.customer.phone %}{{ sale.customer.phone }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="client-row">
+                    <div class="client-cell">
+                        <div class="field-line">
+                            <span class="field-label">Email :</span>
+                            {% if sale.customer and sale.customer.email %}{{ sale.customer.email }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-title small avoid-break">Designation des produits / services</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 7%">N</th>
+                            <th style="width: 41%">Designation</th>
+                            <th class="col-center" style="width: 10%">Qte</th>
+                            <th class="col-right" style="width: 20%">Prix Unitaire ({{ store.effective_currency|default:"FCFA" }})</th>
+                            <th class="col-right" style="width: 22%">Total ({{ store.effective_currency|default:"FCFA" }})</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in sale.items.all %}
+                        <tr>
+                            <td class="col-center strong">{{ forloop.counter }}</td>
+                            <td>{{ item.product_name }}</td>
+                            <td class="col-center strong">{{ item.quantity }}</td>
+                            <td class="col-right">{{ item.unit_price|floatformat:0 }}</td>
+                            <td class="col-right strong">{{ item.line_total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="summary-zone avoid-break">
+                <div class="summary-line">
+                    <div class="summary-label">Sous-total HT :</div>
+                    <div class="summary-value">{{ sale.subtotal|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
+                </div>
+                {% if invoice_config.vat_enabled or sale.tax_amount > 0 %}
+                <div class="summary-line">
+                    <div class="summary-label">
+                        {% if invoice_config.vat_enabled %}
+                        TVA ({{ invoice_config.vat_rate }}%) :
+                        {% else %}
+                        TVA :
+                        {% endif %}
+                    </div>
+                    <div class="summary-value">{{ sale.tax_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
+                </div>
+                {% endif %}
+                {% if sale.discount_amount > 0 %}
+                <div class="summary-line">
+                    <div class="summary-label">Remise :</div>
+                    <div class="summary-value">-{{ sale.discount_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
+                </div>
+                {% endif %}
+                <div class="grand-total">TOTAL TTC : <span>{{ sale.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span></div>
+            </div>
+
+            <div class="triple-grid avoid-break">
+                <div class="triple-col">
+                    <h4>Conditions de Paiement</h4>
+                    {% if invoice_config.terms %}
+                    <p>{{ invoice_config.terms }}</p>
+                    {% else %}
+                    <ul>
+                        <li>Acompte selon accord.</li>
+                        <li>Solde a la livraison/prestation.</li>
+                        <li>Virement bancaire / Mobile Money / Especes.</li>
+                    </ul>
+                    {% endif %}
+                </div>
+                <div class="triple-col">
+                    <h4>Delai de Livraison</h4>
+                    <p>
+                        {% if document.valid_until %}
+                        Offre valable {{ invoice_config.offer_validity_days }} jours.
+                        {% else %}
+                        Livraison/prestation selon planning valide avec le client.
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="triple-col">
+                    <h4>Observations</h4>
+                    {% if sale.notes %}
+                    <p>{{ sale.notes }}</p>
+                    {% elif document.kind == "proforma" %}
+                    <ul>
+                        <li>Facture Proforma, ne pas valoir quittus.</li>
+                        <li>Les biens restent propriete du vendeur jusqu'au paiement complet.</li>
+                    </ul>
+                    {% elif document.kind == "quote" %}
+                    <ul>
+                        <li>Ce devis est etabli selon les informations recues.</li>
+                        <li>Toute modification peut entrainer une revision du montant.</li>
+                    </ul>
+                    {% else %}
+                    <ul>
+                        <li>Merci pour votre confiance.</li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="signature avoid-break">
+                <div class="line"></div>
+                <div class="label">Signature & Cachet</div>
+                <div class="name">{{ invoice_config.business_name }}</div>
+            </div>
+
+            <div class="footer-strip avoid-break">
+                {% if invoice_config.footer %}
+                <div>{{ invoice_config.footer }}</div>
+                {% endif %}
+                <div class="generated-at">Genere le {{ now|date:"d/m/Y a H:i" }}</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

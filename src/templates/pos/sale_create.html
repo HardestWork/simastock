@@ -1,0 +1,633 @@
+{% extends "base/base.html" %}
+{% load boutique_tags %}
+
+{% block title %}Nouvelle vente - POS{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Nouvelle vente</h1>
+        <p class="text-sm text-gray-500 mt-1">
+            {% if sale.invoice_number %}{{ sale.invoice_number }}{% else %}Brouillon{% endif %}
+            - {{ sale.get_status_display }}
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<script id="sale-snapshot-data" type="application/json">{{ sale_snapshot_json|safe }}</script>
+<div x-data="salePosApp()" x-init="init()" class="space-y-4">
+    <div x-show="busy" x-cloak class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <i class="fas fa-spinner fa-spin mr-2"></i><span x-text="busyMessage"></span>
+    </div>
+    <div x-show="errorMessage" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-center justify-between gap-3">
+        <span x-text="errorMessage"></span>
+        <button type="button" x-show="retryAction" @click="retryAction()" class="px-3 py-1 rounded bg-red-600 text-white text-xs">Reessayer</button>
+    </div>
+    <div x-show="successMessage" x-cloak class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 flex items-center justify-between">
+        <span x-text="successMessage"></span>
+        <button type="button" @click="successMessage = ''"><i class="fas fa-times"></i></button>
+    </div>
+    <div x-show="undoState" x-cloak class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-center justify-between">
+        <span>Article retire: <strong x-text="undoState ? undoState.product_name : ''"></strong></span>
+        <button type="button" @click="undoLastRemove()" class="px-3 py-1 rounded bg-amber-600 text-white text-xs">Annuler</button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="font-semibold text-gray-900 mb-3">
+                    <i class="fas fa-box-open mr-2 text-primary-600"></i>Produits disponibles
+                </h3>
+                <div class="relative">
+                    <input type="text" x-model="query" @input.debounce.250ms="searchProducts(1)"
+                           placeholder="Rechercher un produit..."
+                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                </div>
+                <div class="mt-3 text-xs text-gray-600 flex items-center justify-between">
+                    <span x-text="searchPagination.total + ' resultat(s)'"></span>
+                    <span x-show="searchLoading"><i class="fas fa-spinner fa-spin mr-1"></i>Recherche...</span>
+                </div>
+                <div x-show="searchError" x-cloak class="mt-2 text-xs text-red-600 flex items-center justify-between">
+                    <span x-text="searchError"></span>
+                    <button type="button" @click="searchProducts(searchPagination.page || 1)" class="underline">Reessayer</button>
+                </div>
+                <div class="mt-3 max-h-72 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
+                    <template x-for="product in results" :key="product.id">
+                        <div class="flex items-center gap-3 px-4 py-3">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-900 truncate" x-text="product.name"></p>
+                                <p class="text-xs text-gray-500">SKU: <span x-text="product.sku || '-'"></span> | Stock: <span x-text="product.stock"></span></p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-semibold" x-text="formatCurrency(product.selling_price)"></p>
+                                <button type="button" @click="addToCart(product)"
+                                        :disabled="Number(product.stock) <= 0 || addingProductId === product.id"
+                                        class="mt-1 px-3 py-1 rounded text-xs text-white bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300">
+                                    <span x-show="addingProductId !== product.id">Ajouter</span>
+                                    <span x-show="addingProductId === product.id"><i class="fas fa-spinner fa-spin"></i></span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="!searchLoading && !searchError && results.length === 0" x-cloak class="px-4 py-8 text-sm text-gray-500 text-center">
+                        Aucun produit.
+                    </div>
+                </div>
+                <div class="mt-2 flex items-center justify-between text-xs">
+                    <button type="button" @click="searchProducts(searchPagination.page - 1)" :disabled="!searchPagination.has_previous" class="px-2 py-1 border rounded disabled:opacity-50">Precedent</button>
+                    <span>Page <span x-text="searchPagination.page"></span></span>
+                    <button type="button" @click="searchProducts(searchPagination.page + 1)" :disabled="!searchPagination.has_next" class="px-2 py-1 border rounded disabled:opacity-50">Suivant</button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="px-5 py-4 border-b border-gray-100">
+                    <h3 class="font-semibold text-gray-900">
+                        <i class="fas fa-shopping-cart mr-2 text-primary-600"></i>Panier (<span x-text="sale.item_count"></span>)
+                    </h3>
+                </div>
+                <div class="divide-y divide-gray-50">
+                    <template x-for="item in sale.items" :key="item.id">
+                        <div class="flex items-center gap-3 px-5 py-3">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-900" x-text="item.product_name"></p>
+                                <p class="text-xs text-gray-500">
+                                    <span x-text="formatCurrency(item.unit_price)"></span> x
+                                    <span x-text="item.quantity"></span> | Stock: <span x-text="item.available_stock"></span>
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <button type="button" @click="updateQty(item, Number(item.quantity) - 1)" :disabled="isItemBusy(item.id)" class="w-7 h-7 border rounded">-</button>
+                                <button type="button" @click="updateQty(item, Number(item.quantity) + 1)" :disabled="isItemBusy(item.id)" class="w-7 h-7 border rounded">+</button>
+                            </div>
+                            <span class="text-sm font-bold w-24 text-right" x-text="formatCurrency(item.line_total)"></span>
+                            <button type="button" @click="removeItem(item)" :disabled="isItemBusy(item.id)" class="w-8 h-8 rounded text-red-600 hover:bg-red-50">
+                                <i class="fas fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </template>
+                    <div x-show="sale.items.length === 0" x-cloak class="px-5 py-10 text-center text-gray-500">
+                        Panier vide.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="font-semibold text-gray-900 mb-3"><i class="fas fa-user mr-2 text-primary-600"></i>Client</h3>
+                <div x-show="sale.customer" x-cloak class="mb-3 p-3 bg-gray-50 rounded-lg text-sm">
+                    <p class="font-medium" x-text="sale.customer ? sale.customer.full_name : ''"></p>
+                    <p class="text-xs text-gray-500" x-text="sale.customer ? sale.customer.phone : ''"></p>
+                </div>
+                <input type="text" x-model="customerQuery" @input.debounce.300ms="searchCustomers()" placeholder="Chercher client..."
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <div x-show="customerResults.length" x-cloak class="mt-2 border rounded-lg max-h-40 overflow-y-auto">
+                    <template x-for="c in customerResults" :key="c.id">
+                        <button type="button" class="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm"
+                                @click="selectCustomer(c)" x-text="c.full_name + ' - ' + (c.phone || '-')"></button>
+                    </template>
+                </div>
+                <div x-show="customerQuery.length >= 2 && customerResults.length === 0 && !showCreateCustomer" x-cloak class="mt-2 text-xs text-amber-700">
+                    Aucun client trouve.
+                    <button type="button" @click="showCreateCustomer = true" class="underline ml-1">Ajouter</button>
+                </div>
+                <div x-show="showCreateCustomer" x-cloak class="mt-2 space-y-2">
+                    <input type="text" x-model="newCustomer.first_name" placeholder="Prenom" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <input type="text" x-model="newCustomer.last_name" placeholder="Nom" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <input type="text" x-model="newCustomer.phone" placeholder="Telephone *" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <input type="email" x-model="newCustomer.email" placeholder="Email" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <p x-show="createCustomerError" x-text="createCustomerError" class="text-xs text-red-600"></p>
+                    <div class="flex gap-2">
+                        <button type="button" @click="createCustomer()" class="px-3 py-1 rounded bg-primary-600 text-white text-xs">Creer</button>
+                        <button type="button" @click="showCreateCustomer = false" class="px-3 py-1 rounded bg-gray-200 text-xs">Annuler</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="font-semibold text-gray-900 mb-4">Resume</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-500">Sous-total</span><span x-text="formatCurrency(sale.subtotal)"></span></div>
+                    <div class="flex justify-between" x-show="Number(sale.discount_amount) > 0"><span class="text-gray-500">Remise</span><span class="text-red-600">-<span x-text="formatCurrency(sale.discount_amount)"></span></span></div>
+                    <div class="flex justify-between" x-show="Number(sale.tax_amount) > 0"><span class="text-gray-500">TVA</span><span x-text="formatCurrency(sale.tax_amount)"></span></div>
+                    <hr>
+                    <div class="flex justify-between font-bold"><span>Total</span><span class="text-primary-700" x-text="formatCurrency(sale.total)"></span></div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5" x-show="sale.status === 'DRAFT'">
+                <h3 class="font-semibold text-gray-900 mb-3">Remise</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <select x-model="discountType" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="percent">Pourcentage (%)</option>
+                        <option value="amount">Montant (FCFA)</option>
+                    </select>
+                    <input type="number" x-model="discountValue" min="0" step="0.5"
+                           class="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                           placeholder="Valeur">
+                </div>
+                <button type="button" @click="applyDiscount()"
+                        class="mt-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium w-full">
+                    Appliquer
+                </button>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5" x-show="sale.status === 'DRAFT'">
+                <h3 class="font-semibold text-gray-900 mb-3">Notes</h3>
+                <textarea x-model="notes" rows="3"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
+                          placeholder="Notes optionnelles..."></textarea>
+                <button type="button" @click="saveNotes()"
+                        class="mt-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium w-full">
+                    Sauvegarder
+                </button>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5" x-show="sale.status === 'DRAFT'">
+                <h3 class="font-semibold text-gray-900 mb-3">Soumission caisse</h3>
+                <select x-model="printDocument" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2">
+                    <option value="">Sans impression</option>
+                    <option value="receipt">Imprimer un recu</option>
+                    <option value="invoice">Imprimer facture definitive</option>
+                    <option value="proforma">Imprimer facture proforma</option>
+                    <option value="quote">Imprimer devis</option>
+                </select>
+                <button type="button" @click="submitSale()"
+                        :disabled="!sale.customer || !sale.can_submit || submittingSale"
+                        class="w-full px-4 py-2 font-medium rounded-lg transition-colors bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed">
+                    <span x-show="!submittingSale">Soumettre a la caisse</span>
+                    <span x-show="submittingSale"><i class="fas fa-spinner fa-spin mr-2"></i>Soumission...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+{% if auto_print_document and print_document_url %}
+window.addEventListener('load', function () {
+    window.open('{{ print_document_url }}', '_blank');
+    if (window.history.replaceState) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('print_document');
+        window.history.replaceState({}, '', url.pathname + url.search);
+    }
+});
+{% endif %}
+
+function salePosApp() {
+    return {
+        sale: null,
+        csrfToken: '{{ csrf_token }}',
+        endpoints: {
+            snapshot: '{% url "sales:sale-snapshot" sale.id %}',
+            products: '{% url "sales:product-search" %}',
+            addItem: '{% url "sales:sale-add-item" sale.id %}',
+            edit: '{% url "sales:sale-edit" sale.id %}',
+            removeTpl: '{% url "sales:sale-remove-item" sale.id "00000000-0000-0000-0000-000000000000" %}',
+            updateTpl: '{% url "sales:sale-update-qty" sale.id "00000000-0000-0000-0000-000000000000" %}',
+            submit: '{% url "sales:sale-submit" sale.id %}',
+            customerSearch: '{% url "customers:customer-search" %}',
+            customerCreate: '{% url "sales:sale-customer-create" sale.id %}',
+        },
+        busy: false,
+        busyMessage: '',
+        errorMessage: '',
+        successMessage: '',
+        retryAction: null,
+        undoState: null,
+        undoTimer: null,
+        query: '',
+        results: [],
+        searchLoading: false,
+        searchError: '',
+        searchPagination: { page: 1, page_size: 20, total: 0, has_next: false, has_previous: false },
+        addingProductId: null,
+        itemBusy: {},
+        customerQuery: '',
+        customerResults: [],
+        showCreateCustomer: false,
+        createCustomerLoading: false,
+        createCustomerError: '',
+        newCustomer: { first_name: '', last_name: '', phone: '', email: '' },
+        discountType: 'percent',
+        discountValue: '',
+        notes: '',
+        printDocument: '',
+        submittingSale: false,
+        init() {
+            const fallbackSale = {
+                currency: 'FCFA',
+                items: [],
+                item_count: 0,
+                customer: null,
+                subtotal: '0',
+                discount_amount: '0',
+                discount_percent: '0',
+                tax_amount: '0',
+                total: '0',
+                notes: '',
+                status: 'DRAFT',
+                can_submit: false,
+                max_discount: 10,
+            };
+            try {
+                this.sale = JSON.parse(document.getElementById('sale-snapshot-data').textContent || '{}');
+            } catch (e) {
+                this.sale = fallbackSale;
+            }
+            if (!this.sale || !this.sale.items) {
+                this.sale = fallbackSale;
+            }
+            this.syncDraftFields();
+            this.searchProducts(1);
+        },
+        syncDraftFields() {
+            const hasPercent = Number(this.sale.discount_percent || 0) > 0;
+            const hasAmount = Number(this.sale.discount_amount || 0) > 0;
+            this.discountType = (hasPercent || !hasAmount) ? 'percent' : 'amount';
+            this.discountValue = this.discountType === 'percent' ? this.sale.discount_percent : this.sale.discount_amount;
+            this.notes = this.sale.notes || '';
+        },
+        resolve(url, itemId) { return url.replace('00000000-0000-0000-0000-000000000000', itemId); },
+        formBody(values) {
+            const body = new URLSearchParams();
+            Object.entries(values || {}).forEach(([k, v]) => body.append(k, v));
+            body.append('csrfmiddlewaretoken', this.csrfToken);
+            return body;
+        },
+        formatCurrency(v) { return Number(v || 0).toLocaleString('fr-FR') + ' ' + (this.sale.currency || 'FCFA'); },
+        isItemBusy(id) { return Boolean(this.itemBusy[id]); },
+        setBusy(flag, msg) { this.busy = flag; this.busyMessage = flag ? (msg || 'Chargement...') : ''; },
+        fail(message, retryFn) { this.errorMessage = message || 'Operation impossible.'; this.retryAction = retryFn || null; },
+        ok(message) { this.errorMessage = ''; this.retryAction = null; this.successMessage = message || ''; if (this.successMessage) setTimeout(() => this.successMessage = '', 3000); },
+        async requestJson(url, options, loadingMessage, retryFn) {
+            this.setBusy(true, loadingMessage);
+            this.errorMessage = '';
+            const headers = Object.assign({ 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, (options && options.headers) || {});
+            const requestOptions = Object.assign({}, options || {}, { headers });
+            let response;
+            let data = {};
+            try {
+                response = await fetch(url, requestOptions);
+                data = await response.json().catch(() => ({}));
+            } catch (e) {
+                this.setBusy(false);
+                this.fail('Erreur reseau.', retryFn);
+                throw e;
+            }
+            this.setBusy(false);
+            if (!response.ok) {
+                this.fail(data.error || 'Operation impossible.', retryFn);
+                const err = new Error(data.error || 'error');
+                err.payload = data;
+                throw err;
+            }
+            return data;
+        },
+        async applySaleFromResponse(data) {
+            if (data && data.sale) {
+                this.sale = data.sale;
+                this.syncDraftFields();
+            }
+        },
+        async searchProducts(page) {
+            this.searchLoading = true;
+            this.searchError = '';
+            const params = new URLSearchParams();
+            params.set('q', this.query || '');
+            params.set('page', Math.max(1, Number(page || 1)));
+            params.set('page_size', this.searchPagination.page_size || 20);
+            try {
+                const response = await fetch(`${this.endpoints.products}?${params.toString()}`, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!response.ok) { this.searchError = 'Recherche indisponible.'; this.results = []; return; }
+                const data = await response.json();
+                this.results = data.results || [];
+                this.searchPagination = Object.assign({}, this.searchPagination, data.pagination || {});
+            } catch (e) {
+                this.searchError = 'Erreur reseau.';
+                this.results = [];
+            } finally {
+                this.searchLoading = false;
+            }
+        },
+        async addToCart(product) {
+            if (Number(product.stock) <= 0 || this.addingProductId === product.id) return;
+            this.addingProductId = product.id;
+            try {
+                const data = await this.requestJson(
+                    this.endpoints.addItem,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: this.formBody({ product_id: product.id, quantity: '1' }),
+                    },
+                    'Ajout de l article...',
+                    () => this.addToCart(product),
+                );
+                await this.applySaleFromResponse(data);
+                this.ok(data.message || 'Article ajoute.');
+                await this.searchProducts(this.searchPagination.page || 1);
+            } catch (e) {
+                return;
+            } finally {
+                this.addingProductId = null;
+            }
+        },
+        async updateQty(item, qty) {
+            const newQty = Number(qty || 1);
+            if (newQty < 1) {
+                await this.removeItem(item);
+                return;
+            }
+            this.itemBusy = Object.assign({}, this.itemBusy, { [item.id]: true });
+            try {
+                const data = await this.requestJson(
+                    this.resolve(this.endpoints.updateTpl, item.id),
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: this.formBody({ qty: String(newQty) }),
+                    },
+                    'Mise a jour de la quantite...',
+                    () => this.updateQty(item, newQty),
+                );
+                await this.applySaleFromResponse(data);
+            } catch (e) {
+                return;
+            } finally {
+                const next = Object.assign({}, this.itemBusy);
+                delete next[item.id];
+                this.itemBusy = next;
+            }
+        },
+        async removeItem(item) {
+            this.itemBusy = Object.assign({}, this.itemBusy, { [item.id]: true });
+            try {
+                const data = await this.requestJson(
+                    this.resolve(this.endpoints.removeTpl, item.id),
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: this.formBody({}),
+                    },
+                    'Suppression de l article...',
+                    () => this.removeItem(item),
+                );
+                await this.applySaleFromResponse(data);
+                this.ok(data.message || 'Article supprime.');
+                if (data.undo) {
+                    this.undoState = data.undo;
+                    if (this.undoTimer) clearTimeout(this.undoTimer);
+                    this.undoTimer = setTimeout(() => {
+                        this.undoState = null;
+                        this.undoTimer = null;
+                    }, 8000);
+                }
+                await this.searchProducts(this.searchPagination.page || 1);
+            } catch (e) {
+                return;
+            } finally {
+                const next = Object.assign({}, this.itemBusy);
+                delete next[item.id];
+                this.itemBusy = next;
+            }
+        },
+        async undoLastRemove() {
+            if (!this.undoState) return;
+            const payload = this.undoState;
+            this.undoState = null;
+            try {
+                const data = await this.requestJson(
+                    this.endpoints.addItem,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: this.formBody({
+                            product_id: payload.product_id,
+                            quantity: String(payload.quantity || 1),
+                        }),
+                    },
+                    'Annulation en cours...',
+                    () => this.undoLastRemove(),
+                );
+                await this.applySaleFromResponse(data);
+                this.ok('Suppression annulee.');
+                await this.searchProducts(this.searchPagination.page || 1);
+            } catch (e) {
+                this.undoState = payload;
+            }
+        },
+        async searchCustomers() {
+            this.createCustomerError = '';
+            if ((this.customerQuery || '').length < 2) {
+                this.customerResults = [];
+                return;
+            }
+            try {
+                const response = await fetch(
+                    `${this.endpoints.customerSearch}?q=${encodeURIComponent(this.customerQuery)}`,
+                    { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } },
+                );
+                if (!response.ok) {
+                    this.customerResults = [];
+                    this.fail('Recherche client indisponible.', () => this.searchCustomers());
+                    return;
+                }
+                const data = await response.json();
+                this.customerResults = data.results || [];
+            } catch (e) {
+                this.customerResults = [];
+                this.fail('Erreur reseau sur la recherche client.', () => this.searchCustomers());
+            }
+        },
+        async selectCustomer(customer) {
+            try {
+                const data = await this.requestJson(
+                    this.endpoints.edit,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: this.formBody({ customer_id: customer.id }),
+                    },
+                    'Selection du client...',
+                    () => this.selectCustomer(customer),
+                );
+                await this.applySaleFromResponse(data);
+                this.customerResults = [];
+                this.customerQuery = '';
+                this.showCreateCustomer = false;
+                this.ok('Client selectionne.');
+            } catch (e) {
+                return;
+            }
+        },
+        async createCustomer() {
+            this.createCustomerError = '';
+            const firstName = (this.newCustomer.first_name || '').trim();
+            const lastName = (this.newCustomer.last_name || '').trim();
+            const phone = (this.newCustomer.phone || '').trim();
+            const email = (this.newCustomer.email || '').trim();
+            if (!phone) {
+                this.createCustomerError = 'Le numero de telephone est requis.';
+                return;
+            }
+            if (!firstName && !lastName) {
+                this.createCustomerError = 'Le nom du client est requis.';
+                return;
+            }
+            this.createCustomerLoading = true;
+            try {
+                const data = await this.requestJson(
+                    this.endpoints.customerCreate,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: this.formBody({
+                            first_name: firstName,
+                            last_name: lastName,
+                            phone: phone,
+                            email: email,
+                        }),
+                    },
+                    'Creation du client...',
+                    () => this.createCustomer(),
+                );
+                if (data.customer) {
+                    await this.selectCustomer(data.customer);
+                }
+                this.newCustomer = { first_name: '', last_name: '', phone: '', email: '' };
+                this.showCreateCustomer = false;
+            } catch (e) {
+                this.createCustomerError = (e && e.payload && e.payload.error) ? e.payload.error : 'Creation impossible.';
+            } finally {
+                this.createCustomerLoading = false;
+            }
+        },
+        async applyDiscount() {
+            try {
+                const data = await this.requestJson(
+                    this.endpoints.edit,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: this.formBody({
+                            discount_type: this.discountType,
+                            discount_value: String(this.discountValue || '0'),
+                        }),
+                    },
+                    'Application de la remise...',
+                    () => this.applyDiscount(),
+                );
+                await this.applySaleFromResponse(data);
+                this.ok('Remise appliquee.');
+            } catch (e) {
+                return;
+            }
+        },
+        async saveNotes() {
+            try {
+                const data = await this.requestJson(
+                    this.endpoints.edit,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: this.formBody({ notes: this.notes || '' }),
+                    },
+                    'Sauvegarde des notes...',
+                    () => this.saveNotes(),
+                );
+                await this.applySaleFromResponse(data);
+                this.ok('Notes sauvegardees.');
+            } catch (e) {
+                return;
+            }
+        },
+        async submitSale() {
+            if (!this.sale.customer) {
+                this.fail('Selectionnez un client avant la soumission.');
+                return;
+            }
+            if (!this.sale.can_submit) {
+                this.fail('Cette vente ne peut pas etre soumise.');
+                return;
+            }
+            this.submittingSale = true;
+            try {
+                const data = await this.requestJson(
+                    this.endpoints.submit,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: this.formBody({
+                            confirm: 'on',
+                            print_document: this.printDocument,
+                        }),
+                    },
+                    'Soumission a la caisse...',
+                    () => this.submitSale(),
+                );
+                await this.applySaleFromResponse(data);
+                this.ok(data.message || 'Vente soumise.');
+                if (data.print_document_url) {
+                    window.open(data.print_document_url, '_blank');
+                }
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+            } catch (e) {
+                return;
+            } finally {
+                this.submittingSale = false;
+            }
+        },
+    };
+}
+</script>
+{% endblock %}

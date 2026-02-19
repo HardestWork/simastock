@@ -1,0 +1,238 @@
+{% extends "base/base.html" %}
+{% load boutique_tags %}
+
+{% block title %}Dashboard Strategique{% endblock %}
+
+{% block breadcrumb %}
+<div class="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Dashboard Strategique DG</h1>
+        <p class="text-sm text-gray-500 mt-1">Pilotage intelligent multi-boutique</p>
+    </div>
+    <form method="get" class="flex flex-wrap gap-2 items-end">
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Date debut</label>
+            <input type="date" name="date_from" value="{{ date_from|date:'Y-m-d' }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Date fin</label>
+            <input type="date" name="date_to" value="{{ date_to|date:'Y-m-d' }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm">Appliquer</button>
+        <button type="submit" name="refresh" value="1" class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm">Recalculer</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if no_store %}
+<div class="bg-white border border-red-200 rounded-xl p-5 text-red-700">Aucune boutique active.</div>
+{% elif dashboard_disabled %}
+<div class="bg-white border border-amber-200 rounded-xl p-5">
+    <p class="text-amber-800 font-semibold">Dashboard strategique desactive pour cette boutique.</p>
+    <p class="text-sm text-amber-700 mt-1">Activez le flag "Dashboard strategique DG" dans les parametres de la boutique/entreprise.</p>
+</div>
+{% else %}
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs text-gray-500">CA Periode</p>
+        <p class="text-xl font-bold text-gray-900">{{ kpi.revenue|currency }}</p>
+        <p class="text-xs {% if kpi.revenue_growth_pct >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+            {{ kpi.revenue_growth_pct }}%
+        </p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs text-gray-500">Ventes nettes</p>
+        <p class="text-xl font-bold text-gray-900">{{ kpi.net_sales|currency }}</p>
+        <p class="text-xs text-gray-500">{{ kpi.orders }} commandes</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs text-gray-500">Prevision 7 jours</p>
+        <p class="text-xl font-bold text-gray-900">{{ kpi.forecast_next_7d_qty }}</p>
+        <p class="text-xs text-gray-500">unites prevues</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs text-gray-500">Reappro urgent</p>
+        <p class="text-xl font-bold text-amber-600">{{ kpi.reorder.high }}</p>
+        <p class="text-xs text-gray-500">{{ kpi.reorder.total }} produits analyses</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs text-gray-500">Fraude / anomalies</p>
+        <p class="text-xl font-bold text-red-600">{{ kpi.fraud.unresolved }}</p>
+        <p class="text-xs text-gray-500">{{ kpi.fraud.critical }} critiques</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+    <div class="xl:col-span-2 bg-white rounded-xl border border-gray-100 p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-900">Analyse ABC (CA cumule)</h3>
+            <span class="text-xs text-gray-500">A: coeur business, C: longue traine</span>
+        </div>
+        <canvas id="abcChart" height="130"></canvas>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-5">
+        <h3 class="font-semibold text-gray-900 mb-4">Score credit</h3>
+        <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-500">Comptes evalues</span><span class="font-semibold">{{ kpi.credit.scored_accounts }}</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">Score moyen</span><span class="font-semibold">{{ kpi.credit.average_score }}/100</span></div>
+            <div class="pt-2 border-t border-gray-100 space-y-1">
+                <div class="flex justify-between"><span>Grade A</span><span>{{ kpi.credit.grade_breakdown.A|default:0 }}</span></div>
+                <div class="flex justify-between"><span>Grade B</span><span>{{ kpi.credit.grade_breakdown.B|default:0 }}</span></div>
+                <div class="flex justify-between"><span>Grade C</span><span>{{ kpi.credit.grade_breakdown.C|default:0 }}</span></div>
+                <div class="flex justify-between"><span>Grade D</span><span>{{ kpi.credit.grade_breakdown.D|default:0 }}</span></div>
+                <div class="flex justify-between"><span>Grade E</span><span>{{ kpi.credit.grade_breakdown.E|default:0 }}</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100 font-semibold text-gray-900">Reapprovisionnement dynamique</div>
+        <div class="max-h-96 overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                    <tr>
+                        <th class="text-left px-4 py-2">Produit</th>
+                        <th class="text-right px-4 py-2">Stock dispo</th>
+                        <th class="text-right px-4 py-2">A commander</th>
+                        <th class="text-right px-4 py-2">Urgence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in reorder_rows %}
+                    <tr class="border-t border-gray-100">
+                        <td class="px-4 py-2">{{ row.product.name }}</td>
+                        <td class="px-4 py-2 text-right">{{ row.current_available }}</td>
+                        <td class="px-4 py-2 text-right font-semibold">{{ row.suggested_order_qty }}</td>
+                        <td class="px-4 py-2 text-right">
+                            <span class="text-xs px-2 py-1 rounded {% if row.urgency == 'HIGH' %}bg-red-100 text-red-700{% elif row.urgency == 'MEDIUM' %}bg-amber-100 text-amber-700{% else %}bg-green-100 text-green-700{% endif %}">
+                                {{ row.get_urgency_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="px-4 py-4 text-center text-gray-500">Aucune recommandation.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100 font-semibold text-gray-900">Fraudes / anomalies</div>
+        <div class="max-h-96 overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                    <tr>
+                        <th class="text-left px-4 py-2">Regle</th>
+                        <th class="text-left px-4 py-2">Description</th>
+                        <th class="text-right px-4 py-2">Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in fraud_rows %}
+                    <tr class="border-t border-gray-100">
+                        <td class="px-4 py-2">
+                            <div class="font-semibold">{{ row.rule_code }}</div>
+                            <div class="text-xs {% if row.severity == 'CRITICAL' %}text-red-600{% elif row.severity == 'WARNING' %}text-amber-600{% else %}text-blue-600{% endif %}">
+                                {{ row.get_severity_display }}
+                            </div>
+                        </td>
+                        <td class="px-4 py-2">{{ row.title }}</td>
+                        <td class="px-4 py-2 text-right font-semibold">{{ row.risk_score }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="px-4 py-4 text-center text-gray-500">Aucun signal.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100 font-semibold text-gray-900">Analyse ABC detail</div>
+        <div class="max-h-80 overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                    <tr>
+                        <th class="text-left px-4 py-2">Produit</th>
+                        <th class="text-right px-4 py-2">Classe</th>
+                        <th class="text-right px-4 py-2">CA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in abc_rows %}
+                    <tr class="border-t border-gray-100">
+                        <td class="px-4 py-2">{{ row.product.name }}</td>
+                        <td class="px-4 py-2 text-right font-semibold">{{ row.abc_class }}</td>
+                        <td class="px-4 py-2 text-right">{{ row.revenue|currency }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="px-4 py-4 text-center text-gray-500">Aucune donnee ABC.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100 font-semibold text-gray-900">Previsions produits (14 jours)</div>
+        <div class="max-h-80 overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                    <tr>
+                        <th class="text-left px-4 py-2">Produit</th>
+                        <th class="text-right px-4 py-2">Date</th>
+                        <th class="text-right px-4 py-2">Qt prevue</th>
+                        <th class="text-right px-4 py-2">Confiance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in forecast_rows %}
+                    <tr class="border-t border-gray-100">
+                        <td class="px-4 py-2">{{ row.product.name }}</td>
+                        <td class="px-4 py-2 text-right">{{ row.forecast_date|date:"d/m/Y" }}</td>
+                        <td class="px-4 py-2 text-right">{{ row.predicted_qty }}</td>
+                        <td class="px-4 py-2 text-right">{{ row.confidence }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="px-4 py-4 text-center text-gray-500">Aucune prevision.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const canvas = document.getElementById("abcChart");
+    if (!canvas) return;
+    new Chart(canvas, {
+        type: "bar",
+        data: {
+            labels: {{ abc_labels_json|safe }},
+            datasets: [{
+                label: "CA par classe",
+                data: {{ abc_revenue_json|safe }},
+                backgroundColor: ["#2563eb", "#0ea5e9", "#94a3b8"],
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

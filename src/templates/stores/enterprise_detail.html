@@ -1,0 +1,118 @@
+{% extends "base/base.html" %}
+
+{% block title %}Entreprise{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">{{ enterprise.name }}</h1>
+        <p class="text-sm text-gray-500 mt-1">Code: {{ enterprise.code }}</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a href="{% url 'stores:enterprise-edit' %}" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+            Modifier
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Identity -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Identite</h2>
+        <dl class="space-y-3 text-sm">
+            <div class="flex justify-between">
+                <dt class="text-gray-500">Raison sociale</dt>
+                <dd class="text-gray-900 font-medium">{{ enterprise.legal_name|default:"-" }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-gray-500">Numero RCCM</dt>
+                <dd class="text-gray-900 font-medium">{{ enterprise.registration_number|default:"-" }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-gray-500">Numero contribuable</dt>
+                <dd class="text-gray-900 font-medium">{{ enterprise.tax_id|default:"-" }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-gray-500">Devise</dt>
+                <dd class="text-gray-900 font-medium">{{ enterprise.currency }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-gray-500">TVA</dt>
+                <dd class="text-gray-900 font-medium">
+                    {% if enterprise.vat_enabled %}Activee ({{ enterprise.vat_rate }}%){% else %}Desactivee{% endif %}
+                </dd>
+            </div>
+        </dl>
+    </div>
+
+    <!-- Contact -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Contact</h2>
+        <dl class="space-y-3 text-sm">
+            <div class="flex justify-between">
+                <dt class="text-gray-500">Email</dt>
+                <dd class="text-gray-900 font-medium">{{ enterprise.email|default:"-" }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-gray-500">Telephone</dt>
+                <dd class="text-gray-900 font-medium">{{ enterprise.phone|default:"-" }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-gray-500">Site web</dt>
+                <dd class="text-gray-900 font-medium">{{ enterprise.website|default:"-" }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Feature flags plateforme (Entreprise)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+            {% for row in enterprise_feature_rows %}
+            <div class="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2">
+                <span class="text-gray-700">{{ row.label }}</span>
+                <span class="px-2 py-0.5 rounded-full text-xs {% if row.enabled %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                    {% if row.enabled %}Actif{% else %}Inactif{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Stores -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Boutiques ({{ stores|length }})</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 px-3 font-medium text-gray-500">Nom</th>
+                        <th class="text-left py-2 px-3 font-medium text-gray-500">Code</th>
+                        <th class="text-left py-2 px-3 font-medium text-gray-500">Adresse</th>
+                        <th class="text-left py-2 px-3 font-medium text-gray-500">Telephone</th>
+                        <th class="text-left py-2 px-3 font-medium text-gray-500">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for store in stores %}
+                    <tr>
+                        <td class="py-2 px-3 font-medium text-gray-900">{{ store.name }}</td>
+                        <td class="py-2 px-3 text-gray-600">{{ store.code }}</td>
+                        <td class="py-2 px-3 text-gray-600">{{ store.address|truncatewords:8 }}</td>
+                        <td class="py-2 px-3 text-gray-600">{{ store.phone|default:"-" }}</td>
+                        <td class="py-2 px-3">
+                            <a href="{% url 'stores:store-detail' store.pk %}" class="text-primary-600 hover:underline">Voir</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="py-4 text-center text-gray-500">Aucune boutique</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+import type { FeatureFlagKey } from '@/api/types';
+
+export const FEATURE_FLAG_KEYS: FeatureFlagKey[] = [
+  'sales_pos',
+  'sales_refund',
+  'cashier_operations',
+  'stock_management',
+  'stock_entries',
+  'purchases_management',
+  'credit_management',
+  'alerts_center',
+  'reports_center',
+  'vat',
+  'enabled',
+  'dashboard_strategic',
+  'abc_analysis',
+  'dynamic_reorder',
+  'credit_scoring',
+  'sales_forecast',
+  'fraud_detection',
+  'advanced_permissions',
+];
+
+export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
+  sales_pos: 'POS / nouvelles ventes',
+  sales_refund: 'Remboursements de ventes',
+  cashier_operations: 'Encaissement / caisse',
+  stock_management: 'Gestion stock (niveaux, mouvements, inventaires)',
+  stock_entries: 'Entrees et ajustements de stock',
+  purchases_management: 'Achats (fournisseurs, commandes, receptions)',
+  credit_management: 'Credits clients',
+  alerts_center: "Centre d'alertes",
+  reports_center: 'Rapports standards',
+  vat: 'TVA (calcul & affichage)',
+  enabled: 'Module analytics global',
+  dashboard_strategic: 'Dashboard strategique DG',
+  abc_analysis: 'Analyse ABC automatique',
+  dynamic_reorder: 'Reapprovisionnement dynamique',
+  credit_scoring: 'Score client credit',
+  sales_forecast: 'Prevision ventes (moyenne mobile)',
+  fraud_detection: 'Detection fraude/anomalies',
+  advanced_permissions: 'Permissions avancees (capacites)',
+};
+
+export type OverrideMode = 'inherit' | 'enabled' | 'disabled';

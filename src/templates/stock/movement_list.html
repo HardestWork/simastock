@@ -1,0 +1,121 @@
+{% extends "base/base.html" %}
+{% load boutique_tags %}
+
+{% block title %}Mouvements de stock{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Mouvements de stock</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ current_store.name }}</p>
+    </div>
+    <a href="{% url 'stock:stock-list' %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+        Retour stock
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div x-data="movementListUX()" x-init="init()" class="space-y-4">
+    <div x-show="errorMessage" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+        <span x-text="errorMessage"></span>
+        <button type="button" @click="retry()" class="px-3 py-1 bg-red-600 text-white rounded text-xs">Reessayer</button>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <form id="movement-filter" method="get" class="flex gap-3" @submit="startLoading()">
+            <input type="text" name="q" value="{{ search_query }}"
+                   placeholder="Produit, SKU, reference, motif, acteur..."
+                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+            <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+                <span x-show="!loading">Rechercher</span>
+                <span x-show="loading"><i class="fas fa-spinner fa-spin mr-1"></i>Chargement...</span>
+            </button>
+            <a href="{% url 'stock:movement-list' %}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
+                Reinitialiser
+            </a>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-100">
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Date</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Produit</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Type</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Motif</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Acteur</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Quantite</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for movement in movements %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-5 py-3 text-sm text-gray-600">{{ movement.created_at|date:"d/m/Y H:i" }}</td>
+                    <td class="px-5 py-3 text-sm text-gray-800">{{ movement.product.name }}</td>
+                    <td class="px-5 py-3 text-sm text-gray-700">{{ movement.get_movement_type_display }}</td>
+                    <td class="px-5 py-3 text-sm text-gray-600">{{ movement.reason|default:"-" }}</td>
+                    <td class="px-5 py-3 text-sm text-gray-600">{{ movement.actor.get_full_name|default:"-" }}</td>
+                    <td class="px-5 py-3 text-sm text-right font-semibold {% if movement.quantity < 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                        {{ movement.quantity }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-5 py-12 text-center text-gray-500">Aucun mouvement enregistre.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div class="mt-2 flex items-center justify-center gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key|urlencode }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
+           @click="startLoading()"
+           class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Precedent</a>
+        {% endif %}
+        <span class="px-3 py-1.5 text-sm text-gray-600">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key|urlencode }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
+           @click="startLoading()"
+           class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Suivant</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function movementListUX() {
+    return {
+        loading: false,
+        errorMessage: '',
+        startLoading() {
+            this.loading = true;
+            this.errorMessage = '';
+        },
+        retry() {
+            const form = document.getElementById('movement-filter');
+            if (form) {
+                form.submit();
+            } else {
+                window.location.reload();
+            }
+        },
+        init() {
+            document.body.addEventListener('htmx:responseError', () => {
+                this.loading = false;
+                this.errorMessage = 'Chargement impossible. Verifiez votre connexion puis reessayez.';
+            });
+            document.body.addEventListener('htmx:afterRequest', () => {
+                this.loading = false;
+            });
+        },
+    };
+}
+</script>
+{% endblock %}

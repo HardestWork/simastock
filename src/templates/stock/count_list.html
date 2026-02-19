@@ -1,0 +1,51 @@
+{% extends "base/base.html" %}
+{% load boutique_tags %}
+
+{% block title %}Inventaires{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Inventaires</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ current_store.name }}</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{% url 'stock:count-create' %}" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+            Nouvel inventaire
+        </a>
+        <a href="{% url 'stock:stock-list' %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+            Retour stock
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+    <form method="get" class="flex gap-3">
+        <input
+            type="text"
+            name="q"
+            value="{{ search_query }}"
+            placeholder="Rechercher (utilisateur, statut, note)..."
+            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+            hx-get="{% url 'stock:count-list' %}"
+            hx-trigger="keyup changed delay:300ms, search"
+            hx-target="#count-results"
+            hx-push-url="true"
+            hx-indicator="#inventory-search-indicator"
+        >
+        <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+            Rechercher
+        </button>
+        <a href="{% url 'stock:count-list' %}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
+            Reinitialiser
+        </a>
+    </form>
+    <p id="inventory-search-indicator" class="htmx-indicator mt-2 text-xs text-gray-500">Recherche...</p>
+</div>
+
+<div id="count-results">
+    {% include "stock/partials/count_table.html" %}
+</div>
+{% endblock %}

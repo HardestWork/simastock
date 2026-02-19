@@ -1,0 +1,2809 @@
+"""ViewSets and API views for the boutique management system API v1."""
+from datetime import timedelta
+from decimal import Decimal
+
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import (
+    Sum, Avg, Count, F, Q, DecimalField, Exists, OuterRef,
+    IntegerField, Subquery, Value,
+)
+from django.db.models.functions import Coalesce, TruncDate, TruncMonth, TruncYear
+from django.utils import timezone
+
+from rest_framework import viewsets, mixins, status, filters
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from django_filters.rest_framework import DjangoFilterBackend
+
+from stores.models import Enterprise, Store, StoreUser, AuditLog
+from catalog.models import Brand, Category, Product, ProductImage
+from stock.models import (
+    InventoryMovement, ProductStock,
+    StockTransfer, StockTransferLine,
+    StockCount, StockCountLine,
+)
+from customers.models import Customer
+from sales.models import Quote, QuoteItem, Refund, Sale, SaleItem
+from cashier.models import CashShift, Payment
+from credits.models import CustomerAccount, CreditLedgerEntry, PaymentSchedule
+from purchases.models import Supplier, PurchaseOrder, GoodsReceipt
+from alerts.models import Alert
+from reports.models import KPISnapshot
+from core.pdf import generate_invoice_pdf, generate_receipt_pdf
+
+from accounts.models import CustomRole
+from api.v1.serializers import (
+    CustomRoleSerializer,
+    UserSerializer,
+    UserCreateSerializer,
+    EnterpriseSerializer,
+    EnterpriseSetupSerializer,
+    StoreSerializer,
+    CategorySerializer,
+    BrandSerializer,
+    ProductSerializer,
+    ProductPOSSerializer,
+    ProductStockSerializer,
+    InventoryMovementSerializer,
+    CustomerSerializer,
+    SaleSerializer,
+    SaleCreateSerializer,
+    SaleAddItemSerializer,
+    SaleSubmitSerializer,
+    SaleItemSerializer,
+    PaymentSerializer,
+    PaymentCreateSerializer,
+    CashShiftSerializer,
+    CashShiftOpenSerializer,
+    CashShiftCloseSerializer,
+    CustomerAccountSerializer,
+    CreditLedgerEntrySerializer,
+    SupplierSerializer,
+    PurchaseOrderSerializer,
+    GoodsReceiptSerializer,
+    AlertSerializer,
+    KPISerializer,
+    MeSerializer,
+    ChangePasswordSerializer,
+    MyStoreSerializer,
+    RefundSerializer,
+    RefundCreateSerializer,
+    AuditLogSerializer,
+    StockTransferSerializer,
+    StockTransferCreateSerializer,
+    StockCountSerializer,
+    StockCountCreateSerializer,
+    StockCountUpdateLinesSerializer,
+    BulkStockEntrySerializer,
+    BulkStockAdjustSerializer,
+    StockTransferLineSerializer,
+    StockCountLineSerializer,
+    PaymentScheduleSerializer,
+    QuoteSerializer,
+    QuoteCreateSerializer,
+    QuoteAddItemSerializer,
+    StoreUserSerializer,
+)
+from api.v1.pagination import StandardResultsSetPagination
+from api.v1.permissions import (
+    IsSuperAdmin,
+    IsAdmin,
+    IsManagerOrAdmin,
+    IsCashier,
+    IsSales,
+    IsStoreMember,
+    CanProcessPayment,
+    CanApproveRefund,
+    CanOverridePrice,
+    FeatureSalesPOSEnabled,
+    FeatureSalesRefundEnabled,
+    FeatureCashierOperationsEnabled,
+    FeatureStockManagementEnabled,
+    FeatureStockEntriesEnabled,
+    FeaturePurchasesManagementEnabled,
+    FeatureCreditManagementEnabled,
+    FeatureAlertsCenterEnabled,
+    FeatureReportsCenterEnabled,
+)
+
+User = get_user_model()
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _user_store_ids(user):
+    """Return a list of store IDs the user has access to."""
+    # Platform-level admins (Django superusers) can access all stores.
+    if getattr(user, "is_superuser", False):
+        return Store.objects.filter(is_active=True).values_list('id', flat=True)
+    return StoreUser.objects.filter(user=user).values_list('store_id', flat=True)
+
+
+def _user_enterprise_id(user):
+    """Return the enterprise ID for the user's stores (first match).
+
+    Superusers without explicit StoreUser records fall back to the first
+    active enterprise (best-effort) so that admin tools keep working.
+    """
+    store_user = (
+        StoreUser.objects
+        .filter(
+            user=user,
+            store__is_active=True,
+            store__enterprise__is_active=True,
+        )
+        .order_by("-is_default", "store_id")
+        .select_related("store__enterprise")
+        .first()
+    )
+    if store_user and store_user.store and store_user.store.enterprise_id:
+        return store_user.store.enterprise_id
+
+    # Fallback for Django superusers who have no StoreUser records
+    if getattr(user, "is_superuser", False):
+        first_enterprise = Enterprise.objects.filter(is_active=True).first()
+        if first_enterprise:
+            return first_enterprise.id
+
+    return None
+
+
+def _filter_queryset_by_enterprise(qs, user, *, field_name: str = "enterprise_id"):
+    """Restrict an enterprise-scoped queryset to the user's enterprise.
+
+    If the user is not linked to any active store/enterprise, return an empty
+    queryset to avoid cross-tenant leakage.
+    """
+    enterprise_id = _user_enterprise_id(user)
+    if enterprise_id is None:
+        return qs.none()
+    return qs.filter(**{field_name: enterprise_id})
+
+
+def _require_user_enterprise_id(user):
+    """Return current user's enterprise ID or raise an explicit permission error."""
+    enterprise_id = _user_enterprise_id(user)
+    if enterprise_id is None:
+        raise PermissionDenied(
+            "Aucune entreprise active n'est associee a votre compte."
+        )
+    return enterprise_id
+
+
+# ---------------------------------------------------------------------------
+# Enterprise ViewSet
+# ---------------------------------------------------------------------------
+
+class EnterpriseViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for enterprises.
+
+    - Only ADMIN can create/update/delete.
+    - Authenticated users can list/retrieve (filtered to their enterprise).
+    """
+
+    serializer_class = EnterpriseSerializer
+    queryset = Enterprise.objects.all()
+    search_fields = ['name', 'code']
+    ordering_fields = ['name', 'created_at', 'subscription_end', 'is_active']
+    filterset_fields = ['is_active']
+
+    def get_permissions(self):
+        # Tenant ADMIN can manage their own enterprise settings, but cannot
+        # create/delete enterprises. Only Django superusers can do that.
+        if self.action in ('create', 'destroy', 'toggle_active'):
+            return [IsSuperAdmin()]
+        if self.action in ('update', 'partial_update'):
+            # Superusers can update any enterprise; admins only their own.
+            if getattr(self.request.user, "is_superuser", False):
+                return [IsSuperAdmin()]
+            return [IsAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Superusers see ALL enterprises (for the management page).
+        if getattr(self.request.user, "is_superuser", False):
+            return qs
+        enterprise_id = _user_enterprise_id(self.request.user)
+        if enterprise_id is None:
+            return qs.none()
+        return qs.filter(pk=enterprise_id)
+
+    def get_object(self):
+        obj = super().get_object()
+        # Non-superuser admins can only manage their own enterprise.
+        if self.action in ('update', 'partial_update'):
+            user = self.request.user
+            if not getattr(user, 'is_superuser', False):
+                user_eid = _user_enterprise_id(user)
+                if user_eid != obj.pk:
+                    raise PermissionDenied("Vous ne pouvez modifier que votre propre entreprise.")
+        return obj
+
+    @action(detail=True, methods=['post'], url_path='toggle-active')
+    def toggle_active(self, request, pk=None):
+        """Quick activate / deactivate an enterprise."""
+        enterprise = self.get_object()
+        enterprise.is_active = not enterprise.is_active
+        enterprise.save(update_fields=['is_active', 'updated_at'])
+        return Response(EnterpriseSerializer(enterprise).data)
+
+    def perform_create(self, serializer):
+        enterprise = serializer.save()
+        # Create a default walk-in customer for this structure so that POS can
+        # create sales without forcing customer creation/selection.
+        try:
+            from customers.services import get_or_create_default_customer
+            get_or_create_default_customer(enterprise=enterprise)
+        except Exception:
+            # Not critical for enterprise creation; sale flow also self-heals.
+            pass
+
+    @action(detail=False, methods=['post'], url_path='setup', permission_classes=[IsSuperAdmin])
+    def setup(self, request):
+        """One-step enterprise + store + admin user creation."""
+        ser = EnterpriseSetupSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        d = ser.validated_data
+
+        with transaction.atomic():
+            enterprise = Enterprise.objects.create(
+                name=d['enterprise_name'],
+                code=d['enterprise_code'],
+                currency=d['enterprise_currency'],
+                email=d.get('enterprise_email', ''),
+                phone=d.get('enterprise_phone', ''),
+                can_create_stores=d.get('can_create_stores', True),
+                subscription_start=d.get('subscription_start'),
+                subscription_end=d.get('subscription_end'),
+            )
+            # Default walk-in customer
+            Customer.objects.create(
+                enterprise=enterprise,
+                first_name='Client',
+                last_name='comptoir',
+                is_default=True,
+            )
+            store = Store.objects.create(
+                enterprise=enterprise,
+                name=d['store_name'],
+                code=d['store_code'],
+                address=d.get('store_address', ''),
+                phone=d.get('store_phone', ''),
+                email=d.get('store_email', ''),
+            )
+            user = User.objects.create_user(
+                email=d['user_email'],
+                password=d['user_password'],
+                first_name=d['user_first_name'],
+                last_name=d['user_last_name'],
+                phone=d.get('user_phone', ''),
+                role=d['user_role'],
+            )
+            StoreUser.objects.create(user=user, store=store, is_default=True)
+
+        return Response({
+            'enterprise': EnterpriseSerializer(enterprise).data,
+            'store': StoreSerializer(store).data,
+            'admin_user': UserSerializer(user).data,
+        }, status=status.HTTP_201_CREATED)
+
+
+# ---------------------------------------------------------------------------
+# Store ViewSet
+# ---------------------------------------------------------------------------
+
+class StoreViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for stores.
+
+    - Only ADMIN can create/update/delete.
+    - Authenticated users can list/retrieve (filtered to their stores).
+    """
+
+    serializer_class = StoreSerializer
+    queryset = Store.objects.all()
+    filterset_fields = ['is_active']
+    search_fields = ['name', 'code']
+    ordering_fields = ['name', 'created_at']
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy', 'assign_users'):
+            return [IsAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        # Tenant admins/managers/users are scoped to their StoreUser links.
+        # Only Django superusers can see all stores.
+        if not getattr(user, "is_superuser", False):
+            qs = qs.filter(store_users__user=user)
+        return qs.distinct()
+    
+    def perform_create(self, serializer):
+        # Force enterprise scoping from the creator context to prevent
+        # cross-tenant store creation.
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+
+        # Check if the enterprise allows store creation (superusers bypass).
+        if not getattr(self.request.user, "is_superuser", False):
+            enterprise = Enterprise.objects.filter(pk=enterprise_id).first()
+            if enterprise and not enterprise.can_create_stores:
+                raise PermissionDenied(
+                    "La creation de boutiques n'est pas autorisee pour cette entreprise."
+                )
+
+        store = serializer.save(enterprise_id=enterprise_id)
+        # Ensure the creator can actually access the store they just created.
+        StoreUser.objects.get_or_create(
+            store=store,
+            user=self.request.user,
+            defaults={"is_default": False},
+        )
+
+    @action(detail=True, methods=['post'], url_path='assign-users')
+    def assign_users(self, request, pk=None):
+        """Assign users to a store."""
+        store = self.get_object()
+        user_ids = request.data.get('user_ids', [])
+        is_default = bool(request.data.get('is_default', False))
+        if not isinstance(user_ids, list):
+            return Response(
+                {'detail': 'Le champ user_ids doit etre une liste.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        users_qs = User.objects.filter(id__in=user_ids, is_active=True)
+        if not getattr(request.user, "is_superuser", False):
+            users_qs = users_qs.filter(
+                store_users__store__enterprise_id=store.enterprise_id,
+            ).distinct()
+        users = list(users_qs)
+
+        requested_ids = {str(uid) for uid in user_ids}
+        accessible_ids = {str(user.id) for user in users}
+        inaccessible_ids = sorted(requested_ids - accessible_ids)
+        if inaccessible_ids:
+            return Response(
+                {
+                    'detail': (
+                        "Certains utilisateurs sont introuvables ou hors "
+                        "de votre entreprise."
+                    ),
+                    'user_ids': inaccessible_ids,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created = 0
+        for user in users:
+            _, was_created = StoreUser.objects.get_or_create(
+                store=store,
+                user=user,
+                defaults={'is_default': is_default},
+            )
+            if was_created:
+                created += 1
+
+        return Response(
+            {
+                'store': str(store.pk),
+                'assigned_count': users.count(),
+                'new_links': created,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=['get'], url_path='my-stores')
+    def my_stores(self, request):
+        """Return all stores accessible by the current user with is_default flag."""
+        user = request.user
+        default_link = StoreUser.objects.filter(user=user, store_id=OuterRef('pk'), is_default=True)
+        if getattr(user, "is_superuser", False):
+            stores = (
+                Store.objects
+                .filter(is_active=True)
+                .select_related('enterprise')
+                .annotate(is_default_for_user=Exists(default_link))
+            )
+        else:
+            store_ids = StoreUser.objects.filter(user=user).values_list('store_id', flat=True)
+            stores = (
+                Store.objects
+                .filter(pk__in=store_ids, is_active=True)
+                .select_related('enterprise')
+                .annotate(is_default_for_user=Exists(default_link))
+            )
+        serializer = MyStoreSerializer(stores, many=True, context={'request': request})
+        return Response(serializer.data)
+
+
+# ---------------------------------------------------------------------------
+# StoreUser ViewSet (capabilities management)
+# ---------------------------------------------------------------------------
+
+class StoreUserViewSet(viewsets.ModelViewSet):
+    """CRUD for store-user links with capability management.
+
+    Managers and admins can list users for their stores and update
+    capabilities.  The ``presets`` action returns the available
+    capability presets for quick assignment.
+    """
+
+    serializer_class = StoreUserSerializer
+    permission_classes = [IsManagerOrAdmin, IsStoreMember]
+    filterset_fields = ['store']
+
+    def get_queryset(self):
+        qs = StoreUser.objects.select_related('user', 'store')
+        store_id = self.request.query_params.get('store')
+        if store_id:
+            qs = qs.filter(store_id=store_id)
+        return qs.filter(store_id__in=_user_store_ids(self.request.user))
+
+    @action(detail=False, methods=['get'], url_path='presets')
+    def presets(self, request):
+        """Return the list of capability presets and all available capabilities."""
+        from stores.capabilities import CAPABILITY_PRESETS, CAPABILITY_CHOICES
+        return Response({
+            'presets': CAPABILITY_PRESETS,
+            'all_capabilities': [
+                {'code': code, 'label': label}
+                for code, label in CAPABILITY_CHOICES
+            ],
+        })
+
+
+# ---------------------------------------------------------------------------
+# Custom Role ViewSet
+# ---------------------------------------------------------------------------
+
+class CustomRoleViewSet(viewsets.ModelViewSet):
+    """CRUD for custom roles. Admin only."""
+
+    queryset = CustomRole.objects.all()
+    serializer_class = CustomRoleSerializer
+    permission_classes = [IsAdmin]
+    filterset_fields = ['base_role', 'is_active']
+    search_fields = ['name']
+    ordering_fields = ['name', 'base_role', 'is_active']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        return qs.filter(enterprise_id=enterprise_id)
+
+    def perform_create(self, serializer):
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        serializer.save(enterprise_id=enterprise_id)
+
+
+# ---------------------------------------------------------------------------
+# User ViewSet
+# ---------------------------------------------------------------------------
+
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for users. Admin only.
+
+    Uses UserCreateSerializer for create action and UserSerializer for others.
+    """
+
+    queryset = User.objects.all()
+    permission_classes = [IsAdmin]
+    filterset_fields = ['role', 'is_active']
+    search_fields = ['email', 'first_name', 'last_name']
+    ordering_fields = ['last_name', 'date_joined', 'role', 'is_active']
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return UserCreateSerializer
+        return UserSerializer
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Superusers can observe everything (Django admin / platform-level).
+        if getattr(self.request.user, "is_superuser", False):
+            return qs
+        # Tenant admin scope: only users linked to the same enterprise via StoreUser.
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        return qs.filter(store_users__store__enterprise_id=enterprise_id).distinct()
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+
+        # Auto-link the new user to the creator's default store so they can use
+        # the application immediately (otherwise "no store selected" blocks most features).
+        creator_link = (
+            StoreUser.objects
+            .filter(user=self.request.user, store__is_active=True)
+            .order_by("-is_default", "store_id")
+            .select_related("store")
+            .first()
+        )
+        if creator_link and creator_link.store_id:
+            StoreUser.objects.get_or_create(
+                store_id=creator_link.store_id,
+                user=user,
+                defaults={"is_default": True},
+            )
+
+
+# ---------------------------------------------------------------------------
+# Category ViewSet
+# ---------------------------------------------------------------------------
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for product categories (enterprise-scoped).
+
+    - Managers and admins can write.
+    - All authenticated users can read.
+    """
+
+    serializer_class = CategorySerializer
+    queryset = Category.objects.all()
+    filterset_fields = ['is_active', 'parent']
+    search_fields = ['name']
+    ordering_fields = ['name', 'is_active']
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsManagerOrAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return _filter_queryset_by_enterprise(qs, self.request.user)
+
+    def perform_create(self, serializer):
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        serializer.save(enterprise_id=enterprise_id)
+
+
+# ---------------------------------------------------------------------------
+# Brand ViewSet
+# ---------------------------------------------------------------------------
+
+class BrandViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for brands (enterprise-scoped).
+
+    - Managers and admins can write.
+    - All authenticated users can read.
+    """
+
+    serializer_class = BrandSerializer
+    queryset = Brand.objects.all()
+    filterset_fields = ['is_active']
+    search_fields = ['name']
+    ordering_fields = ['name', 'is_active']
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsManagerOrAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return _filter_queryset_by_enterprise(qs, self.request.user)
+
+    def perform_create(self, serializer):
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        serializer.save(enterprise_id=enterprise_id)
+
+
+# ---------------------------------------------------------------------------
+# Product ViewSet
+# ---------------------------------------------------------------------------
+
+class ProductViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for products (enterprise-scoped).
+
+    - Managers and admins can write.
+    - All authenticated users can read.
+    - Search by name, SKU, barcode. Filter by category, brand.
+    """
+
+    serializer_class = ProductSerializer
+    queryset = Product.objects.select_related('category', 'brand').prefetch_related(
+        'images', 'specs',
+    )
+    filterset_fields = ['category', 'brand', 'is_active']
+    search_fields = ['name', 'sku', 'barcode']
+    ordering_fields = ['name', 'sku', 'cost_price', 'selling_price', 'is_active', 'created_at']
+    pagination_class = StandardResultsSetPagination
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsManagerOrAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return _filter_queryset_by_enterprise(qs, self.request.user)
+
+    def perform_create(self, serializer):
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        product = serializer.save(enterprise_id=enterprise_id)
+        # Handle image upload if provided
+        image_file = self.request.FILES.get('image')
+        if image_file:
+            ProductImage.objects.create(product=product, image=image_file, is_primary=True)
+
+    def perform_update(self, serializer):
+        product = serializer.save()
+        # Handle image upload if provided
+        image_file = self.request.FILES.get('image')
+        if image_file:
+            ProductImage.objects.create(product=product, image=image_file, is_primary=True)
+
+    @action(detail=True, methods=['post'], url_path='upload-image')
+    def upload_image(self, request, pk=None):
+        """Upload an image for a product."""
+        product = self.get_object()
+        image_file = request.FILES.get('image')
+        if not image_file:
+            raise ValidationError({'image': 'Aucun fichier image fourni.'})
+        is_primary = request.data.get('is_primary', 'false').lower() in ('true', '1')
+        if is_primary:
+            product.images.update(is_primary=False)
+        img = ProductImage.objects.create(product=product, image=image_file, is_primary=is_primary)
+        return Response({
+            'id': str(img.id), 'image': img.image.url,
+            'is_primary': img.is_primary, 'sort_order': img.sort_order,
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='delete-image')
+    def delete_image(self, request, pk=None):
+        """Delete a product image by image ID."""
+        product = self.get_object()
+        image_id = request.data.get('image_id')
+        if not image_id:
+            raise ValidationError({'image_id': 'Ce champ est requis.'})
+        try:
+            img = product.images.get(id=image_id)
+        except ProductImage.DoesNotExist:
+            raise ValidationError({'detail': 'Image introuvable.'})
+        img.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'], url_path='available')
+    def available(self, request):
+        """POS helper: products with store-scoped availability.
+
+        Query params:
+        - store: UUID (required)
+        - search: optional (name/sku/barcode)
+        - in_stock: "1" to return only products with available_qty > 0 (default "0")
+        """
+        store_id = request.query_params.get("store")
+        if not store_id:
+            return Response({"detail": "store est requis."}, status=status.HTTP_400_BAD_REQUEST)
+
+        store_ids = {str(x) for x in _user_store_ids(request.user)}
+        if store_id not in store_ids:
+            return Response(
+                {"detail": "Vous n'avez pas acces a cette boutique."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Subqueries avoid duplicates and include products without a stock row.
+        stock_qs = (
+            ProductStock.objects
+            .filter(store_id=store_id, product_id=OuterRef("pk"))
+            .annotate(avail=F("quantity") - F("reserved_qty"))
+            .values("avail")[:1]
+        )
+        has_stock_qs = ProductStock.objects.filter(store_id=store_id, product_id=OuterRef("pk"))
+
+        qs = self.get_queryset().annotate(
+            available_qty=Coalesce(Subquery(stock_qs, output_field=IntegerField()), Value(0)),
+            has_stock=Exists(has_stock_qs),
+        )
+
+        in_stock = request.query_params.get("in_stock", "0")
+        if in_stock in ("1", "true", "True", "yes", "on"):
+            qs = qs.filter(available_qty__gt=0)
+
+        qs = self.filter_queryset(qs)
+
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            return self.get_paginated_response(ProductPOSSerializer(page, many=True).data)
+        return Response(ProductPOSSerializer(qs, many=True).data)
+
+
+# ---------------------------------------------------------------------------
+# ProductStock ViewSet (Read-Only)
+# ---------------------------------------------------------------------------
+
+class ProductStockViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only viewset for product stock levels.
+
+    Filter by store and product. Only shows stock for user's accessible stores.
+    """
+
+    serializer_class = ProductStockSerializer
+    queryset = ProductStock.objects.select_related('store', 'product')
+    filterset_fields = ['store', 'product']
+    search_fields = ['product__name', 'product__sku', 'product__barcode']
+    ordering_fields = ['quantity', 'product__name', 'reserved_qty', 'min_qty']
+    permission_classes = [IsAuthenticated, FeatureStockManagementEnabled]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)
+
+
+# ---------------------------------------------------------------------------
+# InventoryMovement ViewSet (List + Create)
+# ---------------------------------------------------------------------------
+
+class InventoryMovementViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    List and create inventory movements.
+
+    Filter by store, product, movement type.
+    Filtered to user's accessible stores.
+    """
+
+    serializer_class = InventoryMovementSerializer
+    queryset = InventoryMovement.objects.select_related('store', 'product', 'actor')
+    filterset_fields = ['store', 'product', 'movement_type']
+    ordering_fields = ['created_at', 'product__name', 'movement_type', 'quantity']
+
+    def get_permissions(self):
+        if self.action in ('create', 'bulk_entry', 'bulk_adjust'):
+            return [IsAuthenticated(), FeatureStockEntriesEnabled()]
+        return [IsAuthenticated(), FeatureStockManagementEnabled()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)
+
+    def perform_create(self, serializer):
+        """Create a movement **and** update the real stock level."""
+        data = serializer.validated_data
+        from stock.services import adjust_stock
+
+        adjust_stock(
+            store=data['store'],
+            product=data['product'],
+            qty_delta=data['quantity'],
+            movement_type=data['movement_type'],
+            reason=data.get('reason', ''),
+            actor=self.request.user,
+            reference=data.get('reference', ''),
+            batch_id=data.get('batch_id'),
+        )
+
+    # ---- bulk actions -------------------------------------------------
+
+    @action(detail=False, methods=['post'], url_path='bulk-entry')
+    def bulk_entry(self, request):
+        """Batch stock entry (movement_type=IN, qty > 0)."""
+        from stock.services import adjust_stock
+        import uuid as _uuid
+
+        serializer = BulkStockEntrySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+
+        store_id = request.data.get('store_id')
+        if not store_id:
+            raise ValidationError({'store_id': 'Ce champ est requis.'})
+
+        store_ids = {str(x) for x in _user_store_ids(request.user)}
+        if str(store_id) not in store_ids:
+            raise PermissionDenied("Vous n'avez pas acces a cette boutique.")
+        store = Store.objects.get(pk=store_id)
+
+        enterprise_id = _user_enterprise_id(request.user)
+        batch_id = _uuid.uuid4()
+        movements = []
+        for entry in d['entries']:
+            product = Product.objects.get(pk=entry['product_id'], enterprise_id=enterprise_id)
+            mv = adjust_stock(
+                store=store, product=product,
+                qty_delta=entry['quantity'],
+                movement_type=InventoryMovement.MovementType.IN,
+                reason=d.get('reason', ''),
+                actor=request.user,
+                reference=d.get('reference', ''),
+                batch_id=batch_id,
+            )
+            movements.append(mv)
+
+        return Response({
+            'batch_id': str(batch_id),
+            'count': len(movements),
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'], url_path='bulk-adjust')
+    def bulk_adjust(self, request):
+        """Batch stock adjustment (movement_type=ADJUST, qty can be +/-)."""
+        from stock.services import adjust_stock
+        import uuid as _uuid
+
+        serializer = BulkStockAdjustSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+
+        store_id = request.data.get('store_id')
+        if not store_id:
+            raise ValidationError({'store_id': 'Ce champ est requis.'})
+
+        store_ids = {str(x) for x in _user_store_ids(request.user)}
+        if str(store_id) not in store_ids:
+            raise PermissionDenied("Vous n'avez pas acces a cette boutique.")
+        store = Store.objects.get(pk=store_id)
+
+        enterprise_id = _user_enterprise_id(request.user)
+        batch_id = _uuid.uuid4()
+        movements = []
+        for adj in d['adjustments']:
+            product = Product.objects.get(pk=adj['product_id'], enterprise_id=enterprise_id)
+            mv = adjust_stock(
+                store=store, product=product,
+                qty_delta=adj['quantity'],
+                movement_type=InventoryMovement.MovementType.ADJUST,
+                reason=d['reason'],
+                actor=request.user,
+                reference='',
+                batch_id=batch_id,
+            )
+            movements.append(mv)
+
+        return Response({
+            'batch_id': str(batch_id),
+            'count': len(movements),
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='document')
+    def document(self, request):
+        """Return movements for a given batch_id (printable document)."""
+        batch_id = request.query_params.get('batch_id')
+        if not batch_id:
+            return Response({'detail': 'batch_id est requis.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = self.get_queryset().filter(batch_id=batch_id).order_by('product__name')
+        if not qs.exists():
+            return Response({'detail': 'Aucun mouvement pour ce lot.'}, status=status.HTTP_404_NOT_FOUND)
+
+        first = qs.first()
+        all_positive = all(m.quantity >= 0 for m in qs)
+        all_negative = all(m.quantity <= 0 for m in qs)
+        if all_positive:
+            doc_type = "Bon d'entree"
+        elif all_negative:
+            doc_type = "Bon de sortie"
+        else:
+            doc_type = "Bon d'ajustement"
+
+        return Response({
+            'batch_id': str(batch_id),
+            'doc_type': doc_type,
+            'store_name': first.store.name if first.store else '',
+            'date': first.created_at.isoformat(),
+            'reference': first.reference,
+            'reason': first.reason,
+            'movements': InventoryMovementSerializer(qs, many=True).data,
+            'total_lines': qs.count(),
+            'total_qty': sum(abs(m.quantity) for m in qs),
+        })
+
+
+# ---------------------------------------------------------------------------
+# Stock Transfer ViewSet
+# ---------------------------------------------------------------------------
+
+class StockTransferViewSet(viewsets.ModelViewSet):
+    """
+    CRUD + workflow for stock transfers between stores.
+
+    - list: transfers involving user's stores
+    - create: create a transfer from current store
+    - retrieve: transfer detail with lines
+    - approve: approve and process the transfer (manager+)
+    - receive: mark transfer as received at destination
+    """
+
+    serializer_class = StockTransferSerializer
+    queryset = StockTransfer.objects.select_related(
+        'from_store', 'to_store', 'created_by', 'approved_by',
+    ).prefetch_related('lines', 'lines__product')
+    filterset_fields = ['from_store', 'to_store', 'status']
+    ordering_fields = ['created_at', 'status']
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def get_permissions(self):
+        if self.action == 'approve':
+            return [IsManagerOrAdmin(), FeatureStockManagementEnabled()]
+        return [IsAuthenticated(), FeatureStockManagementEnabled()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(Q(from_store_id__in=store_ids) | Q(to_store_id__in=store_ids))
+
+    def create(self, request, *args, **kwargs):
+        serializer = StockTransferCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+
+        store_id = request.data.get('from_store_id')
+        if not store_id:
+            raise ValidationError({'from_store_id': 'Ce champ est requis.'})
+
+        store_ids = {str(x) for x in _user_store_ids(request.user)}
+        if str(store_id) not in store_ids:
+            raise PermissionDenied("Vous n'avez pas acces a cette boutique source.")
+        if str(d['to_store']) == str(store_id):
+            raise ValidationError({'to_store': 'La boutique destination doit etre differente.'})
+
+        from_store = Store.objects.get(pk=store_id)
+        to_store = Store.objects.get(pk=d['to_store'])
+        if from_store.enterprise_id != to_store.enterprise_id:
+            raise ValidationError({'to_store': 'La boutique destination doit appartenir a la meme entreprise.'})
+        enterprise_id = _user_enterprise_id(request.user)
+
+        transfer = StockTransfer.objects.create(
+            from_store=from_store,
+            to_store=to_store,
+            created_by=request.user,
+            notes=d.get('notes', ''),
+        )
+
+        lines_data = []
+        for line in d['lines']:
+            product = Product.objects.get(pk=line['product_id'], enterprise_id=enterprise_id)
+            lines_data.append(StockTransferLine(
+                transfer=transfer,
+                product=product,
+                quantity=line['quantity'],
+            ))
+        StockTransferLine.objects.bulk_create(lines_data)
+
+        transfer.refresh_from_db()
+        out = StockTransferSerializer(transfer).data
+        return Response(out, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Approve and process the transfer (deduct source, add destination)."""
+        transfer = self.get_object()
+        if transfer.status != StockTransfer.Status.PENDING:
+            raise ValidationError({'detail': 'Seuls les transferts en attente peuvent etre approuves.'})
+
+        transfer.status = StockTransfer.Status.APPROVED
+        transfer.approved_by = request.user
+        transfer.save(update_fields=['status', 'approved_by', 'updated_at'])
+
+        from stock.services import process_transfer
+        process_transfer(transfer, actor=request.user)
+
+        transfer.refresh_from_db()
+        return Response(StockTransferSerializer(transfer).data)
+
+    @action(detail=True, methods=['post'])
+    def receive(self, request, pk=None):
+        """Mark the transfer as received at destination."""
+        transfer = self.get_object()
+        if transfer.status not in (StockTransfer.Status.APPROVED, StockTransfer.Status.IN_TRANSIT):
+            raise ValidationError({'detail': 'Ce transfert ne peut pas etre marque comme recu.'})
+
+        user_stores = {str(x) for x in _user_store_ids(request.user)}
+        if str(transfer.to_store_id) not in user_stores:
+            raise PermissionDenied("Seule la boutique destination peut confirmer la reception.")
+
+        transfer.status = StockTransfer.Status.RECEIVED
+        transfer.save(update_fields=['status', 'updated_at'])
+        transfer.lines.update(received_qty=F('quantity'))
+
+        transfer.refresh_from_db()
+        return Response(StockTransferSerializer(transfer).data)
+
+
+# ---------------------------------------------------------------------------
+# Stock Count ViewSet
+# ---------------------------------------------------------------------------
+
+class StockCountViewSet(viewsets.ModelViewSet):
+    """
+    CRUD + workflow for inventory counts.
+
+    - list: counts for user's stores
+    - create: starts a new count (auto-populates lines from current stock)
+    - retrieve: count detail with all lines
+    - update_lines: bulk save counted quantities
+    - complete: finalize the count and generate adjustment movements
+    """
+
+    serializer_class = StockCountSerializer
+    queryset = StockCount.objects.select_related(
+        'store', 'created_by',
+    ).prefetch_related('lines', 'lines__product')
+    filterset_fields = ['store', 'status']
+    ordering_fields = ['created_at', 'status', 'completed_at']
+    http_method_names = ['get', 'post', 'patch', 'head', 'options']
+    permission_classes = [IsAuthenticated, FeatureStockManagementEnabled]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)
+
+    def create(self, request, *args, **kwargs):
+        serializer = StockCountCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        store_id = request.data.get('store_id')
+        if not store_id:
+            raise ValidationError({'store_id': 'Ce champ est requis.'})
+
+        store_ids = {str(x) for x in _user_store_ids(request.user)}
+        if str(store_id) not in store_ids:
+            raise PermissionDenied("Vous n'avez pas acces a cette boutique.")
+
+        store = Store.objects.get(pk=store_id)
+        count = StockCount.objects.create(
+            store=store,
+            status=StockCount.Status.IN_PROGRESS,
+            created_by=request.user,
+            notes=serializer.validated_data.get('notes', ''),
+        )
+
+        # Auto-populate lines from current ProductStock
+        stock_rows = ProductStock.objects.filter(store=store).select_related('product')
+        lines = [
+            StockCountLine(
+                stock_count=count,
+                product=ps.product,
+                system_qty=ps.quantity,
+            )
+            for ps in stock_rows
+        ]
+        StockCountLine.objects.bulk_create(lines)
+
+        count.refresh_from_db()
+        return Response(StockCountSerializer(count).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch'], url_path='update-lines')
+    def update_lines(self, request, pk=None):
+        """Bulk update counted quantities on count lines."""
+        count = self.get_object()
+        if count.status != StockCount.Status.IN_PROGRESS:
+            raise ValidationError({'detail': "L'inventaire n'est plus en cours."})
+
+        serializer = StockCountUpdateLinesSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        line_map = {str(line.id): line for line in count.lines.all()}
+        for update in serializer.validated_data['lines']:
+            line = line_map.get(str(update['id']))
+            if line:
+                line.counted_qty = update['counted_qty']
+                line.save(update_fields=['counted_qty', 'updated_at'])
+
+        count.refresh_from_db()
+        return Response(StockCountSerializer(count).data)
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """Finalize the count and create adjustment movements for variances."""
+        count = self.get_object()
+        if count.status != StockCount.Status.IN_PROGRESS:
+            raise ValidationError({'detail': "L'inventaire n'est plus en cours."})
+
+        from stock.services import complete_stock_count
+        complete_stock_count(count, actor=request.user)
+
+        count.refresh_from_db()
+        return Response(StockCountSerializer(count).data)
+
+
+# ---------------------------------------------------------------------------
+# Customer ViewSet
+# ---------------------------------------------------------------------------
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for customers (enterprise-scoped).
+
+    Search by name and phone.
+    Filtered to user's enterprise.
+    """
+
+    serializer_class = CustomerSerializer
+    queryset = Customer.objects.all()
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ['is_active']
+    search_fields = ['first_name', 'last_name', 'phone']
+    ordering_fields = ['last_name', 'created_at', 'is_active']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return _filter_queryset_by_enterprise(qs, self.request.user)
+
+    def perform_create(self, serializer):
+        """Inject enterprise from user's stores."""
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        serializer.save(enterprise_id=enterprise_id)
+
+
+# ---------------------------------------------------------------------------
+# Sale ViewSet
+# ---------------------------------------------------------------------------
+
+class SaleViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for sales with custom workflow actions.
+
+    - list: filter by store, status, seller, date range
+    - create: creates a DRAFT sale
+    - submit: submits the sale to the cashier for payment
+    - cancel: cancels the sale (requires manager)
+    - add_item: adds an item to a draft sale
+    - remove_item: removes an item from a draft sale
+    """
+
+    serializer_class = SaleSerializer
+    queryset = Sale.objects.select_related(
+        'store', 'seller', 'customer', 'source_quote',
+    ).prefetch_related('items', 'items__product')
+    filterset_fields = ['store', 'status', 'seller', 'is_credit_sale']
+    search_fields = [
+        'invoice_number',
+        'customer__first_name',
+        'customer__last_name',
+        'customer__phone',
+        'seller__first_name',
+        'seller__last_name',
+        'seller__email',
+    ]
+    ordering_fields = ['created_at', 'total', 'invoice_number', 'status', 'amount_due']
+    pagination_class = StandardResultsSetPagination
+
+    def get_permissions(self):
+        if self.action in ('create', 'add_item', 'remove_item', 'submit'):
+            return [IsSales(), FeatureSalesPOSEnabled()]
+        if self.action == 'cancel':
+            return [IsManagerOrAdmin(), FeatureSalesPOSEnabled()]
+        return [IsAuthenticated(), FeatureSalesPOSEnabled()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        qs = qs.filter(store_id__in=store_ids)
+
+        # Date range filtering
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if date_from:
+            qs = qs.filter(created_at__date__gte=date_from)
+        if date_to:
+            qs = qs.filter(created_at__date__lte=date_to)
+
+        return qs
+
+    def perform_update(self, serializer):
+        """Override to recalculate totals when discount/fields change."""
+        sale = serializer.save()
+        from sales.services import recalculate_sale
+        recalculate_sale(sale)
+
+    def create(self, request, *args, **kwargs):
+        """Create a new DRAFT sale.
+
+        Validates that:
+        - The user has access to the requested store.
+        - The customer (if any) belongs to the same store.
+        """
+        serializer = SaleCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        store_id = serializer.validated_data['store_id']
+
+        # --- Store isolation: verify user access ---
+        store_ids = _user_store_ids(request.user)
+        if store_id not in store_ids:
+            return Response(
+                {'detail': "Vous n'avez pas acces a cette boutique."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            store = Store.objects.get(pk=store_id, is_active=True)
+        except Store.DoesNotExist:
+            return Response(
+                {'detail': 'Boutique introuvable.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # --- Customer isolation: must belong to the same enterprise ---
+        customer = None
+        customer_id = serializer.validated_data.get('customer_id')
+        if customer_id:
+            try:
+                customer = Customer.objects.get(
+                    pk=customer_id, enterprise=store.enterprise,
+                )
+            except Customer.DoesNotExist:
+                return Response(
+                    {'detail': 'Client introuvable dans cette entreprise.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            # Default walk-in customer (created at enterprise creation; fallback
+            # here for existing datasets).
+            try:
+                from customers.services import get_or_create_default_customer
+                customer = get_or_create_default_customer(enterprise=store.enterprise)
+            except Exception:
+                customer = None
+
+        from sales.services import create_sale
+        sale = create_sale(
+            store=store,
+            seller=request.user,
+            customer=customer,
+        )
+
+        # Apply optional fields
+        if serializer.validated_data.get('discount_percent'):
+            sale.discount_percent = serializer.validated_data['discount_percent']
+        if serializer.validated_data.get('notes'):
+            sale.notes = serializer.validated_data['notes']
+        if sale.discount_percent or sale.notes:
+            sale.save(update_fields=['discount_percent', 'notes', 'updated_at'])
+
+        return Response(
+            SaleSerializer(sale).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['post'], url_path='submit')
+    def submit(self, request, pk=None):
+        """Submit the sale to the cashier for payment processing.
+
+        Delegates to ``sales.services.submit_sale_to_cashier`` so that
+        invoice number generation + audit logging are always applied.
+        """
+        sale = self.get_object()
+        try:
+            from sales.services import submit_sale_to_cashier
+            sale = submit_sale_to_cashier(sale, actor=request.user)
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(SaleSerializer(sale).data)
+
+    @action(detail=True, methods=['post'], url_path='cancel')
+    def cancel(self, request, pk=None):
+        """Cancel the sale. Requires manager or admin role.
+
+        Delegates to ``sales.services.cancel_sale``.
+        """
+        sale = self.get_object()
+        reason = request.data.get('reason', '')
+        try:
+            from sales.services import cancel_sale
+            sale = cancel_sale(sale, reason=reason, actor=request.user)
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(SaleSerializer(sale).data)
+
+    @action(detail=True, methods=['post'], url_path='add-item')
+    def add_item(self, request, pk=None):
+        """Add an item to a draft sale.
+
+        Delegates to ``sales.services.add_item_to_sale`` so that stock
+        availability is checked and the sale totals are recalculated.
+
+        If ``unit_price_override`` is provided, only MANAGER/ADMIN can
+        use it (checked via CanOverridePrice).
+        """
+        sale = self.get_object()
+
+        if sale.status != Sale.Status.DRAFT:
+            return Response(
+                {'detail': 'Les articles ne peuvent etre ajoutes que sur des ventes en brouillon.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = SaleAddItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        enterprise_id = _user_enterprise_id(request.user)
+        try:
+            product = Product.objects.get(
+                pk=serializer.validated_data['product_id'],
+                enterprise_id=enterprise_id,
+            )
+        except Product.DoesNotExist:
+            return Response(
+                {'detail': 'Produit introuvable dans votre entreprise.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        quantity = serializer.validated_data['quantity']
+        discount_amount = serializer.validated_data.get('discount_amount', Decimal('0.00'))
+        unit_price_override = serializer.validated_data.get('unit_price_override')
+
+        # Check override permission and bounds
+        if unit_price_override is not None:
+            if not CanOverridePrice().has_permission(request, self):
+                return Response(
+                    {'detail': 'Seuls les managers et admins peuvent modifier le prix de vente.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if unit_price_override <= Decimal('0'):
+                return Response(
+                    {'detail': 'Le prix doit etre strictement positif.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            from sales.services import add_item_to_sale
+            add_item_to_sale(
+                sale=sale,
+                product=product,
+                qty=quantity,
+                discount=discount_amount,
+                unit_price=unit_price_override,
+                actor=request.user,
+            )
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        sale.refresh_from_db()
+        return Response(SaleSerializer(sale).data)
+
+    @action(detail=True, methods=['post'], url_path='remove-item')
+    def remove_item(self, request, pk=None):
+        """Remove an item from a draft sale."""
+        sale = self.get_object()
+
+        if sale.status != Sale.Status.DRAFT:
+            return Response(
+                {'detail': 'Les articles ne peuvent etre retires que des ventes en brouillon.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        item_id = request.data.get('item_id')
+        if not item_id:
+            return Response(
+                {'detail': 'item_id est requis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            item = sale.items.get(pk=item_id)
+        except SaleItem.DoesNotExist:
+            return Response(
+                {'detail': 'Article introuvable dans cette vente.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # UX: the SPA uses this endpoint for both decrement and delete.
+        # If qty > 1, decrement by 1; else remove the line.
+        if item.quantity and item.quantity > 1:
+            item.quantity -= 1
+            item.save(update_fields=["quantity"])
+        else:
+            item.delete()
+
+        # Recalculate sale totals (also clears any prefetched cache).
+        from sales.services import recalculate_sale
+        recalculate_sale(sale)
+
+        # Reload through the viewset queryset so response contains up-to-date items.
+        sale = self.get_queryset().get(pk=sale.pk)
+        return Response(SaleSerializer(sale).data)
+
+    @action(detail=True, methods=["get"], url_path="invoice")
+    def invoice(self, request, pk=None):
+        """Generate and return an invoice/proforma/quote PDF for a sale.
+
+        SPA-friendly endpoint that uses API authentication (JWT cookie/header).
+
+        Query params:
+        - kind: invoice | proforma | quote (default: invoice)
+        """
+        sale = self.get_object()
+        kind = (request.query_params.get("kind") or "invoice").strip().lower()
+        try:
+            return generate_invoice_pdf(sale=sale, store=sale.store, document_kind=kind)
+        except Exception:
+            return Response(
+                {"detail": "Impossible de generer la facture pour cette vente."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    @action(detail=True, methods=["get"], url_path="receipt")
+    def receipt(self, request, pk=None):
+        """Generate and return a receipt/ticket PDF for a sale."""
+        sale = self.get_object()
+        try:
+            payments = sale.payments.all().order_by("created_at")
+        except Exception:
+            payments = None
+        try:
+            return generate_receipt_pdf(
+                sale=sale,
+                store=sale.store,
+                payments=payments,
+                cashier_name=request.user.get_full_name(),
+            )
+        except Exception:
+            return Response(
+                {"detail": "Impossible de generer le recu pour cette vente."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+# ---------------------------------------------------------------------------
+# Payment ViewSet (List + Create)
+# ---------------------------------------------------------------------------
+
+class PaymentViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    List and create payments.
+
+    - List: filtered by user's accessible stores.
+    - Create: processes one or more payments against a sale.
+      Requires CanProcessPayment permission.
+    """
+
+    serializer_class = PaymentSerializer
+    queryset = Payment.objects.select_related('sale', 'cashier', 'shift')
+    filterset_fields = ['sale', 'method', 'store', 'shift']
+    search_fields = [
+        'reference',
+        'sale__invoice_number',
+        'cashier__first_name',
+        'cashier__last_name',
+        'cashier__email',
+    ]
+    ordering_fields = ['created_at']
+    pagination_class = StandardResultsSetPagination
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [CanProcessPayment(), FeatureCashierOperationsEnabled()]
+        return [IsAuthenticated(), FeatureCashierOperationsEnabled()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)
+
+    def create(self, request, *args, **kwargs):
+        """Process payment(s) for a sale.
+
+        Delegates to ``cashier.services.process_payment`` which handles:
+        - Atomic transaction with ``select_for_update``
+        - Stock decrement on full payment
+        - Credit ledger entries for credit payments
+        - Shift totals update
+        - Audit logging
+        """
+        serializer = PaymentCreateSerializer(
+            data=request.data,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        # --- Resolve sale and validate store access ---
+        try:
+            sale = Sale.objects.get(pk=serializer.validated_data['sale_id'])
+        except Sale.DoesNotExist:
+            return Response(
+                {'detail': 'Vente introuvable.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        store_ids = _user_store_ids(request.user)
+        if sale.store_id not in store_ids:
+            return Response(
+                {'detail': "Vous n'avez pas acces a cette boutique."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # --- Find current open shift ---
+        try:
+            shift = CashShift.objects.get(
+                cashier=request.user,
+                store=sale.store,
+                status=CashShift.Status.OPEN,
+            )
+        except CashShift.DoesNotExist:
+            return Response(
+                {'detail': 'Aucune session de caisse ouverte. Veuillez ouvrir une session.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # --- Delegate to the service layer ---
+        try:
+            from cashier.services import process_payment
+            created_payments = process_payment(
+                sale=sale,
+                payments_data=serializer.validated_data['payments'],
+                cashier=request.user,
+                shift=shift,
+            )
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            PaymentSerializer(created_payments, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# ---------------------------------------------------------------------------
+# CashShift ViewSet
+# ---------------------------------------------------------------------------
+
+class CashShiftViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for cash shifts with open/close workflow actions.
+
+    - list/retrieve: filtered by user's accessible stores.
+    - open_shift: opens a new cash shift for the current user.
+    - close_shift: closes the current open shift.
+    - current: returns the current open shift for the user.
+    """
+
+    serializer_class = CashShiftSerializer
+    queryset = CashShift.objects.select_related('store', 'cashier')
+    filterset_fields = ['store', 'cashier', 'status']
+    ordering_fields = ['opened_at', 'closed_at']
+    permission_classes = [IsCashier, FeatureCashierOperationsEnabled]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)
+
+    @action(detail=False, methods=['post'], url_path='open')
+    def open_shift(self, request):
+        """Open a new cash shift for the current user."""
+        serializer = CashShiftOpenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        store_id = serializer.validated_data['store']
+
+        try:
+            store = Store.objects.get(pk=store_id, is_active=True)
+        except Store.DoesNotExist:
+            return Response(
+                {'detail': 'Boutique introuvable.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Check user has access to this store
+        if not request.user.is_superuser:
+            if not StoreUser.objects.filter(user=request.user, store=store).exists():
+                return Response(
+                    {'detail': 'Vous n\'avez pas acces a cette boutique.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        # Check no existing open shift
+        existing = CashShift.objects.filter(
+            cashier=request.user,
+            store=store,
+            status=CashShift.Status.OPEN,
+        ).first()
+        if existing:
+            return Response(
+                {'detail': 'Vous avez deja une session de caisse ouverte dans cette boutique.',
+                 'shift': CashShiftSerializer(existing).data},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        shift = CashShift.objects.create(
+            store=store,
+            cashier=request.user,
+            opening_float=serializer.validated_data['opening_float'],
+        )
+
+        return Response(
+            CashShiftSerializer(shift).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['post'], url_path='close')
+    def close_shift(self, request, pk=None):
+        """Close the specified cash shift."""
+        shift = self.get_object()
+
+        if shift.status != CashShift.Status.OPEN:
+            return Response(
+                {'detail': 'Cette session de caisse est deja fermee.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if shift.cashier != request.user and request.user.role not in ('ADMIN', 'MANAGER'):
+            return Response(
+                {'detail': 'Vous ne pouvez fermer que votre propre session.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = CashShiftCloseSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        shift.closing_cash = serializer.validated_data['closing_cash']
+        shift.calculate_expected_cash()
+        shift.variance = shift.closing_cash - shift.expected_cash
+        shift.status = CashShift.Status.CLOSED
+        shift.closed_at = timezone.now()
+        shift.notes = serializer.validated_data.get('notes', '')
+        shift.save()
+
+        return Response(CashShiftSerializer(shift).data)
+
+    @action(detail=False, methods=['get'], url_path='current')
+    def current(self, request):
+        """Get the current open shift for the authenticated user."""
+        store_id = request.query_params.get('store')
+        filters = {
+            'cashier': request.user,
+            'status': CashShift.Status.OPEN,
+        }
+        if store_id:
+            filters['store_id'] = store_id
+
+        shift = CashShift.objects.filter(**filters).first()
+        if not shift:
+            return Response(
+                {'detail': 'Aucune session de caisse ouverte.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(CashShiftSerializer(shift).data)
+
+
+# ---------------------------------------------------------------------------
+# CustomerAccount ViewSet
+# ---------------------------------------------------------------------------
+
+class CustomerAccountViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for customer credit accounts.
+
+    Filter by store and customer.
+    Filtered to user's accessible stores.
+    """
+
+    serializer_class = CustomerAccountSerializer
+    queryset = CustomerAccount.objects.select_related('store', 'customer')
+    filterset_fields = ['store', 'customer', 'is_active']
+    ordering_fields = ['balance', 'created_at', 'credit_limit', 'is_active']
+    permission_classes = [IsManagerOrAdmin, FeatureCreditManagementEnabled]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)
+
+    @action(detail=True, methods=['post'], url_path='pay')
+    def pay(self, request, pk=None):
+        """Record a credit payment against this account."""
+        account = self.get_object()
+
+        amount = request.data.get('amount')
+        reference = request.data.get('reference', '')
+
+        if not amount:
+            raise ValidationError({'amount': 'Ce champ est requis.'})
+
+        try:
+            amount = Decimal(str(amount))
+        except Exception:
+            raise ValidationError({'amount': 'Montant invalide.'})
+
+        try:
+            from credits.services import record_credit_payment
+            entry = record_credit_payment(
+                account=account,
+                amount=amount,
+                reference=reference,
+                actor=request.user,
+            )
+        except ValueError as e:
+            raise ValidationError({'detail': str(e)})
+
+        account.refresh_from_db()
+        return Response(CustomerAccountSerializer(account).data)
+
+
+# ---------------------------------------------------------------------------
+# CreditLedger ViewSet (Read-Only)
+# ---------------------------------------------------------------------------
+
+class CreditLedgerViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only viewset for credit ledger entries.
+
+    Filter by account.
+    """
+
+    serializer_class = CreditLedgerEntrySerializer
+    queryset = CreditLedgerEntry.objects.select_related(
+        'account', 'account__store', 'account__customer', 'sale', 'created_by',
+    )
+    filterset_fields = ['account']
+    ordering_fields = ['created_at']
+    permission_classes = [IsAuthenticated, FeatureCreditManagementEnabled]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(account__store_id__in=store_ids)
+
+
+# ---------------------------------------------------------------------------
+# PaymentSchedule ViewSet
+# ---------------------------------------------------------------------------
+
+class PaymentScheduleViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """List, retrieve, and update payment schedules."""
+
+    serializer_class = PaymentScheduleSerializer
+    queryset = PaymentSchedule.objects.select_related(
+        'account', 'account__store', 'account__customer', 'sale',
+    )
+    filterset_fields = ['account', 'status']
+    ordering_fields = ['due_date', 'created_at']
+    permission_classes = [IsManagerOrAdmin, FeatureCreditManagementEnabled]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(account__store_id__in=store_ids)
+
+
+# ---------------------------------------------------------------------------
+# Purchases ViewSets
+# ---------------------------------------------------------------------------
+
+class SupplierViewSet(viewsets.ModelViewSet):
+    serializer_class = SupplierSerializer
+    queryset = Supplier.objects.select_related("enterprise")
+    permission_classes = [IsManagerOrAdmin, FeaturePurchasesManagementEnabled]
+    filterset_fields = ["is_active"]
+    search_fields = ["name", "contact_name", "phone"]
+    ordering_fields = ["name", "created_at"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return _filter_queryset_by_enterprise(qs, self.request.user)
+
+    def perform_create(self, serializer):
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        serializer.save(enterprise_id=enterprise_id)
+
+
+class PurchaseOrderViewSet(viewsets.ModelViewSet):
+    serializer_class = PurchaseOrderSerializer
+    queryset = PurchaseOrder.objects.select_related("store", "supplier", "created_by").prefetch_related("lines", "lines__product")
+    permission_classes = [IsManagerOrAdmin, IsStoreMember, FeaturePurchasesManagementEnabled]
+    filterset_fields = ["store", "supplier", "status"]
+    search_fields = ["po_number"]
+    ordering_fields = ["created_at", "po_number", "status", "subtotal"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)
+
+    def perform_create(self, serializer):
+        store = serializer.validated_data["store"]
+        supplier = serializer.validated_data["supplier"]
+        if supplier.enterprise_id != store.enterprise_id:
+            raise ValidationError(
+                {"supplier": "Le fournisseur doit appartenir a la meme entreprise que la boutique."},
+            )
+        serializer.save(created_by=self.request.user)
+
+
+class GoodsReceiptViewSet(viewsets.ModelViewSet):
+    serializer_class = GoodsReceiptSerializer
+    queryset = GoodsReceipt.objects.select_related("store", "purchase_order", "received_by").prefetch_related("lines")
+    permission_classes = [IsManagerOrAdmin, IsStoreMember, FeaturePurchasesManagementEnabled]
+    filterset_fields = ["store", "purchase_order"]
+    search_fields = ["receipt_number"]
+    ordering_fields = ["created_at", "receipt_number"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)
+
+    def perform_create(self, serializer):
+        store = serializer.validated_data["store"]
+        purchase_order = serializer.validated_data["purchase_order"]
+        if purchase_order.store_id != store.id:
+            raise ValidationError(
+                {"purchase_order": "Le bon de reception doit etre lie a la meme boutique."},
+            )
+        serializer.save(received_by=self.request.user)
+
+
+# ---------------------------------------------------------------------------
+# Alert ViewSet
+# ---------------------------------------------------------------------------
+
+class AlertViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Read-only ViewSet for system alerts with mark-read actions.
+
+    Alerts are created by the system (Celery tasks, signals), never
+    directly via the API. This ViewSet only exposes list, retrieve,
+    mark-read, and mark-all-read.
+    """
+
+    serializer_class = AlertSerializer
+    queryset = Alert.objects.all()
+    permission_classes = [IsAuthenticated, FeatureAlertsCenterEnabled]
+    filterset_fields = ['store', 'alert_type', 'severity', 'is_read']
+    ordering_fields = ['created_at', 'severity']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)
+
+    @action(detail=True, methods=['post'], url_path='mark-read')
+    def mark_read(self, request, pk=None):
+        """Mark a single alert as read."""
+        alert = self.get_object()
+        alert.is_read = True
+        alert.read_by = request.user
+        alert.read_at = timezone.now()
+        alert.save(update_fields=['is_read', 'read_by', 'read_at', 'updated_at'])
+        return Response(AlertSerializer(alert).data)
+
+    @action(detail=False, methods=['post'], url_path='mark-all-read')
+    def mark_all_read(self, request):
+        """Mark all unread alerts as read for the user's accessible stores."""
+        store_ids = _user_store_ids(request.user)
+        updated = Alert.objects.filter(
+            store_id__in=store_ids,
+            is_read=False,
+        ).update(is_read=True, read_by=request.user, read_at=timezone.now())
+        return Response({'detail': f'{updated} alerte(s) marquee(s) comme lue(s).'})
+
+
+# ---------------------------------------------------------------------------
+# KPI View (Dashboard)
+# ---------------------------------------------------------------------------
+
+class KPIView(APIView):
+    """
+    GET endpoint returning dashboard KPIs for a store and optional date range.
+
+    Query params:
+        - store (required): store UUID
+        - date_from (optional): start date (YYYY-MM-DD)
+        - date_to (optional): end date (YYYY-MM-DD)
+    """
+
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin, FeatureReportsCenterEnabled]
+
+    def get(self, request):
+        store_id = request.query_params.get('store')
+        if not store_id:
+            return Response(
+                {'detail': 'Le parametre store est requis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Verify access using queryset filter (safe UUID comparison)
+        store_ids = _user_store_ids(request.user)
+        if not Store.objects.filter(pk=store_id, id__in=store_ids).exists():
+            return Response(
+                {'detail': 'Acces refuse a cette boutique.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
+
+        # Default to today if no dates provided
+        today = timezone.now().date()
+        if not date_from:
+            date_from = today
+        if not date_to:
+            date_to = today
+
+        # Try to get a KPI snapshot first
+        snapshot = KPISnapshot.objects.filter(
+            store_id=store_id,
+            date__gte=date_from,
+            date__lte=date_to,
+        ).order_by('-date').first()
+
+        if snapshot:
+            data = {
+                'total_sales': snapshot.total_sales,
+                'total_orders': snapshot.total_orders,
+                'average_basket': snapshot.average_basket,
+                'gross_margin': snapshot.gross_margin,
+                'total_discounts': snapshot.total_discounts,
+                'total_refunds': snapshot.total_refunds,
+                'net_sales': snapshot.net_sales,
+                'credit_outstanding': snapshot.credit_outstanding,
+                'stock_value': snapshot.stock_value,
+            }
+        else:
+            # Calculate KPIs from raw data
+            sales_qs = Sale.objects.filter(
+                store_id=store_id,
+                status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
+                created_at__date__gte=date_from,
+                created_at__date__lte=date_to,
+            )
+
+            aggregates = sales_qs.aggregate(
+                total_sales=Coalesce(Sum('total'), Decimal('0.00'), output_field=DecimalField()),
+                total_orders=Count('id'),
+                average_basket=Coalesce(Avg('total'), Decimal('0.00'), output_field=DecimalField()),
+                total_discounts=Coalesce(Sum('discount_amount'), Decimal('0.00'), output_field=DecimalField()),
+            )
+
+            # Gross margin from sale items
+            items_qs = SaleItem.objects.filter(
+                sale__store_id=store_id,
+                sale__status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
+                sale__created_at__date__gte=date_from,
+                sale__created_at__date__lte=date_to,
+            )
+            margin_data = items_qs.aggregate(
+                gross_margin=Coalesce(
+                    Sum(F('line_total') - F('cost_price') * F('quantity')),
+                    Decimal('0.00'),
+                    output_field=DecimalField(),
+                ),
+            )
+
+            # Stock value
+            stock_value = ProductStock.objects.filter(
+                store_id=store_id,
+            ).aggregate(
+                value=Coalesce(
+                    Sum(F('quantity') * F('product__cost_price')),
+                    Decimal('0.00'),
+                    output_field=DecimalField(),
+                ),
+            )['value']
+
+            data = {
+                'total_sales': aggregates['total_sales'],
+                'total_orders': aggregates['total_orders'],
+                'average_basket': aggregates['average_basket'],
+                'gross_margin': margin_data['gross_margin'],
+                'total_discounts': aggregates['total_discounts'],
+                'total_refunds': Decimal('0.00'),
+                'net_sales': aggregates['total_sales'] - aggregates['total_discounts'],
+                'credit_outstanding': Decimal('0.00'),
+                'stock_value': stock_value,
+            }
+
+        # Top products
+        top_products = (
+            SaleItem.objects.filter(
+                sale__store_id=store_id,
+                sale__status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
+                sale__created_at__date__gte=date_from,
+                sale__created_at__date__lte=date_to,
+            )
+            .values('product__name')
+            .annotate(
+                total_quantity=Sum('quantity'),
+                total_revenue=Sum('line_total'),
+            )
+            .order_by('-total_revenue')[:10]
+        )
+        data['top_products'] = list(top_products)
+
+        # Sales trend (daily aggregation)
+        sales_trend = (
+            Sale.objects.filter(
+                store_id=store_id,
+                status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
+                created_at__date__gte=date_from,
+                created_at__date__lte=date_to,
+            )
+            .annotate(date=TruncDate('created_at'))
+            .values('date')
+            .annotate(
+                daily_total=Sum('total'),
+                daily_count=Count('id'),
+            )
+            .order_by('date')
+        )
+        data['sales_trend'] = [
+            {
+                'date': str(entry['date']),
+                'total': str(entry['daily_total']),
+                'count': entry['daily_count'],
+            }
+            for entry in sales_trend
+        ]
+
+        serializer = KPISerializer(data)
+        return Response(serializer.data)
+
+
+# ---------------------------------------------------------------------------
+# Sales Report API View
+# ---------------------------------------------------------------------------
+
+class SalesReportAPIView(APIView):
+    """
+    GET endpoint returning a detailed sales report for a store and date range.
+
+    Query params:
+        - store (required): store UUID
+        - date_from (optional): start date (YYYY-MM-DD)
+        - date_to (optional): end date (YYYY-MM-DD)
+        - group_by (optional): 'day', 'week', 'month' (default: 'day')
+    """
+
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin, FeatureReportsCenterEnabled]
+
+    def get(self, request):
+        store_id = request.query_params.get('store')
+        if not store_id:
+            return Response(
+                {'detail': 'Le parametre store est requis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Verify access using queryset filter (safe UUID comparison)
+        store_ids = _user_store_ids(request.user)
+        if not Store.objects.filter(pk=store_id, id__in=store_ids).exists():
+            return Response(
+                {'detail': 'Acces refuse a cette boutique.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        today = timezone.now().date()
+        date_from = request.query_params.get('date_from', str(today))
+        date_to = request.query_params.get('date_to', str(today))
+
+        # Base queryset for completed sales
+        sales_qs = Sale.objects.filter(
+            store_id=store_id,
+            status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
+            created_at__date__gte=date_from,
+            created_at__date__lte=date_to,
+        )
+
+        # Summary
+        summary = sales_qs.aggregate(
+            total_revenue=Coalesce(Sum('total'), Decimal('0.00'), output_field=DecimalField()),
+            total_orders=Count('id'),
+            average_order=Coalesce(Avg('total'), Decimal('0.00'), output_field=DecimalField()),
+            total_discounts=Coalesce(Sum('discount_amount'), Decimal('0.00'), output_field=DecimalField()),
+            total_collected=Coalesce(Sum('amount_paid'), Decimal('0.00'), output_field=DecimalField()),
+            total_outstanding=Coalesce(Sum('amount_due'), Decimal('0.00'), output_field=DecimalField()),
+        )
+
+        # By payment method
+        payments_by_method = (
+            Payment.objects.filter(
+                store_id=store_id,
+                sale__status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
+                created_at__date__gte=date_from,
+                created_at__date__lte=date_to,
+            )
+            .values('method')
+            .annotate(
+                total=Sum('amount'),
+                count=Count('id'),
+            )
+            .order_by('method')
+        )
+
+        # By seller
+        by_seller = (
+            sales_qs
+            .values('seller__first_name', 'seller__last_name')
+            .annotate(
+                total_sales=Sum('total'),
+                order_count=Count('id'),
+            )
+            .order_by('-total_sales')
+        )
+
+        # By category
+        by_category = (
+            SaleItem.objects.filter(
+                sale__store_id=store_id,
+                sale__status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
+                sale__created_at__date__gte=date_from,
+                sale__created_at__date__lte=date_to,
+            )
+            .values('product__category__name')
+            .annotate(
+                total_revenue=Sum('line_total'),
+                total_quantity=Sum('quantity'),
+            )
+            .order_by('-total_revenue')
+        )
+
+        # Breakdown by period (day/month/year)
+        group_by = request.query_params.get('group_by', 'day')
+        if group_by == 'month':
+            trunc_fn = TruncMonth('created_at')
+        elif group_by == 'year':
+            trunc_fn = TruncYear('created_at')
+        else:
+            trunc_fn = TruncDate('created_at')
+
+        breakdown = (
+            sales_qs
+            .annotate(period=trunc_fn)
+            .values('period')
+            .annotate(
+                revenue=Sum('total'),
+                orders=Count('id'),
+                discounts=Sum('discount_amount'),
+            )
+            .order_by('period')
+        )
+
+        report = {
+            'store': store_id,
+            'date_from': date_from,
+            'date_to': date_to,
+            'group_by': group_by,
+            'summary': {
+                'total_revenue': str(summary['total_revenue']),
+                'total_orders': summary['total_orders'],
+                'average_order': str(summary['average_order']),
+                'total_discounts': str(summary['total_discounts']),
+                'total_collected': str(summary['total_collected']),
+                'total_outstanding': str(summary['total_outstanding']),
+            },
+            'payments_by_method': [
+                {
+                    'method': entry['method'],
+                    'total': str(entry['total']),
+                    'count': entry['count'],
+                }
+                for entry in payments_by_method
+            ],
+            'by_seller': [
+                {
+                    'seller': f"{entry['seller__first_name']} {entry['seller__last_name']}",
+                    'total_sales': str(entry['total_sales']),
+                    'order_count': entry['order_count'],
+                }
+                for entry in by_seller
+            ],
+            'by_category': [
+                {
+                    'category': entry['product__category__name'],
+                    'total_revenue': str(entry['total_revenue']),
+                    'total_quantity': entry['total_quantity'],
+                }
+                for entry in by_category
+            ],
+            'breakdown': [
+                {
+                    'date': str(entry['period'].date() if hasattr(entry['period'], 'date') else entry['period']),
+                    'revenue': str(entry['revenue']),
+                    'orders': entry['orders'],
+                    'discounts': str(entry['discounts']),
+                }
+                for entry in breakdown
+            ],
+        }
+
+        return Response(report)
+
+
+# ---------------------------------------------------------------------------
+# Stock Value Trend
+# ---------------------------------------------------------------------------
+
+class StockValueTrendView(APIView):
+    """Return daily KPISnapshot stock_value / gross_margin for a date range.
+
+    GET /api/v1/reports/stock-trend/?store=UUID&date_from=...&date_to=...
+    """
+
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin, FeatureReportsCenterEnabled]
+
+    def get(self, request):
+        store_id = request.query_params.get('store')
+        if not store_id:
+            return Response(
+                {'detail': 'Le parametre store est requis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        store_ids = _user_store_ids(request.user)
+        if not Store.objects.filter(pk=store_id, id__in=store_ids).exists():
+            return Response(
+                {'detail': 'Acces refuse a cette boutique.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        today = timezone.now().date()
+        date_from = request.query_params.get('date_from', str(today - timedelta(days=29)))
+        date_to = request.query_params.get('date_to', str(today))
+
+        snapshots = (
+            KPISnapshot.objects.filter(
+                store_id=store_id,
+                date__gte=date_from,
+                date__lte=date_to,
+            )
+            .values('date', 'stock_value', 'gross_margin')
+            .order_by('date')
+        )
+
+        trend = [
+            {
+                'date': str(entry['date']),
+                'stock_value': str(entry['stock_value']),
+                'gross_margin': str(entry['gross_margin']),
+            }
+            for entry in snapshots
+        ]
+
+        return Response({'trend': trend})
+
+
+# ---------------------------------------------------------------------------
+# Daily Statistics (profit per day)
+# ---------------------------------------------------------------------------
+
+class DailyStatisticsAPIView(APIView):
+    """
+    GET endpoint returning daily sales statistics with profit breakdown.
+
+    Query params:
+        - store (required): store UUID
+        - date_from (optional): start date (YYYY-MM-DD), default: 30 days ago
+        - date_to (optional): end date (YYYY-MM-DD), default: today
+    """
+
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin, FeatureReportsCenterEnabled]
+
+    def get(self, request):
+        store_id = request.query_params.get('store')
+        if not store_id:
+            return Response(
+                {'detail': 'Le parametre store est requis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        store_ids = _user_store_ids(request.user)
+        if not Store.objects.filter(pk=store_id, id__in=store_ids).exists():
+            return Response(
+                {'detail': 'Acces refuse a cette boutique.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        store = Store.objects.get(pk=store_id)
+        today = timezone.now().date()
+        date_from = request.query_params.get('date_from', str(today - timedelta(days=29)))
+        date_to = request.query_params.get('date_to', str(today))
+
+        from reports.services import get_daily_statistics
+        data = get_daily_statistics(store, date_from, date_to)
+        return Response(data)
+
+
+# ---------------------------------------------------------------------------
+# Me View (Current User Profile)
+# ---------------------------------------------------------------------------
+
+class MeView(APIView):
+    """
+    GET /api/v1/auth/me/ — return the authenticated user's profile.
+    PATCH /api/v1/auth/me/ — update first_name, last_name, phone.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = MeSerializer(request.user)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        serializer = MeSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+# ---------------------------------------------------------------------------
+# Change Password View
+# ---------------------------------------------------------------------------
+
+class ChangePasswordView(APIView):
+    """POST /api/v1/auth/password/change/ — change the authenticated user's password."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(
+            data=request.data, context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        request.user.set_password(serializer.validated_data['new_password'])
+        request.user.save()
+        return Response({'detail': 'Mot de passe modifie avec succes.'})
+
+
+# ---------------------------------------------------------------------------
+# Quote ViewSet
+# ---------------------------------------------------------------------------
+
+class QuoteViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for quotes (devis) with custom workflow actions.
+
+    - list: filter by store, status, customer, date range
+    - create: creates a DRAFT quote
+    - add_item: adds an item to a draft quote
+    - remove_item: removes an item from a draft quote
+    - send: sends the quote to the customer
+    - accept: accepts the quote (manager+)
+    - refuse: refuses the quote (manager+)
+    - convert: converts the quote to a sale (manager+)
+    - duplicate: duplicates the quote
+    - pdf: generates a PDF for the quote
+    """
+
+    serializer_class = QuoteSerializer
+    queryset = Quote.objects.select_related(
+        'store', 'created_by', 'customer', 'converted_sale',
+    ).prefetch_related('items', 'items__product')
+    filterset_fields = ['store', 'status', 'customer', 'created_by']
+    search_fields = [
+        'quote_number',
+        'customer__first_name',
+        'customer__last_name',
+        'customer__phone',
+    ]
+    ordering_fields = ['created_at', 'total', 'quote_number', 'status', 'valid_until']
+    pagination_class = StandardResultsSetPagination
+
+    def get_permissions(self):
+        if self.action in ('create', 'add_item', 'remove_item', 'send', 'duplicate'):
+            return [IsSales(), FeatureSalesPOSEnabled()]
+        if self.action in ('accept', 'refuse', 'convert'):
+            return [IsManagerOrAdmin(), FeatureSalesPOSEnabled()]
+        return [IsAuthenticated(), FeatureSalesPOSEnabled()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        qs = qs.filter(store_id__in=store_ids)
+
+        # Date range filtering
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if date_from:
+            qs = qs.filter(created_at__date__gte=date_from)
+        if date_to:
+            qs = qs.filter(created_at__date__lte=date_to)
+
+        return qs
+
+    def perform_update(self, serializer):
+        """Override to recalculate totals when discount/fields change."""
+        quote = serializer.save()
+        from sales.services import recalculate_quote
+        recalculate_quote(quote)
+
+    def create(self, request, *args, **kwargs):
+        """Create a new DRAFT quote.
+
+        Validates that:
+        - The user has access to the requested store.
+        - The customer (if any) belongs to the same enterprise.
+        """
+        serializer = QuoteCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        store_id = serializer.validated_data['store_id']
+
+        # --- Store isolation: verify user access ---
+        store_ids = _user_store_ids(request.user)
+        if store_id not in store_ids:
+            return Response(
+                {'detail': "Vous n'avez pas acces a cette boutique."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            store = Store.objects.get(pk=store_id, is_active=True)
+        except Store.DoesNotExist:
+            return Response(
+                {'detail': 'Boutique introuvable.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # --- Customer isolation: must belong to the same enterprise ---
+        customer = None
+        customer_id = serializer.validated_data.get('customer_id')
+        if customer_id:
+            try:
+                customer = Customer.objects.get(
+                    pk=customer_id, enterprise=store.enterprise,
+                )
+            except Customer.DoesNotExist:
+                return Response(
+                    {'detail': 'Client introuvable dans cette entreprise.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            from sales.services import create_quote
+            quote = create_quote(
+                store=store,
+                created_by=request.user,
+                customer=customer,
+            )
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Apply optional fields
+        update_fields = []
+        if serializer.validated_data.get('discount_percent'):
+            quote.discount_percent = serializer.validated_data['discount_percent']
+            update_fields.append('discount_percent')
+        if serializer.validated_data.get('notes'):
+            quote.notes = serializer.validated_data['notes']
+            update_fields.append('notes')
+        if serializer.validated_data.get('conditions'):
+            quote.conditions = serializer.validated_data['conditions']
+            update_fields.append('conditions')
+        if serializer.validated_data.get('valid_until'):
+            quote.valid_until = serializer.validated_data['valid_until']
+            update_fields.append('valid_until')
+        if update_fields:
+            update_fields.append('updated_at')
+            quote.save(update_fields=update_fields)
+
+        return Response(
+            QuoteSerializer(quote).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['post'], url_path='add-item')
+    def add_item(self, request, pk=None):
+        """Add an item to a draft quote.
+
+        Delegates to ``sales.services.add_item_to_quote`` so that
+        the quote totals are recalculated.
+
+        If ``unit_price_override`` is provided, only MANAGER/ADMIN can
+        use it (checked via CanOverridePrice).
+        """
+        quote = self.get_object()
+
+        if quote.status != Quote.Status.DRAFT:
+            return Response(
+                {'detail': 'Les articles ne peuvent etre ajoutes que sur des devis en brouillon.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = QuoteAddItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        enterprise_id = _user_enterprise_id(request.user)
+        try:
+            product = Product.objects.get(
+                pk=serializer.validated_data['product_id'],
+                enterprise_id=enterprise_id,
+            )
+        except Product.DoesNotExist:
+            return Response(
+                {'detail': 'Produit introuvable dans votre entreprise.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        quantity = serializer.validated_data['quantity']
+        discount_amount = serializer.validated_data.get('discount_amount', Decimal('0.00'))
+        unit_price_override = serializer.validated_data.get('unit_price_override')
+
+        # Check override permission and bounds
+        if unit_price_override is not None:
+            if not CanOverridePrice().has_permission(request, self):
+                return Response(
+                    {'detail': 'Seuls les managers et admins peuvent modifier le prix de vente.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if unit_price_override <= Decimal('0'):
+                return Response(
+                    {'detail': 'Le prix doit etre strictement positif.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            from sales.services import add_item_to_quote
+            add_item_to_quote(
+                quote=quote,
+                product=product,
+                qty=quantity,
+                discount=discount_amount,
+                unit_price=unit_price_override,
+                actor=request.user,
+            )
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        quote.refresh_from_db()
+        return Response(QuoteSerializer(quote).data)
+
+    @action(detail=True, methods=['post'], url_path='remove-item')
+    def remove_item(self, request, pk=None):
+        """Remove an item from a draft quote."""
+        quote = self.get_object()
+
+        if quote.status != Quote.Status.DRAFT:
+            return Response(
+                {'detail': 'Les articles ne peuvent etre retires que des devis en brouillon.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        item_id = request.data.get('item_id')
+        if not item_id:
+            return Response(
+                {'detail': 'item_id est requis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            from sales.services import remove_item_from_quote
+            remove_item_from_quote(quote, item_id, actor=request.user)
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        quote.refresh_from_db()
+        return Response(QuoteSerializer(quote).data)
+
+    @action(detail=True, methods=['post'], url_path='send')
+    def send(self, request, pk=None):
+        """Send the quote to the customer."""
+        quote = self.get_object()
+        try:
+            from sales.services import send_quote
+            quote = send_quote(quote, actor=request.user)
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(QuoteSerializer(quote).data)
+
+    @action(detail=True, methods=['post'], url_path='accept')
+    def accept(self, request, pk=None):
+        """Accept the quote. Requires manager or admin role."""
+        quote = self.get_object()
+        try:
+            from sales.services import accept_quote
+            quote = accept_quote(quote, actor=request.user)
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(QuoteSerializer(quote).data)
+
+    @action(detail=True, methods=['post'], url_path='refuse')
+    def refuse(self, request, pk=None):
+        """Refuse the quote. Requires manager or admin role."""
+        quote = self.get_object()
+        reason = request.data.get('reason', '')
+        try:
+            from sales.services import refuse_quote
+            quote = refuse_quote(quote, reason, actor=request.user)
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(QuoteSerializer(quote).data)
+
+    @action(detail=True, methods=['post'], url_path='convert')
+    def convert(self, request, pk=None):
+        """Convert the quote to a sale. Requires manager or admin role."""
+        quote = self.get_object()
+        try:
+            from sales.services import convert_quote_to_sale
+            sale = convert_quote_to_sale(quote, actor=request.user)
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='duplicate')
+    def duplicate(self, request, pk=None):
+        """Duplicate the quote."""
+        quote = self.get_object()
+        try:
+            from sales.services import duplicate_quote
+            new_quote = duplicate_quote(quote, actor=request.user)
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(QuoteSerializer(new_quote).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['get'], url_path='pdf')
+    def pdf(self, request, pk=None):
+        """Generate and return a PDF for the quote."""
+        quote = self.get_object()
+        try:
+            from core.pdf import generate_quote_pdf
+            return generate_quote_pdf(quote, quote.store)
+        except (ImportError, AttributeError):
+            return Response(
+                {'detail': 'PDF non disponible.'},
+                status=status.HTTP_501_NOT_IMPLEMENTED,
+            )
+        except Exception:
+            return Response(
+                {'detail': 'Impossible de generer le PDF pour ce devis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+# ---------------------------------------------------------------------------
+# Refund ViewSet
+# ---------------------------------------------------------------------------
+
+class RefundViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    List, retrieve, and create refunds.
+
+    - Create requires CanApproveRefund permission (MANAGER/ADMIN).
+    - List/Retrieve filtered to user's accessible stores.
+    """
+
+    serializer_class = RefundSerializer
+    queryset = Refund.objects.select_related('sale', 'store', 'approved_by')
+    filterset_fields = ['store', 'sale', 'refund_method']
+    ordering_fields = ['created_at', 'amount']
+    pagination_class = StandardResultsSetPagination
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [CanApproveRefund(), FeatureSalesRefundEnabled()]
+        return [IsAuthenticated(), FeatureSalesRefundEnabled()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)
+
+    def create(self, request, *args, **kwargs):
+        serializer = RefundCreateSerializer(
+            data=request.data,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        sale_id = serializer.validated_data['sale_id']
+        store_ids = _user_store_ids(request.user)
+        sale = Sale.objects.filter(pk=sale_id, store_id__in=store_ids).first()
+        if sale is None:
+            return Response(
+                {'detail': "Vente introuvable ou inaccessible."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            from sales.services import create_refund
+
+            with transaction.atomic():
+                refund = create_refund(
+                    sale=sale,
+                    amount=serializer.validated_data['amount'],
+                    reason=serializer.validated_data['reason'],
+                    refund_method=serializer.validated_data['refund_method'],
+                    approved_by=request.user,
+                    processed_by=request.user,
+                )
+        except ValueError as exc:
+            return Response(
+                {'detail': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            RefundSerializer(refund).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# ---------------------------------------------------------------------------
+# AuditLog ViewSet (Read-Only)
+# ---------------------------------------------------------------------------
+
+class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only viewset for audit log entries.
+
+    Only ADMIN and MANAGER roles can access.
+    Filtered to user's accessible stores.
+    """
+
+    serializer_class = AuditLogSerializer
+    queryset = AuditLog.objects.select_related('actor', 'store')
+    permission_classes = [IsManagerOrAdmin, FeatureReportsCenterEnabled]
+    filterset_fields = ['store', 'action', 'entity_type']
+    search_fields = ['action', 'entity_type', 'entity_id']
+    ordering_fields = ['created_at']
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)

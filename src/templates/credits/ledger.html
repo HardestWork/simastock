@@ -1,0 +1,55 @@
+﻿{% extends "base/base.html" %}
+{% load boutique_tags %}
+
+{% block title %}Grand livre credit{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Grand livre credit</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ account.customer.full_name }} - {{ account.store.name }}</p>
+    </div>
+    <a href="{% url 'credits:account-detail' account.id %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">Retour compte</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <table class="w-full">
+        <thead>
+            <tr class="bg-gray-50 border-b border-gray-100">
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Date</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Type</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Reference</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Acteur</th>
+                <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Montant</th>
+                <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Solde apres</th>
+                <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Action</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+            {% for entry in entries %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-5 py-3 text-sm text-gray-700">{{ entry.created_at|date:"d/m/Y H:i" }}</td>
+                <td class="px-5 py-3 text-sm text-gray-700">{{ entry.get_entry_type_display }}</td>
+                <td class="px-5 py-3 text-sm text-gray-600">{{ entry.reference|default:"-" }}</td>
+                <td class="px-5 py-3 text-sm text-gray-600">{{ entry.created_by.get_full_name|default:"-" }}</td>
+                <td class="px-5 py-3 text-sm text-right {% if entry.amount > 0 %}text-red-600{% else %}text-green-700{% endif %}">{{ entry.amount|currency }}</td>
+                <td class="px-5 py-3 text-sm text-right font-medium text-gray-900">{{ entry.balance_after|currency }}</td>
+                <td class="px-5 py-3 text-right">
+                    {% if entry.entry_type == 'CREDIT_PAYMENT' %}
+                    <a href="{% url 'credits:credit-payment-receipt' account.id entry.id %}" class="text-sm text-primary-600 hover:underline" target="_blank">
+                        Facture
+                    </a>
+                    {% else %}
+                    <span class="text-xs text-gray-400">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">Aucune ecriture.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

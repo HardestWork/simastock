@@ -1,0 +1,30 @@
+{% extends "base/base.html" %}
+{% block title %}Bons de commande{% endblock %}
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <h1 class="text-xl font-semibold text-gray-900 mb-4">Bons de commande</h1>
+    <table class="min-w-full text-sm">
+        <thead>
+            <tr class="text-left text-gray-500 border-b">
+                <th class="py-2">Numero</th>
+                <th class="py-2">Fournisseur</th>
+                <th class="py-2">Statut</th>
+                <th class="py-2">Sous-total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for po in purchase_orders %}
+            <tr class="border-b last:border-0">
+                <td class="py-2">{{ po.po_number }}</td>
+                <td class="py-2">{{ po.supplier.name }}</td>
+                <td class="py-2">{{ po.get_status_display }}</td>
+                <td class="py-2">{{ po.subtotal }}</td>
+            </tr>
+            {% empty %}
+            <tr><td class="py-3 text-gray-500" colspan="4">Aucun bon de commande.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

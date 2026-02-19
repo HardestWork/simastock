@@ -1,0 +1,86 @@
+﻿{% extends "base/base.html" %}
+{% load boutique_tags %}
+
+{% block title %}Detail client{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">{{ customer.full_name }}</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ customer.phone }}{% if customer.company %} - {{ customer.company }}{% endif %}</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{% url 'customers:customer-edit' customer.id %}" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">Modifier</a>
+        <a href="{% url 'credits:account-create' %}?customer={{ customer.id }}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">Compte credit</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">Informations</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div><span class="text-gray-500">Email:</span> <span class="text-gray-800">{{ customer.email|default:"-" }}</span></div>
+                <div><span class="text-gray-500">Entreprise:</span> <span class="text-gray-800">{{ customer.company|default:"-" }}</span></div>
+                <div><span class="text-gray-500">Numero fiscal:</span> <span class="text-gray-800">{{ customer.tax_id|default:"-" }}</span></div>
+                <div><span class="text-gray-500">Statut:</span> <span class="text-gray-800">{% if customer.is_active %}Actif{% else %}Inactif{% endif %}</span></div>
+            </div>
+            {% if customer.address %}<div class="mt-3 text-sm text-gray-700">{{ customer.address }}</div>{% endif %}
+            {% if customer.notes %}<div class="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-700">{{ customer.notes }}</div>{% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100">
+                <h3 class="font-semibold text-gray-900">Dernieres ventes</h3>
+            </div>
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Date</th>
+                        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Facture</th>
+                        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Statut</th>
+                        <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Total</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for sale in sales %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-5 py-3 text-sm text-gray-700">{{ sale.created_at|date:"d/m/Y H:i" }}</td>
+                        <td class="px-5 py-3 text-sm text-gray-700">{{ sale.invoice_number|default:"-" }}</td>
+                        <td class="px-5 py-3 text-sm"><span class="px-2 py-1 text-xs font-medium rounded-full {{ sale.status|status_badge }}">{{ sale.get_status_display }}</span></td>
+                        <td class="px-5 py-3 text-sm text-right font-medium text-gray-900">{{ sale.total|currency }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="px-5 py-10 text-center text-gray-500">Aucune vente.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="space-y-4">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">Stats client</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between"><span class="text-gray-500">Total depense</span><span class="font-bold">{{ total_spent|currency }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Comptes credit</span><span class="font-medium">{{ credit_accounts|length }}</span></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">Comptes credit</h3>
+            <div class="space-y-2 text-sm">
+                {% for account in credit_accounts %}
+                <a href="{% url 'credits:account-detail' account.id %}" class="block p-2 rounded-lg hover:bg-gray-50 border border-gray-100">
+                    <div class="flex justify-between"><span class="text-gray-700">{{ account.store.name }}</span><span class="font-medium">{{ account.balance|currency }}</span></div>
+                </a>
+                {% empty %}
+                <p class="text-gray-500">Aucun compte credit.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

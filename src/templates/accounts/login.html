@@ -1,0 +1,101 @@
+{% load static socialaccount %}
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion — Boutique Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="h-full bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center">
+    <div class="w-full max-w-md mx-4">
+        <!-- Logo card -->
+        <div class="text-center mb-8">
+            <div class="w-20 h-20 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-store text-white text-3xl"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-white">Boutique Pro</h1>
+            <p class="text-blue-200 mt-1">Système de gestion de boutique</p>
+        </div>
+
+        <!-- Login form -->
+        <div class="bg-white rounded-2xl shadow-2xl p-8">
+            <h2 class="text-xl font-bold text-gray-900 mb-6">Connexion</h2>
+
+            {% if form.errors %}
+            <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-sm text-red-800">
+                    <i class="fas fa-exclamation-circle mr-1"></i>
+                    Email ou mot de passe incorrect.
+                </p>
+            </div>
+            {% endif %}
+
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+                {% if next_url %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
+                <div>
+                    <label for="id_username" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <div class="relative">
+                        <input type="email" name="username" id="id_username" required autofocus
+                               class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                               placeholder="votre@email.com"
+                               value="{{ form.username.value|default:'' }}">
+                        <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <label for="id_password" class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+                    <div class="relative">
+                        <input type="password" name="password" id="id_password" required
+                               class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                               placeholder="••••••••">
+                        <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" name="remember" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-600">Se souvenir de moi</span>
+                    </label>
+                </div>
+                <button type="submit"
+                        class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors focus:ring-4 focus:ring-blue-200">
+                    Se connecter
+                </button>
+            </form>
+
+            {% if google_auth_enabled %}
+            <div class="my-5 flex items-center gap-3">
+                <div class="h-px bg-gray-200 flex-1"></div>
+                <span class="text-xs uppercase tracking-wide text-gray-400">Ou</span>
+                <div class="h-px bg-gray-200 flex-1"></div>
+            </div>
+
+            <a href="{% provider_login_url 'google' process='login' next=next_url %}"
+               class="w-full inline-flex items-center justify-center gap-3 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="w-5 h-5" aria-hidden="true">
+                    <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.652 32.657 29.201 36 24 36c-6.627 0-12-5.373-12-12S17.373 12 24 12c3.059 0 5.842 1.153 7.958 3.042l5.657-5.657C34.046 6.053 29.27 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+                    <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 16.108 18.961 12 24 12c3.059 0 5.842 1.153 7.958 3.042l5.657-5.657C34.046 6.053 29.27 4 24 4c-7.682 0-14.32 4.337-17.694 10.691z"/>
+                    <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.147 35.091 26.715 36 24 36c-5.18 0-9.617-3.317-11.283-7.946l-6.52 5.025C9.53 39.556 16.227 44 24 44z"/>
+                    <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.03 12.03 0 0 1-4.084 5.571h.003l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+                </svg>
+                Continuer avec Google
+            </a>
+            {% endif %}
+
+            <p class="text-sm text-gray-600 mt-5 text-center">
+                Pas encore de compte ?
+                <a href="{% url 'accounts:signup' %}" class="text-blue-600 hover:text-blue-700 font-medium">Creer un compte</a>
+            </p>
+            <p class="text-xs text-gray-500 mt-2 text-center">
+                Email non verifie ?
+                <a href="{% url 'accounts:signup-pending' %}" class="text-blue-600 hover:text-blue-700 font-medium">Renvoyer le lien</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

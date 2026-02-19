@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vite:*)",
+      "Bash(docker compose up:*)",
+      "Bash(docker version:*)",
+      "Bash(npx tsc:*)",
+      "Bash(docker compose exec:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker info:*)",
+      "Bash(tasklist:*)",
+      "Bash(powershell.exe -Command \"Get-Process | Where-Object { $_.ProcessName -like ''*docker*'' } | Stop-Process -Force\")"
+    ]
+  }
+}

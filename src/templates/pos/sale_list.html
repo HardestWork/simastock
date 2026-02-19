@@ -1,0 +1,159 @@
+{% extends "base/base.html" %}
+{% load boutique_tags humanize %}
+
+{% block title %}Liste ventes{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">{% if show_all %}Toutes les ventes{% else %}Mes ventes{% endif %}</h1>
+    </div>
+    <a href="{% url 'sales:sale-create' %}" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+        <i class="fas fa-plus mr-2"></i>Nouvelle vente
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div x-data="saleListUX()" x-init="init()" class="space-y-4">
+    <div x-show="errorMessage" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+        <span x-text="errorMessage"></span>
+        <button type="button" @click="retry()" class="px-3 py-1 bg-red-600 text-white rounded text-xs">Reessayer</button>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+        <form id="sale-list-filter" method="get" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 items-end" @submit="startLoading()">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Recherche client/facture</label>
+                <input type="text" name="customer_search" value="{{ request.GET.customer_search }}"
+                       placeholder="Nom, telephone, facture..."
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Statut</label>
+                <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="">Tous</option>
+                    <option value="DRAFT" {% if request.GET.status == 'DRAFT' %}selected{% endif %}>Brouillon</option>
+                    <option value="PENDING_PAYMENT" {% if request.GET.status == 'PENDING_PAYMENT' %}selected{% endif %}>En attente</option>
+                    <option value="PAID" {% if request.GET.status == 'PAID' %}selected{% endif %}>Payee</option>
+                    <option value="CANCELLED" {% if request.GET.status == 'CANCELLED' %}selected{% endif %}>Annulee</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Depuis</label>
+                <input type="date" name="date_from" value="{{ request.GET.date_from }}"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Jusqu a</label>
+                <input type="date" name="date_to" value="{{ request.GET.date_to }}"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm w-full">
+                    <span x-show="!loading">Filtrer</span>
+                    <span x-show="loading"><i class="fas fa-spinner fa-spin mr-1"></i>Chargement...</span>
+                </button>
+            </div>
+            {% if show_all %}
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Vendeur</label>
+                <select name="seller" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="">Tous</option>
+                    {% for user in filter_form.fields.seller.queryset %}
+                    <option value="{{ user.pk }}" {% if request.GET.seller == user.pk|stringformat:'s' %}selected{% endif %}>
+                        {{ user.get_full_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-100">
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Facture</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Client</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Vendeur</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Date</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Statut</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Total</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for sale in sales %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-5 py-3 text-sm font-mono font-medium text-gray-900">{{ sale.invoice_number|default:"-" }}</td>
+                    <td class="px-5 py-3 text-sm text-gray-600">{{ sale.customer.full_name|default:"Anonyme" }}</td>
+                    <td class="px-5 py-3 text-sm text-gray-600">{{ sale.seller.get_full_name }}</td>
+                    <td class="px-5 py-3 text-sm text-gray-500">{{ sale.created_at|date:"d/m/Y H:i" }}</td>
+                    <td class="px-5 py-3 text-center">
+                        <span class="px-2 py-1 text-xs font-medium rounded-full {{ sale.status|status_badge }}">{{ sale.get_status_display }}</span>
+                    </td>
+                    <td class="px-5 py-3 text-sm font-bold text-gray-900 text-right">{{ sale.total|currency }}</td>
+                    <td class="px-5 py-3 text-right">
+                        <a href="{% url 'sales:sale-detail' sale.id %}" class="text-sm text-primary-600 hover:underline">Details</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-5 py-12 text-center text-gray-500">Aucune vente trouvee.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div class="flex items-center justify-center gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key|urlencode }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
+           @click="startLoading()"
+           class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Precedent</a>
+        {% endif %}
+        <span class="px-3 py-1.5 text-sm text-gray-600">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key|urlencode }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
+           @click="startLoading()"
+           class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Suivant</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function saleListUX() {
+    return {
+        loading: false,
+        errorMessage: '',
+        startLoading() {
+            this.loading = true;
+            this.errorMessage = '';
+        },
+        retry() {
+            const form = document.getElementById('sale-list-filter');
+            if (form) {
+                form.submit();
+            } else {
+                window.location.reload();
+            }
+        },
+        init() {
+            document.body.addEventListener('htmx:responseError', () => {
+                this.loading = false;
+                this.errorMessage = 'Chargement impossible. Verifiez votre connexion puis reessayez.';
+            });
+            document.body.addEventListener('htmx:afterRequest', () => {
+                this.loading = false;
+            });
+        },
+    };
+}
+</script>
+{% endblock %}

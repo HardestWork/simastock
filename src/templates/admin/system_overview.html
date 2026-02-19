@@ -1,0 +1,111 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+  <h1 style="margin:0;">Vue globale administrateur</h1>
+  <a href="{% url 'admin:index' %}" style="text-decoration:none;">Retour admin</a>
+</div>
+
+<p style="margin:0 0 12px 0;color:#374151;">
+  Periode analysee: <strong>{{ period_start }}</strong> -> <strong>{{ period_end }}</strong>
+</p>
+
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px;">
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>Entreprises</strong><br>{{ summary.enterprises }}</div>
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>Boutiques</strong><br>{{ summary.stores }}</div>
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>Utilisateurs actifs</strong><br>{{ summary.users_active }} / {{ summary.users_total }}</div>
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>Produits</strong><br>{{ summary.products }}</div>
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>Clients</strong><br>{{ summary.customers }}</div>
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>Ventes ouvertes</strong><br>{{ summary.sales_open }}</div>
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>Stock bas</strong><br>{{ summary.low_stock }}</div>
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>Alertes non lues</strong><br>{{ summary.alerts_unread }}</div>
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>Fraudes non resolues</strong><br>{{ summary.fraud_open }}</div>
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>CA aujourd'hui</strong><br>{{ summary.revenue_today|floatformat:2|intcomma }}</div>
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>CA 30 jours</strong><br>{{ summary.revenue_30d|floatformat:2|intcomma }}</div>
+  <div style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;"><strong>Encours (credit + du)</strong><br>{{ summary.credit_outstanding|add:summary.amount_due|floatformat:2|intcomma }}</div>
+</div>
+
+<h2>Acces rapides</h2>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;">
+  {% for link in quick_links %}
+  <a href="{{ link.url }}" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;text-decoration:none;">{{ link.label }}</a>
+  {% endfor %}
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+  <div>
+    <h2>Top boutiques (30 jours)</h2>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;">Boutique</th>
+          <th style="text-align:right;border-bottom:1px solid #e5e7eb;padding:6px;">Cmd</th>
+          <th style="text-align:right;border-bottom:1px solid #e5e7eb;padding:6px;">CA</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in top_stores %}
+        <tr>
+          <td style="padding:6px;border-bottom:1px solid #f3f4f6;">{{ row.store__name }} ({{ row.store__code }})</td>
+          <td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:right;">{{ row.orders }}</td>
+          <td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:right;">{{ row.revenue|floatformat:2|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" style="padding:6px;">Aucune donnee.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <h2>Top produits (30 jours)</h2>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;">Produit</th>
+          <th style="text-align:right;border-bottom:1px solid #e5e7eb;padding:6px;">Qté</th>
+          <th style="text-align:right;border-bottom:1px solid #e5e7eb;padding:6px;">CA</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in top_products %}
+        <tr>
+          <td style="padding:6px;border-bottom:1px solid #f3f4f6;">{{ row.product_name }} ({{ row.product__sku }})</td>
+          <td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:right;">{{ row.quantity|floatformat:0|intcomma }}</td>
+          <td style="padding:6px;border-bottom:1px solid #f3f4f6;text-align:right;">{{ row.revenue|floatformat:2|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" style="padding:6px;">Aucune donnee.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<h2 style="margin-top:20px;">Derniers logs d'audit</h2>
+<table style="width:100%;border-collapse:collapse;">
+  <thead>
+    <tr>
+      <th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;">Date</th>
+      <th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;">Acteur</th>
+      <th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;">Boutique</th>
+      <th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;">Action</th>
+      <th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;">Entite</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for log in recent_audit_logs %}
+    <tr>
+      <td style="padding:6px;border-bottom:1px solid #f3f4f6;">{{ log.created_at }}</td>
+      <td style="padding:6px;border-bottom:1px solid #f3f4f6;">{{ log.actor|default:"-" }}</td>
+      <td style="padding:6px;border-bottom:1px solid #f3f4f6;">{{ log.store|default:"-" }}</td>
+      <td style="padding:6px;border-bottom:1px solid #f3f4f6;">{{ log.action }}</td>
+      <td style="padding:6px;border-bottom:1px solid #f3f4f6;">{{ log.entity_type }} / {{ log.entity_id }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" style="padding:6px;">Aucun log.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+

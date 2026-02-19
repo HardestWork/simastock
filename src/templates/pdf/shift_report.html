@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A4; margin: 20mm; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10pt; color: #333; line-height: 1.6; }
+
+        .header { text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #333; }
+        .header h1 { font-size: 18pt; margin-bottom: 5px; }
+        .header h2 { font-size: 12pt; color: #666; }
+
+        .meta { display: flex; justify-content: space-between; margin-bottom: 25px; }
+        .meta-group { width: 48%; }
+        .meta-group h3 { font-size: 9pt; text-transform: uppercase; color: #666; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+        .meta-row { display: flex; justify-content: space-between; padding: 3px 0; }
+        .meta-row .label { color: #666; }
+        .meta-row .value { font-weight: bold; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th { background: #f5f5f5; padding: 8px 10px; text-align: left; font-size: 9pt; text-transform: uppercase; border-bottom: 2px solid #ddd; }
+        th.right { text-align: right; }
+        td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+        td.right { text-align: right; }
+        td.bold { font-weight: bold; }
+
+        .summary-box { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; padding: 15px; margin-bottom: 20px; }
+        .summary-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11pt; }
+        .summary-row.total { border-top: 2px solid #333; margin-top: 8px; padding-top: 10px; font-weight: bold; font-size: 13pt; }
+        .variance-positive { color: #059669; }
+        .variance-negative { color: #dc2626; }
+
+        .signature { margin-top: 40px; display: flex; justify-content: space-between; }
+        .sig-block { width: 40%; text-align: center; }
+        .sig-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; font-size: 9pt; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>RAPPORT DE SHIFT CAISSE</h1>
+        <h2>{{ store.name }}</h2>
+    </div>
+
+    <div class="meta">
+        <div class="meta-group">
+            <h3>Informations shift</h3>
+            <div class="meta-row"><span class="label">Caissier</span><span class="value">{{ shift.cashier.get_full_name }}</span></div>
+            <div class="meta-row"><span class="label">Ouverture</span><span class="value">{{ shift.opened_at|date:"d/m/Y H:i" }}</span></div>
+            <div class="meta-row"><span class="label">Fermeture</span><span class="value">{{ shift.closed_at|date:"d/m/Y H:i" }}</span></div>
+            <div class="meta-row"><span class="label">Durée</span><span class="value">{{ shift.duration }}</span></div>
+        </div>
+        <div class="meta-group">
+            <h3>Résumé</h3>
+            <div class="meta-row"><span class="label">Nb transactions</span><span class="value">{{ payment_count }}</span></div>
+            <div class="meta-row"><span class="label">Fond de caisse</span><span class="value">{{ shift.opening_float|floatformat:0 }} FCFA</span></div>
+            <div class="meta-row"><span class="label">Espèces attendues</span><span class="value">{{ shift.expected_cash|floatformat:0 }} FCFA</span></div>
+            <div class="meta-row"><span class="label">Espèces comptées</span><span class="value">{{ shift.closing_cash|floatformat:0 }} FCFA</span></div>
+        </div>
+    </div>
+
+    <!-- Encaissements par mode -->
+    <h3 style="margin-bottom: 10px; font-size: 11pt;">Encaissements par mode de paiement</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Mode de paiement</th>
+                <th class="right">Nombre</th>
+                <th class="right">Montant</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mode in payment_by_method %}
+            <tr>
+                <td>{{ mode.method_display }}</td>
+                <td class="right">{{ mode.count }}</td>
+                <td class="right bold">{{ mode.total|floatformat:0 }} FCFA</td>
+            </tr>
+            {% endfor %}
+            <tr style="background: #f5f5f5;">
+                <td class="bold">TOTAL</td>
+                <td class="right bold">{{ payment_count }}</td>
+                <td class="right bold">{{ shift.total_sales|floatformat:0 }} FCFA</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Variance -->
+    <div class="summary-box">
+        <div class="summary-row">
+            <span>Fond de caisse ouverture</span>
+            <span>{{ shift.opening_float|floatformat:0 }} FCFA</span>
+        </div>
+        <div class="summary-row">
+            <span>+ Encaissements espèces</span>
+            <span>{{ shift.total_cash_payments|floatformat:0 }} FCFA</span>
+        </div>
+        <div class="summary-row">
+            <span>= Espèces attendues</span>
+            <span>{{ shift.expected_cash|floatformat:0 }} FCFA</span>
+        </div>
+        <div class="summary-row">
+            <span>Espèces comptées</span>
+            <span>{{ shift.closing_cash|floatformat:0 }} FCFA</span>
+        </div>
+        <div class="summary-row total">
+            <span>Écart (variance)</span>
+            <span class="{% if shift.variance >= 0 %}variance-positive{% else %}variance-negative{% endif %}">
+                {% if shift.variance >= 0 %}+{% endif %}{{ shift.variance|floatformat:0 }} FCFA
+            </span>
+        </div>
+    </div>
+
+    {% if shift.notes %}
+    <div style="margin-bottom: 20px;">
+        <h3 style="font-size: 10pt; color: #666; margin-bottom: 5px;">Notes</h3>
+        <p style="font-size: 10pt; padding: 10px; background: #f9f9f9; border-radius: 4px;">{{ shift.notes }}</p>
+    </div>
+    {% endif %}
+
+    <div class="signature">
+        <div class="sig-block">
+            <div class="sig-line">Signature Caissier</div>
+        </div>
+        <div class="sig-block">
+            <div class="sig-line">Signature Responsable</div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,184 @@
+{% extends "base/base.html" %}
+{% load boutique_tags humanize %}
+
+{% block title %}Rapport ventes{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Rapport des ventes</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ current_store.name }}</p>
+    </div>
+    <a href="{% url 'reports:reports-index' %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+        Retour rapports
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+    <form method="get" class="flex flex-wrap gap-4 items-end">
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Date debut</label>
+            <input type="date" name="date_from" value="{{ date_from }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Date fin</label>
+            <input type="date" name="date_to" value="{{ date_to }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+            Appliquer
+        </button>
+        <a href="{% url 'reports:sales-report' %}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm">
+            Reinitialiser
+        </a>
+        <a href="{% url 'reports:export' %}?report_type=sales&format=excel&date_from={{ date_from }}&date_to={{ date_to }}" class="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg text-sm">
+            Export Excel
+        </a>
+        <a href="{% url 'reports:export' %}?report_type=sales&format=csv&date_from={{ date_from }}&date_to={{ date_to }}" class="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg text-sm">
+            Export CSV
+        </a>
+    </form>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">CA total</p>
+        <p class="mt-1 text-2xl font-bold text-gray-900">{{ report.total_ca|default:0|currency }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">CA net</p>
+        <p class="mt-1 text-2xl font-bold text-green-700">{{ report.net_ca|default:0|currency }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Nombre de ventes</p>
+        <p class="mt-1 text-2xl font-bold text-gray-900">{{ report.nb_ventes|default:0 }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Panier moyen</p>
+        <p class="mt-1 text-2xl font-bold text-gray-900">{{ report.avg_basket|default:0|currency }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Total remises</p>
+        <p class="mt-1 text-2xl font-bold text-orange-700">{{ report.total_discounts|default:0|currency }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Total remboursements</p>
+        <p class="mt-1 text-2xl font-bold text-red-700">{{ report.total_refunds|default:0|currency }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100">
+            <h3 class="font-semibold text-gray-900">Top produits</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Produit</th>
+                        <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Quantite</th>
+                        <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">CA</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for row in report.top_products %}
+                    <tr>
+                        <td class="px-5 py-3 text-sm text-gray-800">{{ row.product_name }}</td>
+                        <td class="px-5 py-3 text-sm text-right text-gray-700">{{ row.qty_sold }}</td>
+                        <td class="px-5 py-3 text-sm text-right font-medium text-gray-900">{{ row.revenue|currency }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="px-5 py-8 text-center text-gray-500">Aucune donnee.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100">
+            <h3 class="font-semibold text-gray-900">Repartition par categorie</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Categorie</th>
+                        <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Quantite</th>
+                        <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">CA</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for row in report.by_category %}
+                    <tr>
+                        <td class="px-5 py-3 text-sm text-gray-800">{{ row.category_name|default:"Non classe" }}</td>
+                        <td class="px-5 py-3 text-sm text-right text-gray-700">{{ row.qty }}</td>
+                        <td class="px-5 py-3 text-sm text-right font-medium text-gray-900">{{ row.revenue|currency }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="px-5 py-8 text-center text-gray-500">Aucune donnee.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100">
+            <h3 class="font-semibold text-gray-900">Performance vendeurs</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Vendeur</th>
+                        <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Ventes</th>
+                        <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">CA</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for row in report.by_seller %}
+                    <tr>
+                        <td class="px-5 py-3 text-sm text-gray-800">{{ row.seller_name }} {{ row.seller_last }}</td>
+                        <td class="px-5 py-3 text-sm text-right text-gray-700">{{ row.nb }}</td>
+                        <td class="px-5 py-3 text-sm text-right font-medium text-gray-900">{{ row.ca|currency }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="px-5 py-8 text-center text-gray-500">Aucune donnee.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100">
+            <h3 class="font-semibold text-gray-900">Paiements par methode</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Methode</th>
+                        <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Transactions</th>
+                        <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Montant</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for row in report.by_payment_method %}
+                    <tr>
+                        <td class="px-5 py-3 text-sm text-gray-800">{{ row.method }}</td>
+                        <td class="px-5 py-3 text-sm text-right text-gray-700">{{ row.count }}</td>
+                        <td class="px-5 py-3 text-sm text-right font-medium text-gray-900">{{ row.total|currency }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="px-5 py-8 text-center text-gray-500">Aucune donnee.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

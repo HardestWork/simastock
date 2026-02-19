@@ -1,0 +1,146 @@
+{% extends "base/base.html" %}
+{% load boutique_tags humanize %}
+
+{% block title %}Sessions de caisse{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Sessions de caisse</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ store.name }}</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{% url 'cashier:shift-open' %}" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">
+            <i class="fas fa-play mr-2"></i>Ouvrir un shift
+        </a>
+        <a href="{% url 'cashier:dashboard' %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+            Retour caisse
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div x-data="shiftListUX()" x-init="init()" class="space-y-4">
+    <div x-show="errorMessage" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+        <span x-text="errorMessage"></span>
+        <button type="button" @click="retry()" class="px-3 py-1 bg-red-600 text-white rounded text-xs">Reessayer</button>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <form id="shift-filter" method="get" class="flex items-end gap-3" @submit="startLoading()">
+            <div class="w-48">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Statut</label>
+                <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="" {% if not current_status %}selected{% endif %}>Tous</option>
+                    <option value="OPEN" {% if current_status == "OPEN" %}selected{% endif %}>Ouvert</option>
+                    <option value="CLOSED" {% if current_status == "CLOSED" %}selected{% endif %}>Ferme</option>
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm">
+                <span x-show="!loading">Filtrer</span>
+                <span x-show="loading"><i class="fas fa-spinner fa-spin mr-1"></i>Chargement...</span>
+            </button>
+            <a href="{% url 'cashier:shift-list' %}" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm">
+                Reinitialiser
+            </a>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-100">
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Ouverture</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Fermeture</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Caissier</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Statut</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Fond</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Ventes</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Ecart</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for shift in shifts %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-5 py-3 text-sm text-gray-700">{{ shift.opened_at|date:"d/m/Y H:i" }}</td>
+                    <td class="px-5 py-3 text-sm text-gray-500">
+                        {% if shift.closed_at %}{{ shift.closed_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-sm text-gray-700">{{ shift.cashier.get_full_name }}</td>
+                    <td class="px-5 py-3 text-center">
+                        {% if shift.status == "OPEN" %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Ouvert</span>
+                        {% else %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">Ferme</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-sm text-right text-gray-700">{{ shift.opening_float|currency }}</td>
+                    <td class="px-5 py-3 text-sm text-right text-gray-700">{{ shift.total_sales|currency }}</td>
+                    <td class="px-5 py-3 text-sm text-right {% if shift.variance and shift.variance < 0 %}text-red-600{% elif shift.variance and shift.variance > 0 %}text-amber-700{% else %}text-gray-700{% endif %}">
+                        {% if shift.variance is not None %}{{ shift.variance|currency }}{% else %}-{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        <a href="{% url 'cashier:shift-detail' shift.id %}" class="text-sm text-primary-600 hover:underline mr-3">Detail</a>
+                        <a href="{% url 'cashier:shift-report-pdf' shift.id %}" class="text-sm text-gray-600 hover:underline">PDF</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="px-5 py-12 text-center text-gray-500">Aucune session de caisse trouvee.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div class="mt-2 flex items-center justify-center gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key|urlencode }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
+           @click="startLoading()"
+           class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Precedent</a>
+        {% endif %}
+        <span class="px-3 py-1.5 text-sm text-gray-600">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key|urlencode }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
+           @click="startLoading()"
+           class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Suivant</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function shiftListUX() {
+    return {
+        loading: false,
+        errorMessage: '',
+        startLoading() {
+            this.loading = true;
+            this.errorMessage = '';
+        },
+        retry() {
+            const form = document.getElementById('shift-filter');
+            if (form) {
+                form.submit();
+            } else {
+                window.location.reload();
+            }
+        },
+        init() {
+            document.body.addEventListener('htmx:responseError', () => {
+                this.loading = false;
+                this.errorMessage = 'Chargement impossible. Verifiez votre connexion puis reessayez.';
+            });
+            document.body.addEventListener('htmx:afterRequest', () => {
+                this.loading = false;
+            });
+        },
+    };
+}
+</script>
+{% endblock %}

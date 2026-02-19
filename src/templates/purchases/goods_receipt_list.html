@@ -1,0 +1,30 @@
+{% extends "base/base.html" %}
+{% block title %}Receptions{% endblock %}
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <h1 class="text-xl font-semibold text-gray-900 mb-4">Receptions marchandises</h1>
+    <table class="min-w-full text-sm">
+        <thead>
+            <tr class="text-left text-gray-500 border-b">
+                <th class="py-2">Numero</th>
+                <th class="py-2">Bon de commande</th>
+                <th class="py-2">Receptionne par</th>
+                <th class="py-2">Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for receipt in receipts %}
+            <tr class="border-b last:border-0">
+                <td class="py-2">{{ receipt.receipt_number }}</td>
+                <td class="py-2">{{ receipt.purchase_order.po_number }}</td>
+                <td class="py-2">{{ receipt.received_by.get_full_name|default:"-" }}</td>
+                <td class="py-2">{{ receipt.created_at|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td class="py-3 text-gray-500" colspan="4">Aucune reception.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

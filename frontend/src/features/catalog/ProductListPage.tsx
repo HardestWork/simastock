@@ -1,0 +1,341 @@
+/** Product catalog page with grid/list views, filters, and CRUD. */
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { productApi, categoryApi, brandApi } from '@/api/endpoints';
+import { queryKeys } from '@/lib/query-keys';
+import { formatCurrency } from '@/lib/currency';
+import { useDebounce } from '@/hooks/use-debounce';
+import { useSort } from '@/hooks/use-sort';
+import Pagination from '@/components/shared/Pagination';
+import SortableHeader from '@/components/shared/SortableHeader';
+import {
+  Search,
+  Package,
+  FolderTree,
+  Tags,
+  Plus,
+  LayoutGrid,
+  List,
+  Trash2,
+  Pencil,
+  AlertCircle,
+} from 'lucide-react';
+import type { Product } from '@/api/types';
+import type { AxiosError } from 'axios';
+
+const PAGE_SIZE = 25;
+
+type ViewMode = 'grid' | 'list';
+
+export default function ProductListPage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [brandFilter, setBrandFilter] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const debouncedSearch = useDebounce(search, 300);
+  const { sortField, sortDirection, ordering, toggleSort } = useSort('name', 'asc');
+
+  useEffect(() => { setPage(1); }, [ordering]);
+
+  // Load categories and brands for filter dropdowns
+  const { data: categoriesData } = useQuery({
+    queryKey: queryKeys.categories.list({ page_size: '100' }),
+    queryFn: () => categoryApi.list({ page_size: '100' }),
+  });
+
+  const { data: brandsData } = useQuery({
+    queryKey: queryKeys.brands.list({ page_size: '100' }),
+    queryFn: () => brandApi.list({ page_size: '100' }),
+  });
+
+  const params: Record<string, string> = {
+    page: String(page),
+    page_size: String(PAGE_SIZE),
+  };
+  if (ordering) params.ordering = ordering;
+  if (debouncedSearch) params.search = debouncedSearch;
+  if (categoryFilter) params.category = categoryFilter;
+  if (brandFilter) params.brand = brandFilter;
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: queryKeys.products.list(params),
+    queryFn: () => productApi.list(params),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => productApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+    },
+  });
+
+  const handleDelete = (product: Product) => {
+    if (window.confirm(`Supprimer le produit "${product.name}" ?`)) {
+      deleteMutation.mutate(product.id);
+    }
+  };
+
+  const totalPages = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Catalogue produits</h1>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/catalog/categories"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+          >
+            <FolderTree size={16} />
+            Categories
+          </Link>
+          <Link
+            to="/catalog/brands"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+          >
+            <Tags size={16} />
+            Marques
+          </Link>
+          <Link
+            to="/catalog/new"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
+          >
+            <Plus size={18} />
+            Nouveau produit
+          </Link>
+        </div>
+      </div>
+
+      {/* Search + View toggle */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Rechercher par nom, SKU ou code-barres..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+            />
+          </div>
+          <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+              title="Vue mosaique"
+            >
+              <LayoutGrid size={18} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+              title="Vue liste"
+            >
+              <List size={18} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+        <div className="flex items-center gap-4">
+          <div className="flex-1 max-w-xs">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Categorie</label>
+            <select
+              value={categoryFilter}
+              onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+            >
+              <option value="">Toutes les categories</option>
+              {categoriesData?.results.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1 max-w-xs">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Marque</label>
+            <select
+              value={brandFilter}
+              onChange={(e) => { setBrandFilter(e.target.value); setPage(1); }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+            >
+              <option value="">Toutes les marques</option>
+              {brandsData?.results.map((brand) => (
+                <option key={brand.id} value={brand.id}>{brand.name}</option>
+              ))}
+            </select>
+          </div>
+          {data && (
+            <div className="ml-auto text-sm text-gray-500 self-end pb-1">
+              {data.count} produit{data.count !== 1 ? 's' : ''}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Delete error */}
+      {deleteMutation.isError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4 flex items-center gap-2">
+          <AlertCircle size={16} />
+          Erreur lors de la suppression : {((deleteMutation.error as AxiosError)?.response?.data as any)?.detail ?? 'Erreur inconnue'}
+        </div>
+      )}
+
+      {/* Products */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      ) : isError ? (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+          Erreur chargement produits : {((error as AxiosError)?.response?.data as any)?.detail ?? (error as Error).message}
+        </div>
+      ) : viewMode === 'grid' ? (
+        /* ===== GRID VIEW (Mosaique) ===== */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {data?.results.map((product) => (
+            <div
+              key={product.id}
+              className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer group relative"
+              onClick={() => navigate(`/catalog/${product.id}`)}
+            >
+              <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center mb-3">
+                {product.images?.[0] ? (
+                  <img
+                    src={product.images[0].image}
+                    alt={product.name}
+                    className="max-h-full max-w-full object-contain rounded-lg"
+                  />
+                ) : (
+                  <Package size={32} className="text-gray-300" />
+                )}
+              </div>
+              <h3 className="text-sm font-medium truncate">{product.name}</h3>
+              <p className="text-xs text-gray-500">{product.sku}</p>
+              {(product.category_name || product.brand_name) && (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {[product.category_name, product.brand_name].filter(Boolean).join(' · ')}
+                </p>
+              )}
+              <p className="text-base font-bold text-primary mt-2">
+                {formatCurrency(product.selling_price)}
+              </p>
+              {/* Actions overlay */}
+              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => { e.stopPropagation(); navigate(`/catalog/${product.id}/edit`); }}
+                  className="p-1.5 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50"
+                  title="Modifier"
+                >
+                  <Pencil size={14} className="text-gray-600" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDelete(product); }}
+                  className="p-1.5 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-red-50"
+                  title="Supprimer"
+                >
+                  <Trash2 size={14} className="text-red-500" />
+                </button>
+              </div>
+            </div>
+          ))}
+          {data?.results.length === 0 && (
+            <div className="col-span-full text-center py-8 text-gray-500">
+              Aucun produit trouve.
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ===== LIST VIEW (Liste) ===== */
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50 text-left text-gray-600">
+                <th className="px-4 py-3 font-medium w-12"></th>
+                <SortableHeader field="name" label="Produit" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
+                <SortableHeader field="sku" label="SKU" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
+                <th className="px-4 py-3 font-medium">Categorie</th>
+                <th className="px-4 py-3 font-medium">Marque</th>
+                <SortableHeader field="cost_price" label="Prix achat" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
+                <SortableHeader field="selling_price" label="Prix vente" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
+                <SortableHeader field="is_active" label="Actif" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="center" />
+                <th className="px-4 py-3 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data?.results.map((product) => (
+                <tr
+                  key={product.id}
+                  className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigate(`/catalog/${product.id}`)}
+                >
+                  <td className="px-4 py-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      {product.images?.[0] ? (
+                        <img
+                          src={product.images[0].image}
+                          alt=""
+                          className="w-10 h-10 object-contain rounded-lg"
+                        />
+                      ) : (
+                        <Package size={18} className="text-gray-300" />
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">{product.name}</div>
+                    {product.barcode && (
+                      <div className="text-xs text-gray-400">{product.barcode}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">{product.sku}</td>
+                  <td className="px-4 py-3 text-gray-600">{product.category_name || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">{product.brand_name || '—'}</td>
+                  <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(product.cost_price)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-primary">{formatCurrency(product.selling_price)}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`inline-block w-2.5 h-2.5 rounded-full ${product.is_active ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/catalog/${product.id}/edit`); }}
+                        className="p-1.5 rounded-lg hover:bg-gray-100"
+                        title="Modifier"
+                      >
+                        <Pencil size={15} className="text-gray-500" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(product); }}
+                        className="p-1.5 rounded-lg hover:bg-red-50"
+                        title="Supprimer"
+                      >
+                        <Trash2 size={15} className="text-red-500" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {data?.results.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                    Aucun produit trouve.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+    </div>
+  );
+}

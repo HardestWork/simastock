@@ -1,0 +1,279 @@
+{% extends "base/base.html" %}
+
+{% block title %}{% if store %}Modifier la boutique{% else %}Nouvelle boutique{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">
+            {% if store %}Modifier la boutique{% else %}Nouvelle boutique{% endif %}
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">
+            {% if store %}Mettez a jour les informations de la boutique.{% else %}Creer une nouvelle boutique exploitable dans le systeme.{% endif %}
+        </p>
+    </div>
+    <a href="{% url 'stores:store-list' %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium">
+        Retour liste
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="max-w-5xl">
+    {% csrf_token %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h2 class="text-base font-semibold text-gray-900 mb-4">Informations principales</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nom *</label>
+                    <input type="text"
+                           name="name"
+                           required
+                           value="{% if form_data %}{{ form_data.name|default:'' }}{% elif store %}{{ store.name }}{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Code *</label>
+                    <input type="text"
+                           name="code"
+                           {% if not store %}required{% endif %}
+                           {% if store %}readonly{% endif %}
+                           value="{% if form_data %}{{ form_data.code|default:'' }}{% elif store %}{{ store.code }}{% endif %}"
+                           class="w-full px-3 py-2 border rounded-lg text-sm {% if store %}border-gray-200 bg-gray-50 text-gray-500{% else %}border-gray-300 focus:ring-2 focus:ring-primary-500{% endif %}">
+                    {% if store %}
+                    <p class="mt-1 text-xs text-gray-500">Le code est verrouille apres creation.</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Devise</label>
+                    <input type="text"
+                           name="currency"
+                           value="{% if form_data %}{{ form_data.currency|default:'FCFA' }}{% elif store %}{{ store.currency }}{% else %}FCFA{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h2 class="text-base font-semibold text-gray-900 mb-4">Coordonnees</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Telephone</label>
+                    <input type="text"
+                           name="phone"
+                           value="{% if form_data %}{{ form_data.phone|default:'' }}{% elif store %}{{ store.phone }}{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email"
+                           name="email"
+                           value="{% if form_data %}{{ form_data.email|default:'' }}{% elif store %}{{ store.email }}{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Site web</label>
+                    <input type="url"
+                           name="website"
+                           placeholder="https://..."
+                           value="{% if form_data %}{{ form_data.website|default:'' }}{% elif store %}{{ store.website }}{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+                    <input type="file"
+                           name="logo"
+                           accept="image/*"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                    {% if store and store.logo %}
+                    <div class="mt-2 flex items-center gap-3">
+                        <img src="{{ store.logo.url }}" alt="Logo {{ store.name }}" class="h-12 w-12 object-contain rounded border border-gray-200 bg-white">
+                        <label class="inline-flex items-center text-xs text-gray-600">
+                            <input type="checkbox"
+                                   name="remove_logo"
+                                   class="rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                            <span class="ml-2">Supprimer le logo actuel</span>
+                        </label>
+                    </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                    <textarea name="address"
+                              rows="4"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-primary-500">{% if form_data %}{{ form_data.address|default:'' }}{% elif store %}{{ store.address }}{% endif %}</textarea>
+                </div>
+                {% if store %}
+                <label class="inline-flex items-center text-sm text-gray-700">
+                    <input type="checkbox"
+                           name="is_active"
+                           class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                           {% if form_data %}{% if form_data.is_active %}checked{% endif %}{% elif store.is_active %}checked{% endif %}>
+                    <span class="ml-2">Boutique active</span>
+                </label>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 lg:col-span-2">
+            <h2 class="text-base font-semibold text-gray-900 mb-4">Parametres facture</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nom legal / raison sociale</label>
+                    <input type="text"
+                           name="legal_name"
+                           value="{% if form_data %}{{ form_data.legal_name|default:'' }}{% elif store %}{{ store.legal_name }}{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">En-tete document</label>
+                    <input type="text"
+                           name="invoice_header"
+                           value="{% if form_data %}{{ form_data.invoice_header|default:'FACTURE' }}{% elif store %}{{ store.invoice_header|default:'FACTURE' }}{% else %}FACTURE{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Modele de facture</label>
+                    {% if form_data and form_data.invoice_template %}
+                    {% with current_template=form_data.invoice_template %}
+                    <select name="invoice_template"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                        <option value="CLASSIC" {% if current_template == "CLASSIC" %}selected{% endif %}>Classique</option>
+                        <option value="MODERN" {% if current_template == "MODERN" %}selected{% endif %}>Moderne</option>
+                        <option value="SIMPLE" {% if current_template == "SIMPLE" %}selected{% endif %}>Simple</option>
+                    </select>
+                    {% endwith %}
+                    {% elif store %}
+                    {% with current_template=store.invoice_template|default:'CLASSIC' %}
+                    <select name="invoice_template"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                        <option value="CLASSIC" {% if current_template == "CLASSIC" %}selected{% endif %}>Classique</option>
+                        <option value="MODERN" {% if current_template == "MODERN" %}selected{% endif %}>Moderne</option>
+                        <option value="SIMPLE" {% if current_template == "SIMPLE" %}selected{% endif %}>Simple</option>
+                    </select>
+                    {% endwith %}
+                    {% else %}
+                    <select name="invoice_template"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                        <option value="CLASSIC" selected>Classique</option>
+                        <option value="MODERN">Moderne</option>
+                        <option value="SIMPLE">Simple</option>
+                    </select>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Couleur principale</label>
+                    <input type="color"
+                           name="invoice_primary_color"
+                           value="{% if form_data and form_data.invoice_primary_color %}{{ form_data.invoice_primary_color }}{% elif store %}{{ store.invoice_primary_color|default:'#0F4C9A' }}{% else %}#0F4C9A{% endif %}"
+                           class="w-full h-10 px-2 py-1 border border-gray-300 rounded-lg bg-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Couleur secondaire</label>
+                    <input type="color"
+                           name="invoice_secondary_color"
+                           value="{% if form_data and form_data.invoice_secondary_color %}{{ form_data.invoice_secondary_color }}{% elif store %}{{ store.invoice_secondary_color|default:'#21A8F6' }}{% else %}#21A8F6{% endif %}"
+                           class="w-full h-10 px-2 py-1 border border-gray-300 rounded-lg bg-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Numero registre commerce</label>
+                    <input type="text"
+                           name="registration_number"
+                           value="{% if form_data %}{{ form_data.registration_number|default:'' }}{% elif store %}{{ store.registration_number }}{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Identifiant fiscal (NIF)</label>
+                    <input type="text"
+                           name="tax_id"
+                           value="{% if form_data %}{{ form_data.tax_id|default:'' }}{% elif store %}{{ store.tax_id }}{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="inline-flex items-center text-sm text-gray-700 mt-7">
+                        <input type="checkbox"
+                               name="vat_enabled"
+                               class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                               {% if form_data %}{% if form_data.vat_enabled %}checked{% endif %}{% elif store and store.vat_enabled %}checked{% endif %}>
+                        <span class="ml-2">Activer la TVA sur factures/devis</span>
+                    </label>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Taux TVA (%)</label>
+                    <input type="number"
+                           name="vat_rate"
+                           min="0"
+                           max="100"
+                           step="0.01"
+                           value="{% if form_data and form_data.vat_rate %}{{ form_data.vat_rate }}{% elif store %}{{ store.vat_rate|default:18 }}{% else %}18{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Validite offre (jours)</label>
+                    <input type="number"
+                           min="1"
+                           name="offer_validity_days"
+                           value="{% if form_data and form_data.offer_validity_days %}{{ form_data.offer_validity_days }}{% elif store %}{{ store.offer_validity_days|default:15 }}{% else %}15{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                    <p class="mt-1 text-xs text-gray-500">Utilise pour devis et facture proforma.</p>
+                </div>
+                <div class="lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Coordonnees bancaires (optionnel)</label>
+                    <textarea name="bank_details"
+                              rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-primary-500">{% if form_data %}{{ form_data.bank_details|default:'' }}{% elif store %}{{ store.bank_details }}{% endif %}</textarea>
+                </div>
+                <div class="lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Conditions de facture</label>
+                    <textarea name="invoice_terms"
+                              rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-primary-500">{% if form_data %}{{ form_data.invoice_terms|default:'' }}{% elif store %}{{ store.invoice_terms }}{% endif %}</textarea>
+                </div>
+                <div class="lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Pied de page facture</label>
+                    <textarea name="invoice_footer"
+                              rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-primary-500">{% if form_data %}{{ form_data.invoice_footer|default:'' }}{% elif store %}{{ store.invoice_footer }}{% endif %}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 lg:col-span-2">
+            <h2 class="text-base font-semibold text-gray-900 mb-4">Feature flags plateforme (Boutique)</h2>
+            <p class="text-xs text-gray-500 mb-4">Choisissez "Heriter entreprise", "Activer boutique" ou "Desactiver boutique" pour chaque brique.</p>
+            <div class="space-y-3">
+                {% for row in store_feature_rows %}
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center border border-gray-100 rounded-lg p-3">
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">{{ row.label }}</p>
+                        <p class="text-xs text-gray-500">
+                            Defaut entreprise: {% if row.enterprise_enabled %}actif{% else %}inactif{% endif %}
+                            · Effectif: {% if row.effective_enabled %}actif{% else %}inactif{% endif %}
+                        </p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <select name="feature_mode_{{ row.key }}"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">
+                            <option value="inherit" {% if row.mode == "inherit" %}selected{% endif %}>Heriter entreprise</option>
+                            <option value="enabled" {% if row.mode == "enabled" %}selected{% endif %}>Activer boutique</option>
+                            <option value="disabled" {% if row.mode == "disabled" %}selected{% endif %}>Desactiver boutique</option>
+                        </select>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-3 mt-6">
+        <a href="{% url 'stores:store-list' %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium">
+            Annuler
+        </a>
+        <button type="submit" class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
+            <i class="fas fa-save mr-2"></i>{% if store %}Mettre a jour{% else %}Creer la boutique{% endif %}
+        </button>
+    </div>
+</form>
+{% endblock %}

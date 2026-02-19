@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification e-mail - Boutique Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .form-control {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            padding: 0.625rem 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+    </style>
+</head>
+<body class="h-full bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center">
+    <div class="w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl p-8">
+        {% if messages %}
+        <div class="mb-4 space-y-2">
+            {% for message in messages %}
+            <div class="px-3 py-2 rounded-lg text-sm
+                        {% if message.tags == 'success' %}bg-green-50 text-green-700 border border-green-200
+                        {% elif message.tags == 'warning' %}bg-yellow-50 text-yellow-700 border border-yellow-200
+                        {% elif message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
+                        {% else %}bg-blue-50 text-blue-700 border border-blue-200{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Verifiez votre e-mail</h1>
+        <p class="text-sm text-gray-600">
+            Un lien d'activation vient d'etre envoye a
+            <span class="font-medium text-gray-900">{{ email|default:"votre adresse e-mail" }}</span>.
+        </p>
+        <p class="text-sm text-gray-600 mt-2">
+            Ouvrez ce lien pour activer votre compte.
+        </p>
+
+        <form method="post" action="{% url 'accounts:resend-verification-email' %}" class="mt-6 space-y-3">
+            {% csrf_token %}
+            <label class="block text-xs font-medium text-gray-600">Renvoyer le lien</label>
+            {{ form.email }}
+            <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
+                Renvoyer l'e-mail de verification
+            </button>
+        </form>
+
+        <p class="text-sm text-gray-600 mt-5 text-center">
+            <a href="{% url 'accounts:login' %}" class="text-blue-600 hover:text-blue-700 font-medium">Retour connexion</a>
+        </p>
+    </div>
+</body>
+</html>
