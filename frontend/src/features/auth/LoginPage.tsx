@@ -8,13 +8,13 @@ export default function LoginPage() {
   const { login, isLoading, isAuthenticated } = useAuthStore();
 
   // Already logged in → redirect to dashboard (prevents back-button loop)
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
