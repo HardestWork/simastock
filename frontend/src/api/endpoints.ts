@@ -178,6 +178,9 @@ export const enterpriseApi = {
 
   setup: (data: EnterpriseSetupPayload) =>
     apiClient.post<EnterpriseSetupResponse>('enterprises/setup/', data).then((r) => r.data),
+
+  delete: (id: string) =>
+    apiClient.delete(`enterprises/${id}/`).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------

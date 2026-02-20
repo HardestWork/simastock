@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { enterpriseApi } from '@/api/endpoints';
 import type { Enterprise } from '@/api/types';
-import { Building2, Search, Plus, Save, Loader2, Power, Calendar, Store, X } from 'lucide-react';
+import { Building2, Search, Plus, Save, Loader2, Power, Calendar, Store, X, Trash2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -84,6 +84,9 @@ export default function EnterpriseListPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
+  // Delete
+  const [deleteTarget, setDeleteTarget] = useState<Enterprise | null>(null);
+
   // Edit panel
   const [editingEnterprise, setEditingEnterprise] = useState<Enterprise | null>(null);
   const [draftSubscriptionStart, setDraftSubscriptionStart] = useState('');
@@ -129,6 +132,15 @@ export default function EnterpriseListPage() {
     onError: (err: unknown) => {
       setSaveError(extractError(err));
       setSaveSuccess(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => enterpriseApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enterprises'] });
+      setDeleteTarget(null);
+      if (editingEnterprise?.id === deleteTarget?.id) closeEdit();
     },
   });
 
@@ -317,21 +329,33 @@ export default function EnterpriseListPage() {
                         </div>
                       </td>
 
-                      {/* Actions: toggle is_active */}
+                      {/* Actions: toggle is_active + delete */}
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={(e) => handleToggleActive(e, ent)}
-                          disabled={toggleActiveMutation.isPending}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                            ent.is_active
-                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                              : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100'
-                          }`}
-                          title={ent.is_active ? 'Desactiver' : 'Activer'}
-                        >
-                          <Power size={14} />
-                          {ent.is_active ? 'Actif' : 'Inactif'}
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={(e) => handleToggleActive(e, ent)}
+                            disabled={toggleActiveMutation.isPending}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                              ent.is_active
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                            }`}
+                            title={ent.is_active ? 'Desactiver' : 'Activer'}
+                          >
+                            <Power size={14} />
+                            {ent.is_active ? 'Actif' : 'Inactif'}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(ent);
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Supprimer l'entreprise"
+                          >
+                            <Trash2 size={15} className="text-red-400" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -490,6 +514,51 @@ export default function EnterpriseListPage() {
           </div>
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Supprimer l'entreprise
+            </h3>
+            <p className="text-sm text-gray-600 mb-1">
+              Etes-vous sur de vouloir supprimer{' '}
+              <span className="font-medium text-gray-900">
+                {deleteTarget.name}
+              </span>{' '}
+              ({deleteTarget.code}) ?
+            </p>
+            <p className="text-xs text-red-600 mb-5">
+              Cette action supprimera toutes les boutiques, utilisateurs, produits, ventes et donnees associees. Cette action est irreversible.
+            </p>
+
+            {deleteMutation.isError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
+                <AlertCircle size={14} />
+                {extractError(deleteMutation.error)}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setDeleteTarget(null); deleteMutation.reset(); }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                disabled={deleteMutation.isPending}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(deleteTarget.id)}
+                disabled={deleteMutation.isPending}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-60"
+              >
+                {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
