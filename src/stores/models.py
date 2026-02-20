@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import F
+from django.utils import timezone
 
 from core.models import TimeStampedModel
 

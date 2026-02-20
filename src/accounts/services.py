@@ -7,13 +7,12 @@ from typing import Tuple
 
 from django.db import transaction
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils.text import slugify
 
+from core.email import send_branded_email
 from stores.models import Enterprise, Sequence, Store, StoreUser
 
 
@@ -28,15 +27,13 @@ def build_verification_url(request, user):
 def send_verification_email(request, user):
     """Send an email verification link."""
     verification_url = build_verification_url(request, user)
-    subject = "Verification de votre adresse e-mail"
-    message = render_to_string(
-        "accounts/emails/verify_email.txt",
-        {
-            "user": user,
-            "verification_url": verification_url,
-        },
-    ).strip()
-    send_mail(subject, message, None, [user.email], fail_silently=False)
+    send_branded_email(
+        subject="Verification de votre adresse e-mail",
+        template_name="emails/verify_email",
+        context={"user": user, "verification_url": verification_url},
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
 
 
 def provision_enterprise_for_user(user, company_name: str, store_name: str = "") -> Tuple[Enterprise, Store]:

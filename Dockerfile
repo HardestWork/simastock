@@ -30,6 +30,9 @@ RUN mkdir -p /app/logs /app/staticfiles /app/src/media/products /app/src/media/d
 # Collect static
 RUN cd /app/src && python manage.py collectstatic --noinput --settings=config.settings.prod 2>/dev/null || true
 
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 RUN chown -R app:app /app/logs /app/staticfiles /app/src/media /home/app
 
 EXPOSE 8000
@@ -38,4 +41,4 @@ WORKDIR /app/src
 
 USER app
 
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

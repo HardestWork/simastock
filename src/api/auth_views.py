@@ -6,7 +6,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
+from core.email import send_branded_email
 from django.core.exceptions import ImproperlyConfigured
 from django.middleware import csrf
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -182,20 +182,12 @@ class PasswordResetRequestAPIView(APIView):
             base = (getattr(settings, "FRONTEND_URL", "") or "http://localhost:3000").rstrip("/")
             reset_url = f"{base}/reset-password?uid={uid}&token={token}"
 
-            subject = "Reinitialisation de votre mot de passe"
             greeting = user.get_full_name() or user.email
-            body = (
-                f"Bonjour {greeting},\n\n"
-                "Vous avez demande la reinitialisation de votre mot de passe.\n"
-                "Cliquez sur le lien ci-dessous pour definir un nouveau mot de passe:\n\n"
-                f"{reset_url}\n\n"
-                "Si vous n'etes pas a l'origine de cette demande, ignorez cet email.\n"
-            )
             try:
-                send_mail(
-                    subject=subject,
-                    message=body,
-                    from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                send_branded_email(
+                    subject="Reinitialisation de votre mot de passe",
+                    template_name="emails/password_reset",
+                    context={"greeting": greeting, "reset_url": reset_url},
                     recipient_list=[user.email],
                     fail_silently=False,
                 )

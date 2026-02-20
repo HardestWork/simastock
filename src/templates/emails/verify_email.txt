@@ -1,0 +1,15 @@
+{% extends "emails/base_email.txt" %}
+
+{% block content %}Bonjour {{ user.get_full_name|default:user.email }},
+
+Merci d'avoir cree un compte sur SimaStock.
+Veuillez confirmer votre adresse e-mail en cliquant sur ce lien :
+
+{{ verification_url }}
+
+Si vous n'etes pas a l'origine de cette demande, ignorez cet e-mail.
+{% endblock %}
+
+{% block footer_note %}
+Vous recevez cet email car un compte SimaStock a ete cree avec cette adresse.
+{% endblock %}

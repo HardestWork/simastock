@@ -1,0 +1,5 @@
+{% block content %}{% endblock %}
+--
+SimaStock - simastock.com
+Cet email a ete envoye automatiquement.
+{% block footer_note %}{% endblock %}

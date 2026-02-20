@@ -12,7 +12,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.mail import send_mail
+from core.email import send_branded_email
 from django.db import transaction
 from django.db.models import (
     Sum, Avg, Count, F, Q, DecimalField, Exists, OuterRef,
@@ -275,21 +275,17 @@ def _send_setup_credentials_email(
     """Send account credentials to the created enterprise admin email."""
     base = (getattr(settings, "FRONTEND_URL", "") or "http://localhost:3000").rstrip("/")
     login_url = f"{base}/login"
-    subject = "Vos acces SimaStock"
-    body = (
-        f"Bonjour {user_name},\n\n"
-        "Votre compte administrateur a ete cree.\n\n"
-        f"Entreprise: {enterprise_name}\n"
-        f"Boutique: {store_name}\n"
-        f"Email: {to_email}\n"
-        f"Mot de passe: {password}\n\n"
-        f"Connexion: {login_url}\n\n"
-        "Pensez a changer votre mot de passe apres votre premiere connexion.\n"
-    )
-    send_mail(
-        subject=subject,
-        message=body,
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+    send_branded_email(
+        subject="Vos acces SimaStock",
+        template_name="emails/account_credentials",
+        context={
+            "user_name": user_name,
+            "enterprise_name": enterprise_name,
+            "store_name": store_name,
+            "to_email": to_email,
+            "password": password,
+            "login_url": login_url,
+        },
         recipient_list=[to_email],
         fail_silently=False,
     )
