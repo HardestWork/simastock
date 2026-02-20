@@ -8,7 +8,8 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { useSort } from '@/hooks/use-sort';
 import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
-import { Search, UserPlus, Pencil, UserCheck, UserX, AlertCircle } from 'lucide-react';
+import { Search, UserPlus, Pencil, UserCheck, UserX, Trash2, AlertCircle } from 'lucide-react';
+import { useAuthStore } from '@/auth/auth-store';
 import type { User, UserRole } from '@/api/types';
 import type { AxiosError } from 'axios';
 
@@ -42,9 +43,11 @@ const ROLE_OPTIONS: { value: string; label: string }[] = [
 export default function UserListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const currentUser = useAuthStore((s) => s.user);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const debouncedSearch = useDebounce(search, 300);
   const { sortField, sortDirection, ordering, toggleSort } = useSort('last_name', 'asc');
 
@@ -71,9 +74,22 @@ export default function UserListPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => userApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      setDeleteTarget(null);
+    },
+  });
+
   const handleToggleActive = (e: React.MouseEvent, user: User) => {
     e.stopPropagation();
     toggleActiveMutation.mutate(user);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, user: User) => {
+    e.stopPropagation();
+    setDeleteTarget(user);
   };
 
   const totalPages = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
@@ -229,6 +245,15 @@ export default function UserListPage() {
                           <UserCheck size={15} className="text-emerald-500" />
                         )}
                       </button>
+                      {user.id !== currentUser?.id && (
+                        <button
+                          onClick={(e) => handleDeleteClick(e, user)}
+                          className="p-1.5 rounded-lg hover:bg-red-50"
+                          title="Supprimer l'utilisateur"
+                        >
+                          <Trash2 size={15} className="text-red-400" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -249,6 +274,52 @@ export default function UserListPage() {
       )}
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Supprimer l'utilisateur
+            </h3>
+            <p className="text-sm text-gray-600 mb-1">
+              Etes-vous sur de vouloir supprimer{' '}
+              <span className="font-medium text-gray-900">
+                {deleteTarget.first_name} {deleteTarget.last_name}
+              </span>{' '}
+              ({deleteTarget.email}) ?
+            </p>
+            <p className="text-xs text-red-600 mb-5">
+              Cette action est irreversible.
+            </p>
+
+            {deleteMutation.isError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
+                <AlertCircle size={14} />
+                {((deleteMutation.error as AxiosError)?.response?.data as any)?.detail ??
+                  'Erreur lors de la suppression.'}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setDeleteTarget(null); deleteMutation.reset(); }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                disabled={deleteMutation.isPending}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(deleteTarget.id)}
+                disabled={deleteMutation.isPending}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-60"
+              >
+                {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

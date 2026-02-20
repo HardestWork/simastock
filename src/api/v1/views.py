@@ -1128,6 +1128,8 @@ class ProductStockViewSet(viewsets.ReadOnlyModelViewSet):
     Read-only viewset for product stock levels.
 
     Filter by store and product. Only shows stock for user's accessible stores.
+    On list, automatically creates missing ProductStock rows so that newly
+    created products appear with quantity=0.
     """
 
     serializer_class = ProductStockSerializer
@@ -1141,6 +1143,34 @@ class ProductStockViewSet(viewsets.ReadOnlyModelViewSet):
         qs = super().get_queryset()
         store_ids = _user_store_ids(self.request.user)
         return qs.filter(store_id__in=store_ids)
+
+    def list(self, request, *args, **kwargs):
+        """Sync missing ProductStock rows before listing."""
+        store_id = request.query_params.get("store")
+        if store_id:
+            try:
+                store = Store.objects.select_related("enterprise").get(
+                    pk=store_id, id__in=_user_store_ids(request.user),
+                )
+            except Store.DoesNotExist:
+                pass
+            else:
+                existing = ProductStock.objects.filter(store=store).values_list(
+                    "product_id", flat=True,
+                )
+                missing = list(
+                    Product.objects.filter(
+                        enterprise=store.enterprise, is_active=True,
+                    )
+                    .exclude(pk__in=existing)
+                    .values_list("pk", flat=True)
+                )
+                if missing:
+                    ProductStock.objects.bulk_create(
+                        [ProductStock(store=store, product_id=pid) for pid in missing],
+                        ignore_conflicts=True,
+                    )
+        return super().list(request, *args, **kwargs)
 
 
 # ---------------------------------------------------------------------------

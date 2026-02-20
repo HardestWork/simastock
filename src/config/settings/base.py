@@ -112,6 +112,9 @@ X_FRAME_OPTIONS = "DENY"
 # Public SPA URL used in emails (password reset, invites, etc.).
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
 
+# Timeout (seconds) for SMTP connections so email-sending never blocks forever.
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
+
 ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
