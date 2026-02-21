@@ -7,6 +7,7 @@ import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
 import { useAuthStore } from '@/auth/auth-store';
+import { toast } from 'sonner';
 import type { TransferStatus } from '@/api/types';
 
 const STATUS_LABELS: Record<TransferStatus, string> = {
@@ -37,9 +38,9 @@ function StatusBadge({ status }: { status: TransferStatus }) {
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2 py-2 border-b border-gray-100 last:border-0">
-      <span className="text-sm text-gray-500 w-36 shrink-0">{label}</span>
-      <span className="text-sm font-medium text-gray-900">{value}</span>
+    <div className="flex items-start gap-2 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+      <span className="text-sm text-gray-500 dark:text-gray-400 w-36 shrink-0">{label}</span>
+      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{value}</span>
     </div>
   );
 }
@@ -63,14 +64,22 @@ export default function TransferDetailPage() {
   const { mutate: approveTransfer, isPending: isApproving } = useMutation({
     mutationFn: () => stockApi.approveTransfer(id!),
     onSuccess: () => {
+      toast.success('Transfert approuve avec succes');
       void queryClient.invalidateQueries({ queryKey: queryKeys.transfers.detail(id!) });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
   const { mutate: receiveTransfer, isPending: isReceiving } = useMutation({
     mutationFn: () => stockApi.receiveTransfer(id!),
     onSuccess: () => {
+      toast.success('Transfert marque comme recu');
       void queryClient.invalidateQueries({ queryKey: queryKeys.transfers.detail(id!) });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -94,7 +103,7 @@ export default function TransferDetailPage() {
 
   if (error || !transfer) {
     return (
-      <div className="text-center py-16 text-gray-500">
+      <div className="text-center py-16 text-gray-500 dark:text-gray-400">
         <p>Impossible de charger le transfert.</p>
         <Link to="/stock/transfers" className="text-primary hover:underline text-sm mt-2 inline-block">
           Retour aux transferts
@@ -110,12 +119,12 @@ export default function TransferDetailPage() {
         <div>
           <Link
             to="/stock/transfers"
-            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-1"
+            className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-1"
           >
             <ChevronLeft size={14} />
             Retour aux transferts
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <ArrowLeftRight size={22} />
             Transfert #{transfer.id.substring(0, 8).toUpperCase()}
           </h1>
@@ -150,8 +159,8 @@ export default function TransferDetailPage() {
       </div>
 
       {/* Info panel */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="font-semibold text-gray-900 mb-4">Informations</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Informations</h2>
         <div>
           <InfoRow label="Source" value={transfer.from_store_name} />
           <InfoRow label="Destination" value={transfer.to_store_name} />
@@ -169,29 +178,29 @@ export default function TransferDetailPage() {
       </div>
 
       {/* Lines table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="font-semibold text-gray-900">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">
             Lignes de transfert ({transfer.lines.length})
           </h2>
         </div>
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Produit</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Quantite demandee</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Quantite recue</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Produit</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Quantite demandee</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Quantite recue</th>
             </tr>
           </thead>
           <tbody>
             {transfer.lines.map((line) => (
-              <tr key={line.id} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">{line.product_name}</td>
-                <td className="px-4 py-3 text-right text-gray-700">{line.quantity}</td>
+              <tr key={line.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{line.product_name}</td>
+                <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{line.quantity}</td>
                 <td className="px-4 py-3 text-right">
                   <span
                     className={
-                      line.received_qty > 0 ? 'text-green-600 font-medium' : 'text-gray-400'
+                      line.received_qty > 0 ? 'text-green-600 font-medium' : 'text-gray-400 dark:text-gray-500'
                     }
                   >
                     {line.received_qty > 0 ? line.received_qty : '-'}
@@ -201,7 +210,7 @@ export default function TransferDetailPage() {
             ))}
             {transfer.lines.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={3} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                   Aucune ligne de transfert.
                 </td>
               </tr>

@@ -36,7 +36,14 @@ export type Capability =
   | 'CAN_REFUND'
   | 'CAN_OVERRIDE_PRICE'
   | 'CAN_APPROVE'
-  | 'CAN_VIEW_REPORTS';
+  | 'CAN_VIEW_REPORTS'
+  | 'CAN_CREATE_EXPENSE'
+  | 'CAN_EDIT_EXPENSE'
+  | 'CAN_VOID_EXPENSE'
+  | 'CAN_VIEW_EXPENSE_REPORTS'
+  | 'CAN_MANAGE_CATEGORIES'
+  | 'CAN_MANAGE_WALLETS'
+  | 'CAN_SET_BUDGETS';
 
 // ---------------------------------------------------------------------------
 // Feature Flags (Enterprise/Store)
@@ -50,6 +57,7 @@ export type FeatureFlagKey =
   | 'stock_entries'
   | 'purchases_management'
   | 'credit_management'
+  | 'expenses_management'
   | 'alerts_center'
   | 'reports_center'
   | 'vat'
@@ -522,6 +530,11 @@ export interface CreditLedgerEntry {
   created_at: string;
 }
 
+export interface CreditPaymentResult extends CustomerAccount {
+  payment_entry?: CreditLedgerEntry;
+  receipt_url?: string;
+}
+
 export type ScheduleStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE';
 
 export interface PaymentSchedule {
@@ -804,6 +817,123 @@ export interface CsvImportResult {
   skipped: number;
   error_count: number;
   errors: CsvImportError[];
+}
+
+// ---------------------------------------------------------------------------
+// Expenses
+// ---------------------------------------------------------------------------
+
+export type ExpenseCategoryType = 'STOCK' | 'FIXED' | 'VARIABLE';
+export type WalletType = 'CASH' | 'BANK' | 'MOBILE_MONEY';
+export type ExpenseStatus = 'POSTED' | 'VOIDED';
+export type RecurringFrequency = 'WEEKLY' | 'MONTHLY';
+
+export interface ExpenseCategory {
+  id: string;
+  enterprise: string;
+  store: string | null;
+  store_name: string | null;
+  name: string;
+  type: ExpenseCategoryType;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Wallet {
+  id: string;
+  store: string;
+  store_name: string;
+  name: string;
+  type: WalletType;
+  balance: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Expense {
+  id: string;
+  expense_number: string;
+  store: string;
+  store_name: string;
+  category: string;
+  category_name: string;
+  wallet: string;
+  wallet_name: string;
+  amount: string;
+  description: string;
+  supplier_name: string;
+  expense_date: string;
+  created_by: string;
+  created_by_name: string;
+  status: ExpenseStatus;
+  posted_at: string | null;
+  voided_at: string | null;
+  voided_by: string | null;
+  voided_by_name: string;
+  void_reason: string;
+  is_edit_locked: boolean;
+  created_at: string;
+}
+
+export interface ExpenseBudget {
+  id: string;
+  store: string;
+  store_name: string;
+  category: string | null;
+  category_name: string | null;
+  period: string;
+  limit_amount: string;
+  alert_threshold_percent: number;
+  created_at: string;
+}
+
+export interface RecurringExpense {
+  id: string;
+  store: string;
+  store_name: string;
+  category: string;
+  category_name: string;
+  wallet: string;
+  wallet_name: string;
+  amount: string;
+  description: string;
+  supplier_name: string;
+  frequency: RecurringFrequency;
+  next_run_date: string;
+  is_active: boolean;
+  created_by: string;
+  last_run_at: string | null;
+  created_at: string;
+}
+
+export interface ExpenseDashboardBudgetLine {
+  budget_id: string;
+  category_id: string | null;
+  category_name: string;
+  limit_amount: string;
+  spent_amount: string;
+  remaining_amount: string;
+  consumed_percent: string;
+  alert_threshold_percent: number;
+  threshold_reached: boolean;
+  over_budget: boolean;
+}
+
+export interface ExpenseDashboardData {
+  store: { id: string; name: string };
+  period: string;
+  date_from: string;
+  date_to: string;
+  total_expenses: string;
+  previous_total_expenses: string;
+  comparison: { delta: string; growth_percent: string | null };
+  by_category: Array<{ category_id: string; category__name: string; total: string }>;
+  by_wallet: Array<{ wallet_id: string; wallet__name: string; wallet__type: WalletType; total: string }>;
+  top_5_categories: Array<{ category_id: string; category__name: string; total: string }>;
+  revenue_total: string;
+  expense_ratio_percent: string;
+  expense_ratio_alert_red: boolean;
+  budgets: ExpenseDashboardBudgetLine[];
 }
 
 // ---------------------------------------------------------------------------

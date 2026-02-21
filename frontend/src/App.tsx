@@ -2,9 +2,11 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
 import ProtectedRoute from '@/auth/ProtectedRoute';
 import AppLayout from '@/components/layout/AppLayout';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import ThemeProvider from '@/components/shared/ThemeProvider';
 
 // Eager-loaded pages (critical path)
 import LoginPage from '@/features/auth/LoginPage';
@@ -55,6 +57,9 @@ const StatisticsPage = lazy(() => import('@/features/statistics/StatisticsPage')
 const EnterpriseSetupPage = lazy(() => import('@/features/settings/EnterpriseSetupPage'));
 const EnterpriseListPage = lazy(() => import('@/features/settings/EnterpriseListPage'));
 const StoreUserCapabilitiesPage = lazy(() => import('@/features/settings/StoreUserCapabilitiesPage'));
+const ExpenseListPage = lazy(() => import('@/features/expenses/ExpenseListPage'));
+const ExpenseDashboardPage = lazy(() => import('@/features/expenses/ExpenseDashboardPage'));
+const ExpenseSettingsPage = lazy(() => import('@/features/expenses/ExpenseSettingsPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -76,7 +81,9 @@ function PageLoader() {
 
 export default function App() {
   return (
+    <ThemeProvider>
     <QueryClientProvider client={queryClient}>
+      <Toaster richColors position="top-right" toastOptions={{ duration: 3000 }} />
       <BrowserRouter>
         <ErrorBoundary>
           <Routes>
@@ -150,6 +157,15 @@ export default function App() {
                   <Route path="/credits/:id" element={<Suspense fallback={<PageLoader />}><CreditDetailPage /></Suspense>} />
                 </Route>
 
+                {/* Expenses */}
+                <Route element={<ProtectedRoute allowedRoles={['CASHIER', 'MANAGER', 'ADMIN']} />}>
+                  <Route path="/expenses" element={<Suspense fallback={<PageLoader />}><ExpenseListPage /></Suspense>} />
+                  <Route path="/expenses/dashboard" element={<Suspense fallback={<PageLoader />}><ExpenseDashboardPage /></Suspense>} />
+                </Route>
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
+                  <Route path="/expenses/settings" element={<Suspense fallback={<PageLoader />}><ExpenseSettingsPage /></Suspense>} />
+                </Route>
+
                 {/* Purchases */}
                 <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
                   <Route path="/purchases" element={<Suspense fallback={<PageLoader />}><PurchaseListPage /></Suspense>} />
@@ -200,5 +216,6 @@ export default function App() {
         </ErrorBoundary>
       </BrowserRouter>
     </QueryClientProvider>
+    </ThemeProvider>
   );
 }

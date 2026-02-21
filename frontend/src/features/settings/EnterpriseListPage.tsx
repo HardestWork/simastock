@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { enterpriseApi } from '@/api/endpoints';
 import type { Enterprise } from '@/api/types';
 import { Building2, Search, Plus, Save, Loader2, Power, Calendar, Store, X, Trash2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -35,7 +36,7 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
 ];
 
 const inputClass =
-  'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none';
+  'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -116,7 +117,11 @@ export default function EnterpriseListPage() {
   const toggleActiveMutation = useMutation({
     mutationFn: (id: string) => enterpriseApi.toggleActive(id),
     onSuccess: () => {
+      toast.success('Statut entreprise mis a jour');
       queryClient.invalidateQueries({ queryKey: ['enterprises'] });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -124,12 +129,14 @@ export default function EnterpriseListPage() {
     mutationFn: (args: { id: string; data: Partial<Enterprise> }) =>
       enterpriseApi.update(args.id, args.data),
     onSuccess: (updated) => {
+      toast.success('Entreprise mise a jour avec succes');
       queryClient.invalidateQueries({ queryKey: ['enterprises'] });
       setSaveSuccess(true);
       setSaveError('');
       setEditingEnterprise(updated);
     },
     onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
       setSaveError(extractError(err));
       setSaveSuccess(false);
     },
@@ -138,9 +145,13 @@ export default function EnterpriseListPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => enterpriseApi.delete(id),
     onSuccess: () => {
+      toast.success('Entreprise supprimee avec succes');
       queryClient.invalidateQueries({ queryKey: ['enterprises'] });
       setDeleteTarget(null);
       if (editingEnterprise?.id === deleteTarget?.id) closeEdit();
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -192,11 +203,11 @@ export default function EnterpriseListPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <Building2 size={24} className="text-primary" />
             Gestion des entreprises
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             Gerez toutes les entreprises de la plateforme, leurs abonnements et permissions.
           </p>
         </div>
@@ -210,7 +221,7 @@ export default function EnterpriseListPage() {
       </div>
 
       {/* Search + Status filter */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-4">
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
             <Search
@@ -222,7 +233,7 @@ export default function EnterpriseListPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher par nom ou code..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
             />
           </div>
           <div className="flex-1 max-w-xs">
@@ -239,7 +250,7 @@ export default function EnterpriseListPage() {
             </select>
           </div>
           {enterprisesQ.data && (
-            <div className="ml-auto text-sm text-gray-500 hidden sm:block">
+            <div className="ml-auto text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
               {enterprisesQ.data.count} entreprise{enterprisesQ.data.count !== 1 ? 's' : ''}
             </div>
           )}
@@ -266,18 +277,18 @@ export default function EnterpriseListPage() {
               Erreur lors du chargement des entreprises.
             </div>
           ) : enterprises.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-              <Building2 size={48} className="mx-auto mb-3 text-gray-300" />
-              <p className="text-gray-500 font-medium">Aucune entreprise</p>
-              <p className="text-sm text-gray-400 mt-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+              <Building2 size={48} className="mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+              <p className="text-gray-500 dark:text-gray-400 font-medium">Aucune entreprise</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
                 Aucune entreprise n'a ete trouvee. Creez-en une pour commencer.
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50 text-left text-gray-600">
+                  <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 text-left text-gray-600 dark:text-gray-400">
                     <th className="px-4 py-3 font-medium">Entreprise</th>
                     <th className="px-4 py-3 font-medium hidden sm:table-cell">Statut</th>
                     <th className="px-4 py-3 font-medium hidden md:table-cell">Abonnement</th>
@@ -290,7 +301,7 @@ export default function EnterpriseListPage() {
                     <tr
                       key={ent.id}
                       onClick={() => openEdit(ent)}
-                      className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${
+                      className={`border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors ${
                         editingEnterprise?.id === ent.id
                           ? 'bg-primary/5 ring-1 ring-inset ring-primary/20'
                           : ''
@@ -298,8 +309,8 @@ export default function EnterpriseListPage() {
                     >
                       {/* Enterprise name + code */}
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900">{ent.name}</div>
-                        <div className="text-xs text-gray-400">{ent.code}</div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">{ent.name}</div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500">{ent.code}</div>
                       </td>
 
                       {/* Status badge */}
@@ -313,8 +324,8 @@ export default function EnterpriseListPage() {
 
                       {/* Subscription period */}
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <div className="flex items-center gap-1.5 text-gray-600">
-                          <Calendar size={14} className="text-gray-400 flex-shrink-0" />
+                        <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                          <Calendar size={14} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
                           <span>{formatSubscription(ent.subscription_start, ent.subscription_end)}</span>
                         </div>
                       </td>
@@ -368,14 +379,14 @@ export default function EnterpriseListPage() {
         {/* Edit panel */}
         {editingEnterprise && (
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl border border-gray-200 p-5 sticky top-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 sticky top-4">
               {/* Panel header */}
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-gray-900">Modifier l'entreprise</h2>
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Modifier l'entreprise</h2>
                 <button
                   type="button"
                   onClick={closeEdit}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   title="Fermer"
                 >
                   <X size={18} className="text-gray-400" />
@@ -383,9 +394,9 @@ export default function EnterpriseListPage() {
               </div>
 
               {/* Enterprise info (read-only) */}
-              <div className="bg-gray-50 rounded-lg p-3 mb-5">
-                <div className="font-medium text-gray-900">{editingEnterprise.name}</div>
-                <div className="text-sm text-gray-500">{editingEnterprise.code}</div>
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 mb-5">
+                <div className="font-medium text-gray-900 dark:text-gray-100">{editingEnterprise.name}</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">{editingEnterprise.code}</div>
                 <span
                   className={`inline-flex items-center mt-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE_CLASSES[editingEnterprise.subscription_status]}`}
                 >
@@ -396,7 +407,7 @@ export default function EnterpriseListPage() {
               {/* Subscription dates */}
               <div className="space-y-4 mb-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Debut d'abonnement
                   </label>
                   <input
@@ -410,7 +421,7 @@ export default function EnterpriseListPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Fin d'abonnement
                   </label>
                   <input
@@ -422,7 +433,7 @@ export default function EnterpriseListPage() {
                     }}
                     className={inputClass}
                   />
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                     Laisser vide pour un abonnement illimite.
                   </p>
                 </div>
@@ -433,8 +444,8 @@ export default function EnterpriseListPage() {
                 {/* is_active toggle */}
                 <label className="flex items-center justify-between cursor-pointer">
                   <div>
-                    <div className="text-sm font-medium text-gray-700">Entreprise active</div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Entreprise active</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">
                       Desactiver empeche l'acces a toute l'entreprise.
                     </div>
                   </div>
@@ -456,8 +467,8 @@ export default function EnterpriseListPage() {
                 {/* can_create_stores toggle */}
                 <label className="flex items-center justify-between cursor-pointer">
                   <div>
-                    <div className="text-sm font-medium text-gray-700">Creation de boutiques</div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Creation de boutiques</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">
                       Autoriser l'ajout de nouvelles boutiques.
                     </div>
                   </div>
@@ -518,13 +529,13 @@ export default function EnterpriseListPage() {
       {/* Delete confirmation modal */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               Supprimer l'entreprise
             </h3>
-            <p className="text-sm text-gray-600 mb-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
               Etes-vous sur de vouloir supprimer{' '}
-              <span className="font-medium text-gray-900">
+              <span className="font-medium text-gray-900 dark:text-gray-100">
                 {deleteTarget.name}
               </span>{' '}
               ({deleteTarget.code}) ?
@@ -543,7 +554,7 @@ export default function EnterpriseListPage() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => { setDeleteTarget(null); deleteMutation.reset(); }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 disabled={deleteMutation.isPending}
               >
                 Annuler

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customerApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { ChevronLeft, Save } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function CustomerFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -45,10 +46,12 @@ export default function CustomerFormPage() {
     mutationFn: (data: Partial<{ first_name: string; last_name: string; phone: string; email: string; address: string; company: string }>) =>
       customerApi.create(data),
     onSuccess: (response) => {
+      toast.success('Client cree avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
       navigate(`/customers/${response.id}`);
     },
     onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Une erreur est survenue lors de la creation du client.';
@@ -61,10 +64,12 @@ export default function CustomerFormPage() {
     mutationFn: (data: Partial<{ first_name: string; last_name: string; phone: string; email: string; address: string; company: string }>) =>
       customerApi.update(id!, data),
     onSuccess: () => {
+      toast.success('Client mis a jour avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
       navigate(`/customers/${id}`);
     },
     onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Une erreur est survenue lors de la mise a jour du client.';
@@ -109,29 +114,29 @@ export default function CustomerFormPage() {
     <div className="max-w-2xl mx-auto">
       <Link
         to="/customers"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-1"
+        className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-1"
       >
         <ChevronLeft size={16} />
         Retour
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
         {isEdit ? 'Modifier le client' : 'Nouveau client'}
       </h1>
 
       <form onSubmit={handleSubmit}>
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Prenom */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Prenom <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 placeholder="Prenom du client"
                 required
               />
@@ -139,14 +144,14 @@ export default function CustomerFormPage() {
 
             {/* Nom */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Nom <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 placeholder="Nom du client"
                 required
               />
@@ -154,56 +159,56 @@ export default function CustomerFormPage() {
 
             {/* Telephone */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Telephone
               </label>
               <input
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 placeholder="Numero de telephone"
               />
             </div>
 
             {/* E-mail */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 E-mail
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 placeholder="adresse@email.com"
               />
             </div>
 
             {/* Structure */}
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Structure
               </label>
               <input
                 type="text"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 placeholder="Nom de la structure"
               />
             </div>
 
             {/* Adresse */}
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Adresse
               </label>
               <textarea
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none resize-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100 resize-none"
                 placeholder="Adresse complete"
               />
             </div>

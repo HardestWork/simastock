@@ -134,6 +134,11 @@ class StoreFeatureFlagsMiddleware:
             "Le module credit client est desactive pour cette boutique.",
         ),
         (
+            re.compile(r"^/expenses/"),
+            "expenses_management",
+            "Le module depenses est desactive pour cette boutique.",
+        ),
+        (
             re.compile(r"^/alerts/"),
             "alerts_center",
             "Le module alertes est desactive pour cette boutique.",
@@ -152,6 +157,11 @@ class StoreFeatureFlagsMiddleware:
             re.compile(r"^/api/v1/analytics/"),
             "enabled",
             "Le module analytics est desactive pour cette boutique.",
+        ),
+        (
+            re.compile(r"^/api/v1/(expenses|expense-categories|wallets|expense-budgets|recurring-expenses)/"),
+            "expenses_management",
+            "Le module depenses est desactive pour cette boutique.",
         ),
     )
 

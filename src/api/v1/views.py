@@ -19,6 +19,7 @@ from django.db.models import (
     IntegerField, Subquery, Value,
 )
 from django.db.models.functions import Coalesce, TruncDate, TruncMonth, TruncYear
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -45,7 +46,11 @@ from credits.models import CustomerAccount, CreditLedgerEntry, PaymentSchedule
 from purchases.models import Supplier, PurchaseOrder, GoodsReceipt
 from alerts.models import Alert
 from reports.models import KPISnapshot
-from core.pdf import generate_invoice_pdf, generate_receipt_pdf
+from core.pdf import (
+    generate_credit_payment_receipt_pdf,
+    generate_invoice_pdf,
+    generate_receipt_pdf,
+)
 
 from accounts.models import CustomRole
 from api.v1.serializers import (
@@ -409,6 +414,18 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
         enterprise.is_active = not enterprise.is_active
         enterprise.save(update_fields=['is_active', 'updated_at'])
         return Response(EnterpriseSerializer(enterprise).data)
+
+    def perform_destroy(self, instance):
+        """Delete enterprise along with all users linked to its stores."""
+        User = get_user_model()
+        user_ids = (
+            instance.stores
+            .values_list("store_users__user_id", flat=True)
+            .distinct()
+        )
+        # Exclude superusers — they should never be cascade-deleted.
+        User.objects.filter(id__in=user_ids, is_superuser=False).delete()
+        instance.delete()
 
     def perform_create(self, serializer):
         enterprise = serializer.save()
@@ -1331,6 +1348,21 @@ class InventoryMovementViewSet(
             'total_qty': sum(abs(m.quantity) for m in qs),
         })
 
+    @action(detail=False, methods=['get'], url_path='export-csv')
+    def export_csv(self, request):
+        """Export filtered inventory movements to a CSV file."""
+        from core.export import queryset_to_csv_response
+        qs = self.filter_queryset(self.get_queryset()).select_related('product', 'actor')
+        columns = [
+            (lambda o: o.created_at.strftime('%d/%m/%Y %H:%M'), 'Date'),
+            ('movement_type', 'Type'),
+            (lambda o: o.product.name if o.product else '', 'Produit'),
+            ('quantity', 'Quantite'),
+            ('reference', 'Reference'),
+            (lambda o: o.actor.get_full_name() if o.actor else '', 'Acteur'),
+        ]
+        return queryset_to_csv_response(qs, columns, 'mouvements_stock')
+
 
 # ---------------------------------------------------------------------------
 # Stock Transfer ViewSet
@@ -1573,6 +1605,21 @@ class CustomerViewSet(viewsets.ModelViewSet):
         """Inject enterprise from user's stores."""
         enterprise_id = _require_user_enterprise_id(self.request.user)
         serializer.save(enterprise_id=enterprise_id)
+
+    @action(detail=False, methods=['get'], url_path='export-csv')
+    def export_csv(self, request):
+        """Export filtered customers to a CSV file."""
+        from core.export import queryset_to_csv_response
+        qs = self.filter_queryset(self.get_queryset())
+        columns = [
+            ('first_name', 'Prenom'),
+            ('last_name', 'Nom'),
+            ('email', 'Email'),
+            ('phone', 'Telephone'),
+            ('address', 'Adresse'),
+            (lambda o: o.created_at.strftime('%d/%m/%Y'), 'Date creation'),
+        ]
+        return queryset_to_csv_response(qs, columns, 'clients')
 
     @action(detail=False, methods=['post'], url_path='import-csv')
     def import_csv(self, request):
@@ -2014,6 +2061,23 @@ class SaleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    @action(detail=False, methods=['get'], url_path='export-csv')
+    def export_csv(self, request):
+        """Export filtered sales to a CSV file."""
+        from core.export import queryset_to_csv_response
+        qs = self.filter_queryset(self.get_queryset()).select_related('customer', 'seller')
+        columns = [
+            ('invoice_number', 'Reference'),
+            (lambda o: o.created_at.strftime('%d/%m/%Y %H:%M'), 'Date'),
+            (lambda o: o.customer.full_name if o.customer else '', 'Client'),
+            (lambda o: o.seller.get_full_name() if o.seller else '', 'Vendeur'),
+            ('status', 'Statut'),
+            ('total', 'Total'),
+            ('discount_amount', 'Remise'),
+            ('amount_due', 'Net'),
+        ]
+        return queryset_to_csv_response(qs, columns, 'ventes')
+
 
 # ---------------------------------------------------------------------------
 # Payment ViewSet (List + Create)
@@ -2296,7 +2360,51 @@ class CustomerAccountViewSet(viewsets.ModelViewSet):
             raise ValidationError({'detail': str(e)})
 
         account.refresh_from_db()
-        return Response(CustomerAccountSerializer(account).data)
+        response_data = CustomerAccountSerializer(account).data
+        response_data['payment_entry'] = CreditLedgerEntrySerializer(entry).data
+        response_data['receipt_url'] = self.reverse_action(
+            'payment-receipt',
+            kwargs={'pk': str(account.pk), 'entry_id': str(entry.pk)},
+        )
+        return Response(response_data)
+
+    @action(
+        detail=True,
+        methods=['get'],
+        url_path=r'payments/(?P<entry_id>[^/.]+)/receipt',
+        url_name='payment-receipt',
+    )
+    def payment_receipt(self, request, pk=None, entry_id=None):
+        """Return a printable PDF receipt for a credit payment ledger entry."""
+        account = self.get_object()
+        entry = get_object_or_404(
+            CreditLedgerEntry.objects.select_related('account', 'created_by', 'sale'),
+            pk=entry_id,
+            account=account,
+            entry_type=CreditLedgerEntry.EntryType.CREDIT_PAYMENT,
+        )
+
+        if not account.is_active:
+            raise PermissionDenied('Compte credit inactif.')
+
+        return generate_credit_payment_receipt_pdf(
+            account=account,
+            entry=entry,
+            store=account.store,
+        )
+
+    @action(detail=False, methods=['get'], url_path='export-csv')
+    def export_csv(self, request):
+        """Export filtered credit accounts to a CSV file."""
+        from core.export import queryset_to_csv_response
+        qs = self.filter_queryset(self.get_queryset()).select_related('customer')
+        columns = [
+            (lambda o: o.customer.full_name if o.customer else '', 'Client'),
+            ('balance', 'Solde'),
+            ('credit_limit', 'Limite'),
+            (lambda o: o.created_at.strftime('%d/%m/%Y'), 'Date creation'),
+        ]
+        return queryset_to_csv_response(qs, columns, 'credits')
 
 
 # ---------------------------------------------------------------------------

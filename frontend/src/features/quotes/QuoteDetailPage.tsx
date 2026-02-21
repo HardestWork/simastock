@@ -23,6 +23,7 @@ import { formatCurrency } from '@/lib/currency';
 import { useAuthStore } from '@/auth/auth-store';
 import StatusBadge from '@/components/shared/StatusBadge';
 import type { AxiosError } from 'axios';
+import { toast } from 'sonner';
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
@@ -40,9 +41,9 @@ function extractErrorMessage(err: unknown): string {
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2 py-2 border-b border-gray-100 last:border-0">
-      <span className="text-sm text-gray-500 w-40 shrink-0">{label}</span>
-      <span className="text-sm font-medium text-gray-900">{value}</span>
+    <div className="flex items-start gap-2 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+      <span className="text-sm text-gray-500 dark:text-gray-400 w-40 shrink-0">{label}</span>
+      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{value}</span>
     </div>
   );
 }
@@ -82,10 +83,14 @@ export default function QuoteDetailPage() {
 
   const invalidateQuote = {
     onSuccess: () => {
+      toast.success('Action effectuee avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.detail(id!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
     },
-    onError: (err: unknown) => setActionError(extractErrorMessage(err)),
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err));
+      setActionError(extractErrorMessage(err));
+    },
   };
 
   const sendMut = useMutation({
@@ -101,41 +106,57 @@ export default function QuoteDetailPage() {
   const refuseMut = useMutation({
     mutationFn: () => quoteApi.refuse(id!, refuseReason),
     onSuccess: () => {
+      toast.success('Devis refuse');
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.detail(id!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       setShowRefuseModal(false);
       setRefuseReason('');
     },
-    onError: (err: unknown) => setActionError(extractErrorMessage(err)),
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err));
+      setActionError(extractErrorMessage(err));
+    },
   });
 
   const convertMut = useMutation({
     mutationFn: () => quoteApi.convert(id!),
     onSuccess: (sale) => {
+      toast.success('Devis converti en facture');
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.detail(id!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       navigate(`/cashier/payment/${sale.id}`);
     },
-    onError: (err: unknown) => setActionError(extractErrorMessage(err)),
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err));
+      setActionError(extractErrorMessage(err));
+    },
   });
 
   const duplicateMut = useMutation({
     mutationFn: () => quoteApi.duplicate(id!),
     onSuccess: (newQuote: { id: string }) => {
+      toast.success('Devis duplique avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       navigate(`/quotes/${newQuote.id}`);
     },
-    onError: (err: unknown) => setActionError(extractErrorMessage(err)),
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err));
+      setActionError(extractErrorMessage(err));
+    },
   });
 
   const deleteMut = useMutation({
     mutationFn: () => quoteApi.delete(id!),
     onSuccess: () => {
+      toast.success('Devis supprime avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       navigate('/quotes');
     },
-    onError: (err: unknown) => setActionError(extractErrorMessage(err)),
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err));
+      setActionError(extractErrorMessage(err));
+    },
   });
 
   /* ---- Loading / error states -------------------------------------------- */
@@ -186,15 +207,15 @@ export default function QuoteDetailPage() {
       <div className="mb-6">
         <Link
           to="/quotes"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-4"
         >
           <ChevronLeft className="h-4 w-4" />
           Retour aux devis
         </Link>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <FileText className="h-6 w-6 text-gray-400" />
-          <h1 className="text-2xl font-bold text-gray-900">
+          <FileText className="h-6 w-6 text-gray-400 dark:text-gray-500" />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             Devis {quote.quote_number || `#${quote.id.substring(0, 8).toUpperCase()}`}
           </h1>
           <StatusBadge type="quote" value={quote.status} />
@@ -225,7 +246,7 @@ export default function QuoteDetailPage() {
           <>
             <Link
               to={`/quotes/${id}/edit`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
             >
               <Pencil className="h-4 w-4" />
               Modifier
@@ -243,7 +264,7 @@ export default function QuoteDetailPage() {
               type="button"
               disabled={anyMutating}
               onClick={() => duplicateMut.mutate()}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-60"
             >
               <Copy className="h-4 w-4" />
               Dupliquer
@@ -292,7 +313,7 @@ export default function QuoteDetailPage() {
               type="button"
               disabled={anyMutating}
               onClick={() => duplicateMut.mutate()}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-60"
             >
               <Copy className="h-4 w-4" />
               Dupliquer
@@ -301,7 +322,7 @@ export default function QuoteDetailPage() {
               href={`/api/v1/quotes/${id}/pdf/`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
             >
               <Download className="h-4 w-4" />
               PDF
@@ -326,7 +347,7 @@ export default function QuoteDetailPage() {
               type="button"
               disabled={anyMutating}
               onClick={() => duplicateMut.mutate()}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-60"
             >
               <Copy className="h-4 w-4" />
               Dupliquer
@@ -335,7 +356,7 @@ export default function QuoteDetailPage() {
               href={`/api/v1/quotes/${id}/pdf/`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
             >
               <Download className="h-4 w-4" />
               PDF
@@ -372,7 +393,7 @@ export default function QuoteDetailPage() {
             {quote.converted_sale_id && (
               <Link
                 to={`/cashier/payment/${quote.converted_sale_id}`}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
               >
                 <FileText className="h-4 w-4" />
                 Voir la facture
@@ -382,7 +403,7 @@ export default function QuoteDetailPage() {
               type="button"
               disabled={anyMutating}
               onClick={() => duplicateMut.mutate()}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-60"
             >
               <Copy className="h-4 w-4" />
               Dupliquer
@@ -391,7 +412,7 @@ export default function QuoteDetailPage() {
               href={`/api/v1/quotes/${id}/pdf/`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
             >
               <Download className="h-4 w-4" />
               PDF
@@ -401,7 +422,7 @@ export default function QuoteDetailPage() {
       </div>
 
       {/* ---- Info panel --------------------------------------------------- */}
-      <div className="bg-white rounded-xl border p-6 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
         <InfoRow label="Client" value={quote.customer_name || '—'} />
         <InfoRow label="Créé par" value={quote.created_by_name || '—'} />
         <InfoRow
@@ -466,31 +487,31 @@ export default function QuoteDetailPage() {
       </div>
 
       {/* ---- Items table ------------------------------------------------- */}
-      <div className="bg-white rounded-xl border mb-6 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mb-6 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b">
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Produit</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Prix unitaire</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Quantité</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Remise</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Total ligne</th>
+            <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+              <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Produit</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Prix unitaire</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Quantité</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Remise</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Total ligne</th>
             </tr>
           </thead>
           <tbody>
             {quote.items && quote.items.length > 0 ? (
               quote.items.map(
                 (item, idx) => (
-                  <tr key={item.id ?? idx} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-900">{item.product_name}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">
+                  <tr key={item.id ?? idx} className="border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{item.product_name}</td>
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
                       {formatCurrency(item.unit_price)}
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-700">{item.quantity}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{item.quantity}</td>
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
                       {formatCurrency(item.discount_amount)}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900">
+                    <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-gray-100">
                       {formatCurrency(item.line_total)}
                     </td>
                   </tr>
@@ -498,7 +519,7 @@ export default function QuoteDetailPage() {
               )
             ) : (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
                   Aucun article dans ce devis.
                 </td>
               </tr>
@@ -508,10 +529,10 @@ export default function QuoteDetailPage() {
       </div>
 
       {/* ---- Totals section ---------------------------------------------- */}
-      <div className="bg-white rounded-xl border p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex justify-between py-2">
-          <span className="text-sm text-gray-600">Sous-total</span>
-          <span className="text-sm font-medium text-gray-900">
+          <span className="text-sm text-gray-600 dark:text-gray-400">Sous-total</span>
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
             {formatCurrency(quote.subtotal)}
           </span>
         </div>
@@ -527,15 +548,15 @@ export default function QuoteDetailPage() {
         )}
         {parseFloat(quote.tax_amount) > 0 && (
           <div className="flex justify-between py-2">
-            <span className="text-sm text-gray-600">TVA</span>
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-sm text-gray-600 dark:text-gray-400">TVA</span>
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
               {formatCurrency(quote.tax_amount)}
             </span>
           </div>
         )}
-        <div className="flex justify-between py-3 border-t mt-2">
-          <span className="text-base font-bold text-gray-900">Total</span>
-          <span className="text-lg font-bold text-gray-900">
+        <div className="flex justify-between py-3 border-t border-gray-200 dark:border-gray-700 mt-2">
+          <span className="text-base font-bold text-gray-900 dark:text-gray-100">Total</span>
+          <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
             {formatCurrency(quote.total)}
           </span>
         </div>
@@ -544,14 +565,14 @@ export default function QuoteDetailPage() {
       {/* ---- Refuse modal ------------------------------------------------ */}
       {showRefuseModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-xl">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Refuser le devis</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full shadow-xl">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Refuser le devis</h2>
             <textarea
               value={refuseReason}
               onChange={(e) => setRefuseReason(e.target.value)}
               placeholder="Motif du refus (optionnel)"
               rows={4}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none mb-4"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none mb-4 dark:bg-gray-700 dark:text-gray-100"
             />
             <div className="flex gap-3 justify-end">
               <button
@@ -560,7 +581,7 @@ export default function QuoteDetailPage() {
                   setShowRefuseModal(false);
                   setRefuseReason('');
                 }}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
               >
                 Annuler
               </button>

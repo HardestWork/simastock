@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import { Save, RefreshCw, Plus, X, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { enterpriseApi, storeApi } from '@/api/endpoints';
 import type { Enterprise, FeatureFlags, Store } from '@/api/types';
@@ -126,7 +127,11 @@ export default function SettingsPage() {
       return storeApi.update(selectedStore.id, storeDraft);
     },
     onSuccess: () => {
+      toast.success('Magasin mis a jour avec succes');
       qc.invalidateQueries({ queryKey: ['settings', 'stores'] });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -136,7 +141,11 @@ export default function SettingsPage() {
       return enterpriseApi.update(enterprise.id, invoiceDraft);
     },
     onSuccess: () => {
+      toast.success('Parametres de facturation enregistres avec succes');
       qc.invalidateQueries({ queryKey: ['settings', 'enterprise'] });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -147,8 +156,12 @@ export default function SettingsPage() {
       return enterpriseApi.update(enterprise.id, payload);
     },
     onSuccess: () => {
+      toast.success('Parametres de structure enregistres avec succes');
       qc.invalidateQueries({ queryKey: ['settings', 'enterprise'] });
       qc.invalidateQueries({ queryKey: ['settings', 'stores'] });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -161,10 +174,14 @@ export default function SettingsPage() {
   const createStoreMut = useMutation({
     mutationFn: () => storeApi.create(newStore),
     onSuccess: () => {
+      toast.success('Magasin cree avec succes');
       qc.invalidateQueries({ queryKey: ['settings', 'stores'] });
       qc.invalidateQueries({ queryKey: ['my-stores'] });
       setShowCreateForm(false);
       setNewStore({ name: '', code: '', address: '', phone: '', email: '' });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -175,7 +192,7 @@ export default function SettingsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           {activeTab === 'stores' && 'Magasins'}
           {activeTab === 'invoice' && 'Facturation'}
           {activeTab === 'enterprise' && 'Structure'}
@@ -183,7 +200,7 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={() => { enterpriseQ.refetch(); storesQ.refetch(); }}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm text-gray-700 dark:text-gray-300"
         >
           <RefreshCw size={16} />
           Actualiser
@@ -201,9 +218,9 @@ export default function SettingsPage() {
       {/* ============================================================= */}
       {activeTab === 'stores' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-semibold text-gray-800">Liste</div>
+              <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">Liste</div>
               {canCreateStores && !showCreateForm && (
                 <button
                   type="button"
@@ -220,7 +237,7 @@ export default function SettingsPage() {
             {showCreateForm && (
               <div className="mb-3 border border-primary/30 bg-primary/5 rounded-lg p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium text-gray-900">Nouvelle boutique</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Nouvelle boutique</div>
                   <button type="button" onClick={() => { setShowCreateForm(false); createStoreMut.reset(); }} className="text-gray-400 hover:text-gray-600">
                     <X size={16} />
                   </button>
@@ -229,31 +246,31 @@ export default function SettingsPage() {
                   placeholder="Nom *"
                   value={newStore.name}
                   onChange={(e) => setNewStore((d) => ({ ...d, name: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                 />
                 <input
                   placeholder="Code *"
                   value={newStore.code}
                   onChange={(e) => setNewStore((d) => ({ ...d, code: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                 />
                 <input
                   placeholder="Adresse (optionnel)"
                   value={newStore.address}
                   onChange={(e) => setNewStore((d) => ({ ...d, address: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                 />
                 <input
                   placeholder="Telephone (optionnel)"
                   value={newStore.phone}
                   onChange={(e) => setNewStore((d) => ({ ...d, phone: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                 />
                 <input
                   placeholder="Email (optionnel)"
                   value={newStore.email}
                   onChange={(e) => setNewStore((d) => ({ ...d, email: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                 />
                 {createStoreMut.isError && (
                   <div className="text-xs text-red-600">{extractDetail(createStoreMut.error)}</div>
@@ -274,7 +291,7 @@ export default function SettingsPage() {
             )}
 
             {storesQ.isLoading ? (
-              <div className="text-sm text-gray-500">Chargement...</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Chargement...</div>
             ) : (
               <div className="space-y-1">
                 {stores.map((s) => (
@@ -283,11 +300,11 @@ export default function SettingsPage() {
                     type="button"
                     onClick={() => setSelectedStoreId(s.id)}
                     className={`w-full text-left px-3 py-2 rounded-lg border text-sm ${
-                      s.id === selectedStoreId ? 'border-primary bg-primary/5' : 'border-gray-200 hover:bg-gray-50'
+                      s.id === selectedStoreId ? 'border-primary bg-primary/5' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                     }`}
                   >
-                    <div className="font-medium text-gray-900">{s.name}</div>
-                    <div className="text-xs text-gray-500">{s.code}</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">{s.name}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{s.code}</div>
                   </button>
                 ))}
                 {stores.length === 0 && <div className="text-sm text-gray-500">Aucun magasin.</div>}
@@ -303,11 +320,11 @@ export default function SettingsPage() {
             ) : (
               <>
                 {/* Store info */}
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <div className="text-base font-semibold text-gray-900">{selectedStore.name}</div>
-                      <div className="text-xs text-gray-500">Configuration magasin</div>
+                      <div className="text-base font-semibold text-gray-900 dark:text-gray-100">{selectedStore.name}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Configuration magasin</div>
                     </div>
                     <button
                       type="button"
@@ -333,50 +350,50 @@ export default function SettingsPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Nom</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nom</label>
                       <input
                         value={storeDraft.name ?? ''}
                         onChange={(e) => setStoreDraft((d) => ({ ...d, name: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Code</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Code</label>
                       <input
                         value={storeDraft.code ?? ''}
                         onChange={(e) => setStoreDraft((d) => ({ ...d, code: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Telephone</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Telephone</label>
                       <input
                         value={storeDraft.phone ?? ''}
                         onChange={(e) => setStoreDraft((d) => ({ ...d, phone: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
                       <input
                         value={storeDraft.email ?? ''}
                         onChange={(e) => setStoreDraft((d) => ({ ...d, email: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Adresse</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Adresse</label>
                       <input
                         value={storeDraft.address ?? ''}
                         onChange={(e) => setStoreDraft((d) => ({ ...d, address: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Flags / Modules */}
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="text-sm font-semibold text-gray-800 mb-3">Flags / Modules</div>
                   <div className="space-y-2">
                     {FEATURE_FLAG_KEYS.map((key) => {
@@ -384,10 +401,10 @@ export default function SettingsPage() {
                       const mode = overrideModeFor(key, overrides);
                       const effective = selectedStore.effective_feature_flags?.[key];
                       return (
-                        <div key={key} className="flex items-center justify-between gap-3 border border-gray-100 rounded-lg px-3 py-2">
+                        <div key={key} className="flex items-center justify-between gap-3 border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2">
                           <div className="min-w-0">
                             <div className="text-sm font-medium text-gray-900 truncate">{FEATURE_FLAG_LABELS[key]}</div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                               Effectif: {effective === false ? 'Desactive' : 'Active'}
                             </div>
                           </div>
@@ -404,7 +421,7 @@ export default function SettingsPage() {
                                 ),
                               }));
                             }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                           >
                             <option value="inherit">Heriter</option>
                             <option value="enabled">Activer</option>
@@ -426,7 +443,7 @@ export default function SettingsPage() {
       {/* ============================================================= */}
       {activeTab === 'invoice' && (
         <div className="max-w-2xl">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <div className="text-base font-semibold text-gray-900">Facturation</div>
@@ -457,23 +474,23 @@ export default function SettingsPage() {
             )}
 
             {!enterprise ? (
-              <div className="text-sm text-gray-500">Aucune structure chargee.</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Aucune structure chargee.</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Titre facture</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Titre facture</label>
                   <input
                     value={invoiceDraft.invoice_header ?? ''}
                     onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_header: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Modele</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Modele</label>
                   <select
                     value={invoiceDraft.invoice_template ?? 'CLASSIC'}
                     onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_template: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                   >
                     <option value="CLASSIC">Classique</option>
                     <option value="MODERN">Moderne</option>
@@ -481,70 +498,70 @@ export default function SettingsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Couleur primaire</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Couleur primaire</label>
                   <div className="flex gap-2">
                     <input
                       type="color"
                       value={invoiceDraft.invoice_primary_color ?? '#0F4C9A'}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_primary_color: e.target.value }))}
-                      className="h-10 w-10 rounded border border-gray-300 cursor-pointer"
+                      className="h-10 w-10 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                     />
                     <input
                       value={invoiceDraft.invoice_primary_color ?? '#0F4C9A'}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_primary_color: e.target.value }))}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono dark:bg-gray-700 dark:text-gray-100"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Couleur secondaire</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Couleur secondaire</label>
                   <div className="flex gap-2">
                     <input
                       type="color"
                       value={invoiceDraft.invoice_secondary_color ?? '#21A8F6'}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_secondary_color: e.target.value }))}
-                      className="h-10 w-10 rounded border border-gray-300 cursor-pointer"
+                      className="h-10 w-10 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                     />
                     <input
                       value={invoiceDraft.invoice_secondary_color ?? '#21A8F6'}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_secondary_color: e.target.value }))}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono dark:bg-gray-700 dark:text-gray-100"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Validite devis (jours)</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Validite devis (jours)</label>
                   <input
                     type="number"
                     min={1}
                     max={365}
                     value={invoiceDraft.offer_validity_days ?? 15}
                     onChange={(e) => setInvoiceDraft((d) => ({ ...d, offer_validity_days: Number(e.target.value) }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Coordonnees bancaires</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Coordonnees bancaires</label>
                   <input
                     value={invoiceDraft.bank_details ?? ''}
                     onChange={(e) => setInvoiceDraft((d) => ({ ...d, bank_details: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Conditions</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Conditions</label>
                   <textarea
                     value={invoiceDraft.invoice_terms ?? ''}
                     onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_terms: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm min-h-24"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm min-h-24 dark:bg-gray-700 dark:text-gray-100"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Pied de page</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Pied de page</label>
                   <textarea
                     value={invoiceDraft.invoice_footer ?? ''}
                     onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_footer: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm min-h-20"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm min-h-20 dark:bg-gray-700 dark:text-gray-100"
                   />
                 </div>
               </div>
@@ -586,17 +603,17 @@ export default function SettingsPage() {
           )}
 
           {!enterprise ? (
-            <div className="text-sm text-gray-500">Aucune structure chargee.</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Aucune structure chargee.</div>
           ) : (
             <div className="space-y-2">
               {FEATURE_FLAG_KEYS.map((key) => {
                 const effective = enterprise.effective_feature_flags?.[key];
                 const current = enterpriseFlagsDraft?.[key];
                 return (
-                  <label key={key} className="flex items-center justify-between gap-3 border border-gray-100 rounded-lg px-3 py-2">
+                  <label key={key} className="flex items-center justify-between gap-3 border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2">
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-gray-900 truncate">{FEATURE_FLAG_LABELS[key]}</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         Effectif: {effective === false ? 'Desactive' : 'Active'}
                       </div>
                     </div>

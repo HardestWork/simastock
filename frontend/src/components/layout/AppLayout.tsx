@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import SearchPalette from '@/components/shared/SearchPalette';
 import { useAuthStore } from '@/auth/auth-store';
 import { useStoreStore } from '@/store-context/store-store';
 
@@ -26,7 +27,7 @@ export default function AppLayout() {
   }, [stores, currentStore, initializeStore]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -37,10 +38,11 @@ export default function AppLayout() {
         }`}
       >
         <Topbar />
-        <main className="p-6">
+        <main className="p-6 dark:text-gray-100">
           <Outlet />
         </main>
       </div>
+      <SearchPalette />
     </div>
   );
 }

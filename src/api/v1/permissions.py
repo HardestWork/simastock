@@ -189,6 +189,10 @@ class FeatureCreditManagementEnabled(RequireStoreFeatureFlag):
     feature_key = "credit_management"
 
 
+class FeatureExpensesManagementEnabled(RequireStoreFeatureFlag):
+    feature_key = "expenses_management"
+
+
 class FeatureAlertsCenterEnabled(RequireStoreFeatureFlag):
     feature_key = "alerts_center"
 
@@ -363,4 +367,46 @@ class CanApproveRefund(_CapabilityPermission):
 class CanOverridePrice(_CapabilityPermission):
     """Allow managers and admins to override the selling price at sale time."""
     capability = "CAN_OVERRIDE_PRICE"
+    allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanCreateExpense(_CapabilityPermission):
+    """Allow cashier/manager/admin to create expenses."""
+    capability = "CAN_CREATE_EXPENSE"
+    allowed_roles = ("CASHIER", "MANAGER", "ADMIN")
+
+
+class CanEditExpense(_CapabilityPermission):
+    """Allow manager/admin to edit expenses."""
+    capability = "CAN_EDIT_EXPENSE"
+    allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanVoidExpense(_CapabilityPermission):
+    """Allow manager/admin to void expenses."""
+    capability = "CAN_VOID_EXPENSE"
+    allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanViewExpenseReports(_CapabilityPermission):
+    """Allow cashier/manager/admin to view expense analytics and lists."""
+    capability = "CAN_VIEW_EXPENSE_REPORTS"
+    allowed_roles = ("CASHIER", "MANAGER", "ADMIN")
+
+
+class CanManageExpenseCategories(_CapabilityPermission):
+    """Allow manager/admin to manage expense categories."""
+    capability = "CAN_MANAGE_CATEGORIES"
+    allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanManageExpenseWallets(_CapabilityPermission):
+    """Allow manager/admin to manage wallets."""
+    capability = "CAN_MANAGE_WALLETS"
+    allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanSetExpenseBudgets(_CapabilityPermission):
+    """Allow manager/admin to manage budgets."""
+    capability = "CAN_SET_BUDGETS"
     allowed_roles = ("MANAGER", "ADMIN")

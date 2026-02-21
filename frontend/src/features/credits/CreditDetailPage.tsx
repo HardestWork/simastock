@@ -7,6 +7,7 @@ import { ChevronLeft, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { creditApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
+import { toast } from 'sonner';
 import type { CustomerAccount, CreditLedgerEntry, ScheduleStatus } from '@/api/types';
 
 // ---------------------------------------------------------------------------
@@ -95,6 +96,7 @@ export default function CreditDetailPage() {
   const [amount, setAmount] = useState('');
   const [reference, setReference] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [latestReceiptUrl, setLatestReceiptUrl] = useState<string | null>(null);
 
   // --- Queries ---
   const {
@@ -130,14 +132,24 @@ export default function CreditDetailPage() {
       if (reference.trim()) payload.reference = reference.trim();
       return creditApi.pay(accountId, payload);
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      const receiptUrl =
+        result.receipt_url ??
+        (result.payment_entry?.id
+          ? `/api/v1/credit-accounts/${accountId}/payments/${result.payment_entry.id}/receipt/`
+          : null);
+      toast.success('Paiement enregistre avec succes');
       void queryClient.invalidateQueries({ queryKey: queryKeys.creditAccounts.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.creditAccounts.detail(accountId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.creditLedger.all });
       setAmount('');
       setReference('');
+      setLatestReceiptUrl(receiptUrl);
       setSuccessMessage('Paiement enregistre avec succes.');
       setTimeout(() => setSuccessMessage(''), 4000);
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -172,17 +184,17 @@ export default function CreditDetailPage() {
       <div className="mb-6">
         <Link
           to="/credits"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-1"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-1"
         >
           <ChevronLeft size={16} />
           Retour
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
           {account.customer_name ?? account.customer}
           <span className={`inline-block w-3 h-3 rounded-full ${getHealthColor(account)}`} />
         </h1>
         {account.customer_phone && (
-          <p className="text-sm text-gray-500 mt-0.5">{account.customer_phone}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{account.customer_phone}</p>
         )}
       </div>
 
@@ -193,26 +205,26 @@ export default function CreditDetailPage() {
       </div>
 
       {/* Account info panel */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="font-semibold text-gray-900 mb-4">Informations du compte</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Informations du compte</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <span className="text-sm text-gray-500">Limite de credit</span>
-            <p className="text-lg font-semibold text-gray-900">{formatCurrency(account.credit_limit)}</p>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Limite de credit</span>
+            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 dark:text-gray-100">{formatCurrency(account.credit_limit)}</p>
           </div>
           <div>
-            <span className="text-sm text-gray-500">Solde</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Solde</span>
             <p className={`text-lg font-semibold ${balance > 0 ? 'text-red-600' : 'text-gray-900'}`}>
               {formatCurrency(account.balance)}
             </p>
           </div>
           <div>
-            <span className="text-sm text-gray-500">Disponible</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">Disponible</span>
             <p className="text-lg font-semibold text-emerald-600">{formatCurrency(account.available_credit)}</p>
           </div>
           <div>
-            <span className="text-sm text-gray-500">Statut</span>
-            <p className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <span className="text-sm text-gray-500 dark:text-gray-400">Statut</span>
+            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 dark:text-gray-100 flex items-center gap-2">
               <span className={`inline-block w-2.5 h-2.5 rounded-full ${account.is_active ? 'bg-emerald-500' : 'bg-gray-400'}`} />
               {account.is_active ? 'Actif' : 'Inactif'}
             </p>
@@ -222,16 +234,26 @@ export default function CreditDetailPage() {
 
       {/* Payment form */}
       {balance > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Enregistrer un paiement</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Enregistrer un paiement</h2>
 
           {successMessage && (
             <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg px-4 py-3 mb-4 text-sm">
-              {successMessage}
+              <div>{successMessage}</div>
+              {latestReceiptUrl && (
+                <a
+                  href={latestReceiptUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block mt-1 text-sm font-medium text-emerald-800 hover:underline"
+                >
+                  Imprimer le recu
+                </a>
+              )}
             </div>
           )}
 
-          {paymentError && (
+          {Boolean(paymentError) && (
             <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">
               {(paymentError as Error).message || 'Erreur lors du paiement.'}
             </div>
@@ -239,7 +261,7 @@ export default function CreditDetailPage() {
 
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
-              <label htmlFor="pay-amount" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="pay-amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Montant <span className="text-red-500">*</span>
               </label>
               <input
@@ -251,11 +273,11 @@ export default function CreditDetailPage() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={`Max ${formatCurrency(account.balance)}`}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
             <div className="flex-1">
-              <label htmlFor="pay-ref" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="pay-ref" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Reference
               </label>
               <input
@@ -264,7 +286,7 @@ export default function CreditDetailPage() {
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
                 placeholder="Optionnel"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
             <div className="flex items-end">
@@ -281,27 +303,28 @@ export default function CreditDetailPage() {
       )}
 
       {/* Ledger history */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <Info size={18} className="text-gray-400" />
             Historique des ecritures
           </h2>
         </div>
         <div className="max-h-96 overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 sticky top-0">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Montant</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Solde apres</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Reference</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Date</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Type</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Montant</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Solde apres</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Reference</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Recu</th>
               </tr>
             </thead>
             <tbody>
               {ledgerEntries.map((entry) => (
-                <tr key={entry.id} className="border-b border-gray-50 hover:bg-gray-50">
+                <tr key={entry.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                     {format(new Date(entry.created_at), 'dd/MM/yyyy HH:mm')}
                   </td>
@@ -311,17 +334,31 @@ export default function CreditDetailPage() {
                   <td className={`px-4 py-3 text-right font-medium ${getAmountColor(entry)}`}>
                     {formatCurrency(entry.amount)}
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-700">
+                  <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
                     {formatCurrency(entry.balance_after)}
                   </td>
                   <td className="px-4 py-3 text-gray-500">
-                    {entry.reference || '—'}
+                    {entry.reference || '-'}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {entry.entry_type === 'CREDIT_PAYMENT' ? (
+                      <a
+                        href={`/api/v1/credit-accounts/${accountId}/payments/${entry.id}/receipt/`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        Imprimer
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                 </tr>
               ))}
               {ledgerEntries.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                     Aucune ecriture.
                   </td>
                 </tr>
@@ -333,18 +370,18 @@ export default function CreditDetailPage() {
 
       {/* Payment schedules */}
       {schedules.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="font-semibold text-gray-900">Echeancier</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Echeancier</h2>
           </div>
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Echeance</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Montant du</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Paye</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Restant</th>
-                <th className="text-center px-4 py-3 font-medium text-gray-600">Statut</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Echeance</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Montant du</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Paye</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Restant</th>
+                <th className="text-center px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Statut</th>
               </tr>
             </thead>
             <tbody>
@@ -357,7 +394,7 @@ export default function CreditDetailPage() {
                 return (
                   <tr
                     key={schedule.id}
-                    className={`border-b border-gray-50 ${schedule.status === 'OVERDUE' ? 'bg-red-50' : 'hover:bg-gray-50'}`}
+                    className={`border-b border-gray-50 dark:border-gray-700 ${schedule.status === 'OVERDUE' ? 'bg-red-50' : 'hover:bg-gray-50'}`}
                   >
                     <td className="px-4 py-3 text-gray-700">
                       {format(new Date(schedule.due_date), 'dd/MM/yyyy')}

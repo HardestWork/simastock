@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { AxiosError } from 'axios';
 import { Mail, ArrowLeft, Send } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { authApi } from '@/api/endpoints';
 
@@ -31,9 +32,11 @@ export default function ForgotPasswordPage() {
     setIsPending(true);
     try {
       const res = await authApi.requestPasswordReset(email.trim());
+      toast.success('Lien de reinitialisation envoye');
       setSuccess(res.detail);
       if (res.debug_reset_url) setDebugLink(res.debug_reset_url);
     } catch (err) {
+      toast.error('Une erreur est survenue');
       setError(errDetail(err));
     } finally {
       setIsPending(false);
@@ -41,10 +44,10 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6">
-          <Link to="/login" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+          <Link to="/login" className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
             <ArrowLeft size={16} /> Retour a la connexion
           </Link>
         </div>
@@ -53,11 +56,11 @@ export default function ForgotPasswordPage() {
           <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Mail size={32} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Mot de passe oublie</h1>
-          <p className="text-sm text-gray-500 mt-1">Entrez votre email pour recevoir un lien de reinitialisation.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mot de passe oublie</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Entrez votre email pour recevoir un lien de reinitialisation.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
               {error}
@@ -77,7 +80,7 @@ export default function ForgotPasswordPage() {
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Adresse e-mail
             </label>
             <input
@@ -86,7 +89,7 @@ export default function ForgotPasswordPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
               placeholder="email@exemple.com"
             />
           </div>

@@ -9,7 +9,9 @@ import { useSort } from '@/hooks/use-sort';
 import { useAuthStore } from '@/auth/auth-store';
 import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
-import { Search, Plus, Upload, AlertCircle } from 'lucide-react';
+import { Search, Plus, Upload, AlertCircle, Download } from 'lucide-react';
+import { downloadCsv } from '@/lib/export';
+import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 import type { CsvImportResult } from '@/api/types';
 
@@ -45,11 +47,13 @@ export default function CustomerListPage() {
   const importMutation = useMutation({
     mutationFn: (file: File) => customerApi.importCsv(file),
     onSuccess: (result) => {
+      toast.success('Import CSV termine avec succes');
       setImportResult(result);
       setImportError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
     },
     onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Erreur lors de l\'import CSV');
       const ax = err as AxiosError<Record<string, unknown> | string>;
       const data = ax?.response?.data;
       if (typeof data === 'string') {
@@ -83,8 +87,15 @@ export default function CustomerListPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Clients</h1>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => downloadCsv('customers/export-csv/', 'clients')}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <Download size={16} />
+            Exporter CSV
+          </button>
           {canImportCsv && (
             <>
               <input
@@ -98,7 +109,7 @@ export default function CustomerListPage() {
                 type="button"
                 onClick={handleImportPick}
                 disabled={importMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-60"
               >
                 <Upload size={16} />
                 {importMutation.isPending ? 'Import...' : 'Importer CSV'}
@@ -138,7 +149,7 @@ export default function CustomerListPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-4">
         <div className="relative max-w-md">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -146,24 +157,24 @@ export default function CustomerListPage() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Rechercher par nom ou telephone..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
                 <SortableHeader field="last_name" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Telephone</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Structure</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Telephone</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Email</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Structure</th>
               </tr>
             </thead>
             <tbody>
@@ -171,7 +182,7 @@ export default function CustomerListPage() {
                 <tr
                   key={customer.id}
                   onClick={() => navigate('/customers/' + customer.id)}
-                  className="border-b border-gray-50 cursor-pointer hover:bg-gray-50"
+                  className="border-b border-gray-50 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 >
                   <td className="px-4 py-3 font-medium">{customer.full_name}</td>
                   <td className="px-4 py-3">{customer.phone || '\u2014'}</td>
@@ -181,7 +192,7 @@ export default function CustomerListPage() {
               ))}
               {data?.results.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     Aucun client trouve.
                   </td>
                 </tr>

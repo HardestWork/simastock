@@ -1,0 +1,2 @@
+"""Expenses domain app."""
+

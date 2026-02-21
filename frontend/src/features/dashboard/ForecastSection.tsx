@@ -50,8 +50,8 @@ export default function ForecastSection({ storeId }: ForecastSectionProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
-          <TrendingUp size={20} className="text-gray-700" />
-          <h2 className="text-lg font-semibold text-gray-900">Projections</h2>
+          <TrendingUp size={20} className="text-gray-700 dark:text-gray-300" />
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Projections</h2>
         </div>
 
         {/* Horizon selector */}
@@ -64,7 +64,7 @@ export default function ForecastSection({ storeId }: ForecastSectionProps) {
               className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                 horizon === opt.key
                   ? 'bg-primary text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
               {opt.label}
@@ -84,37 +84,37 @@ export default function ForecastSection({ storeId }: ForecastSectionProps) {
         <div className="space-y-4">
           {/* Summary cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-4">
               <div className="bg-blue-500 text-white p-3 rounded-lg">
                 <DollarSign size={24} />
               </div>
               <div>
-                <p className="text-sm text-gray-500">CA prevu</p>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-sm text-gray-500 dark:text-gray-400">CA prevu</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {formatCurrency(data.totals.predicted_revenue)}
                 </p>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-4">
               <div className="bg-emerald-500 text-white p-3 rounded-lg">
                 <BarChart3 size={24} />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Benefice prevu</p>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Benefice prevu</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {formatCurrency(data.totals.predicted_profit)}
                 </p>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-4">
               <div className="bg-purple-500 text-white p-3 rounded-lg">
                 <Package size={24} />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Quantite prevue</p>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Quantite prevue</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {Math.round(data.totals.predicted_qty)} unites
                 </p>
               </div>
@@ -123,8 +123,8 @@ export default function ForecastSection({ storeId }: ForecastSectionProps) {
 
           {/* Chart */}
           {chartData.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 Previsions de CA et benefice
               </h3>
               <ResponsiveContainer width="100%" height={320}>
@@ -160,7 +160,7 @@ export default function ForecastSection({ storeId }: ForecastSectionProps) {
           )}
 
           {chartData.length === 0 && (
-            <p className="text-sm text-gray-400 py-6 text-center">
+            <p className="text-sm text-gray-400 dark:text-gray-500 py-6 text-center">
               Aucune prevision disponible pour cette periode.
             </p>
           )}

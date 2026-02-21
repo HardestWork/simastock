@@ -16,6 +16,7 @@ import {
   Percent,
   Tag,
   CreditCard,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 import KpiCard from './KpiCard';
@@ -26,6 +27,8 @@ import AlertsWidget from './AlertsWidget';
 import AiInsightsPanel from './AiInsightsPanel';
 import ForecastSection from './ForecastSection';
 import StockTrendChart from './StockTrendChart';
+import { useDashboardPrefs } from './dashboard-prefs';
+import DashboardConfig from './DashboardConfig';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -46,6 +49,7 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const role = user?.role;
   const showAdvanced = isManagerOrAdmin(role);
+  const { isVisible, openConfig } = useDashboardPrefs();
 
   // Period state
   const [period, setPeriod] = useState<PeriodKey>('today');
@@ -110,7 +114,7 @@ export default function DashboardPage() {
 
   if (!currentStore) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
         Aucun magasin selectionne.
       </div>
     );
@@ -211,74 +215,85 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-        <PeriodSelector
-          value={period}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onChange={handlePeriodChange}
-        />
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Tableau de bord</h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={openConfig}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <SlidersHorizontal size={16} />
+            Personnaliser
+          </button>
+          <PeriodSelector
+            value={period}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onChange={handlePeriodChange}
+          />
+        </div>
       </div>
 
       {/* Section 1 — KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {visibleKpiCards.map((card) => (
-          <KpiCard
-            key={card.key}
-            label={card.label}
-            value={card.value}
-            icon={card.icon}
-            color={card.color}
-            trend={card.trend}
-          />
-        ))}
-      </div>
+      {isVisible('kpis') && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {visibleKpiCards.map((card) => (
+            <KpiCard
+              key={card.key}
+              label={card.label}
+              value={card.value}
+              icon={card.icon}
+              color={card.color}
+              trend={card.trend}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Section 2 — Charts (Admin/Manager) */}
       {showAdvanced && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {kpis?.sales_trend && kpis.sales_trend.length > 0 && (
+          {isVisible('salesTrend') && kpis?.sales_trend && kpis.sales_trend.length > 0 && (
             <SalesTrendChart data={kpis.sales_trend} />
           )}
-          {salesReport?.payments_by_method && salesReport.payments_by_method.length > 0 && (
+          {isVisible('paymentMethod') && salesReport?.payments_by_method && salesReport.payments_by_method.length > 0 && (
             <PaymentMethodChart data={salesReport.payments_by_method} />
           )}
-          {salesReport?.by_category && salesReport.by_category.length > 0 && (
+          {isVisible('categoryBar') && salesReport?.by_category && salesReport.by_category.length > 0 && (
             <CategoryBarChart data={salesReport.by_category} />
           )}
-          {salesReport?.by_seller && salesReport.by_seller.length > 0 && (
+          {isVisible('sellerBar') && salesReport?.by_seller && salesReport.by_seller.length > 0 && (
             <SellerBarChart data={salesReport.by_seller} />
           )}
         </div>
       )}
 
       {/* Sales trend for non-admin roles */}
-      {!showAdvanced && kpis?.sales_trend && kpis.sales_trend.length > 0 && (
+      {!showAdvanced && isVisible('salesTrend') && kpis?.sales_trend && kpis.sales_trend.length > 0 && (
         <SalesTrendChart data={kpis.sales_trend} />
       )}
 
       {/* Section 3 — Top Products + Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {kpis?.top_products && kpis.top_products.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Top produits</h2>
+        {isVisible('topProducts') && kpis?.top_products && kpis.top_products.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Top produits</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left py-2 text-gray-500 font-medium">#</th>
-                    <th className="text-left py-2 text-gray-500 font-medium">Produit</th>
-                    <th className="text-right py-2 text-gray-500 font-medium">Qte</th>
-                    <th className="text-right py-2 text-gray-500 font-medium">CA</th>
+                  <tr className="border-b border-gray-100 dark:border-gray-700">
+                    <th className="text-left py-2 text-gray-500 dark:text-gray-400 font-medium">#</th>
+                    <th className="text-left py-2 text-gray-500 dark:text-gray-400 font-medium">Produit</th>
+                    <th className="text-right py-2 text-gray-500 dark:text-gray-400 font-medium">Qte</th>
+                    <th className="text-right py-2 text-gray-500 dark:text-gray-400 font-medium">CA</th>
                   </tr>
                 </thead>
                 <tbody>
                   {kpis.top_products.map((product, i) => (
-                    <tr key={i} className="border-b border-gray-50">
-                      <td className="py-2 text-gray-400">{i + 1}</td>
-                      <td className="py-2 font-medium">{product.product__name}</td>
-                      <td className="py-2 text-right">{product.total_quantity}</td>
-                      <td className="py-2 text-right font-medium">
+                    <tr key={i} className="border-b border-gray-50 dark:border-gray-700">
+                      <td className="py-2 text-gray-400 dark:text-gray-500">{i + 1}</td>
+                      <td className="py-2 font-medium text-gray-900 dark:text-gray-100">{product.product__name}</td>
+                      <td className="py-2 text-right text-gray-700 dark:text-gray-300">{product.total_quantity}</td>
+                      <td className="py-2 text-right font-medium text-gray-900 dark:text-gray-100">
                         {formatCurrency(product.total_revenue)}
                       </td>
                     </tr>
@@ -289,24 +304,28 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <AlertsWidget
-          alerts={alertsData?.results ?? []}
-          isLoading={alertsLoading}
-        />
+        {isVisible('alerts') && (
+          <AlertsWidget
+            alerts={alertsData?.results ?? []}
+            isLoading={alertsLoading}
+          />
+        )}
       </div>
 
       {/* Section 4 — Projections (Admin/Manager) */}
       {showAdvanced && (
         <>
-          <ForecastSection storeId={storeId} />
-          <StockTrendChart storeId={storeId} dateFrom={dateFrom} dateTo={dateTo} />
+          {isVisible('forecast') && <ForecastSection storeId={storeId} />}
+          {isVisible('stockTrend') && <StockTrendChart storeId={storeId} dateFrom={dateFrom} dateTo={dateTo} />}
         </>
       )}
 
       {/* Section 5 — AI Insights (Admin/Manager) */}
-      {showAdvanced && (
+      {showAdvanced && isVisible('aiInsights') && (
         <AiInsightsPanel data={strategic} isLoading={strategicLoading} />
       )}
+
+      <DashboardConfig />
     </div>
   );
 }

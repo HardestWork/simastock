@@ -35,7 +35,7 @@ export default function StockTrendChart({ storeId, dateFrom, dateTo }: StockTren
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
         </div>
@@ -48,8 +48,8 @@ export default function StockTrendChart({ storeId, dateFrom, dateTo }: StockTren
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
         Evolution de la valeur du stock
       </h2>
       <ResponsiveContainer width="100%" height={300}>

@@ -69,9 +69,9 @@ export default function ProductDetailPage() {
     if (status === 404) {
       return (
         <div className="max-w-xl mx-auto py-16 text-center">
-          <Package size={48} className="mx-auto text-gray-300 mb-4" />
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Produit introuvable</h2>
-          <p className="text-gray-500 mb-6">
+          <Package size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">Produit introuvable</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">
             Le produit demande n'existe pas ou a ete supprime.
           </p>
           <Link
@@ -100,9 +100,9 @@ export default function ProductDetailPage() {
   if (!product) {
     return (
       <div className="max-w-xl mx-auto py-16 text-center">
-        <Package size={48} className="mx-auto text-gray-300 mb-4" />
-        <h2 className="text-xl font-semibold text-gray-800 mb-2">Produit introuvable</h2>
-        <p className="text-gray-500 mb-6">
+        <Package size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">Produit introuvable</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">
           Le produit demande n'existe pas ou a ete supprime.
         </p>
         <Link
@@ -127,7 +127,7 @@ export default function ProductDetailPage() {
       {/* ================================================================= */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{product.name}</h1>
           <span
             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
               product.is_active
@@ -145,7 +145,7 @@ export default function ProductDetailPage() {
         <div className="flex items-center gap-2">
           <Link
             to="/catalog"
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
           >
             <ArrowLeft size={16} />
             Retour
@@ -168,7 +168,7 @@ export default function ProductDetailPage() {
         {/* Left column: Image                                              */}
         {/* -------------------------------------------------------------- */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
             <div className="w-full aspect-square bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden">
               {primaryImage ? (
                 <img
@@ -212,61 +212,61 @@ export default function ProductDetailPage() {
         {/* -------------------------------------------------------------- */}
         <div className="lg:col-span-2 flex flex-col gap-6">
           {/* ---- Product info card ---- */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Informations produit</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Informations produit</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
               {/* SKU */}
               <div className="flex items-start gap-3">
-                <Tag size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                <Tag size={18} className="text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">SKU</p>
-                  <p className="text-sm font-medium text-gray-900">{product.sku || '—'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">SKU</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{product.sku || '—'}</p>
                 </div>
               </div>
 
               {/* Barcode */}
               <div className="flex items-start gap-3">
-                <Barcode size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                <Barcode size={18} className="text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Code-barres</p>
-                  <p className="text-sm font-medium text-gray-900">{product.barcode || '—'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Code-barres</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{product.barcode || '—'}</p>
                 </div>
               </div>
 
               {/* Category */}
               <div className="flex items-start gap-3">
-                <FolderTree size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                <FolderTree size={18} className="text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Categorie</p>
-                  <p className="text-sm font-medium text-gray-900">{product.category_name || '—'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Categorie</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{product.category_name || '—'}</p>
                 </div>
               </div>
 
               {/* Brand */}
               <div className="flex items-start gap-3">
-                <Tag size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                <Tag size={18} className="text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Marque</p>
-                  <p className="text-sm font-medium text-gray-900">{product.brand_name || '—'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Marque</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{product.brand_name || '—'}</p>
                 </div>
               </div>
             </div>
 
             {/* Pricing section */}
-            <hr className="my-5 border-gray-100" />
+            <hr className="my-5 border-gray-100 dark:border-gray-700" />
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Prix d'achat</p>
-                <p className="text-lg font-semibold text-gray-900">{formatCurrency(product.cost_price)}</p>
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Prix d'achat</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(product.cost_price)}</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Prix de vente</p>
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Prix de vente</p>
                 <p className="text-lg font-semibold text-primary">{formatCurrency(product.selling_price)}</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Marge</p>
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Marge</p>
                 <p className={`text-lg font-semibold ${margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                   {formatCurrency(margin)}
                 </p>
@@ -279,20 +279,20 @@ export default function ProductDetailPage() {
 
           {/* ---- Specs card (only if specs exist) ---- */}
           {product.specs.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Specifications</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Specifications</h2>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 text-left text-gray-500">
+                  <tr className="border-b border-gray-100 dark:border-gray-700 text-left text-gray-500">
                     <th className="pb-2 font-medium">Propriete</th>
                     <th className="pb-2 font-medium">Valeur</th>
                   </tr>
                 </thead>
                 <tbody>
                   {product.specs.map((spec) => (
-                    <tr key={spec.id} className="border-b border-gray-50">
-                      <td className="py-2.5 text-gray-600">{spec.key}</td>
-                      <td className="py-2.5 font-medium text-gray-900">{spec.value}</td>
+                    <tr key={spec.id} className="border-b border-gray-50 dark:border-gray-700">
+                      <td className="py-2.5 text-gray-600 dark:text-gray-400">{spec.key}</td>
+                      <td className="py-2.5 font-medium text-gray-900 dark:text-gray-100">{spec.value}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -301,8 +301,8 @@ export default function ProductDetailPage() {
           )}
 
           {/* ---- Stock levels card ---- */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Stock par magasin</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Stock par magasin</h2>
 
             {stockLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -312,7 +312,7 @@ export default function ProductDetailPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50 text-left text-gray-600">
+                    <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 text-left text-gray-600">
                       <th className="px-4 py-3 font-medium">Magasin</th>
                       <th className="px-4 py-3 font-medium text-right">Quantite</th>
                       <th className="px-4 py-3 font-medium text-right">Reserve</th>
@@ -324,14 +324,14 @@ export default function ProductDetailPage() {
                     {stockData.results.map((stock) => {
                       const belowMin = stock.available_qty <= stock.min_qty && stock.min_qty > 0;
                       return (
-                        <tr key={stock.id} className="border-b border-gray-50 hover:bg-gray-50">
+                        <tr key={stock.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                           <td className="px-4 py-3 font-medium text-gray-900">{stock.store}</td>
-                          <td className="px-4 py-3 text-right text-gray-700">{stock.quantity}</td>
-                          <td className="px-4 py-3 text-right text-gray-700">{stock.reserved_qty}</td>
+                          <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{stock.quantity}</td>
+                          <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{stock.reserved_qty}</td>
                           <td className={`px-4 py-3 text-right font-semibold ${belowMin ? 'text-red-600' : 'text-emerald-600'}`}>
                             {stock.available_qty}
                           </td>
-                          <td className="px-4 py-3 text-right text-gray-500">{stock.min_qty}</td>
+                          <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{stock.min_qty}</td>
                         </tr>
                       );
                     })}
@@ -339,7 +339,7 @@ export default function ProductDetailPage() {
                 </table>
               </div>
             ) : (
-              <p className="text-gray-500 text-sm text-center py-6">
+              <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-6">
                 Aucune donnee de stock disponible pour ce produit.
               </p>
             )}

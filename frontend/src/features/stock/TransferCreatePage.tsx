@@ -7,6 +7,7 @@ import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
 import { useAuthStore } from '@/auth/auth-store';
+import { toast } from 'sonner';
 import type { ProductStock } from '@/api/types';
 
 interface TransferLine {
@@ -59,10 +60,12 @@ export default function TransferCreatePage() {
       lines: { product_id: string; quantity: number }[];
     }) => stockApi.createTransfer(data),
     onSuccess: (response) => {
+      toast.success('Transfert cree avec succes');
       void queryClient.invalidateQueries({ queryKey: queryKeys.transfers.all });
       navigate(`/stock/transfers/${response.id}`);
     },
-    onError: () => {
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
       setError('Une erreur est survenue lors de la creation du transfert.');
     },
   });
@@ -141,12 +144,12 @@ export default function TransferCreatePage() {
       <div className="mb-6">
         <Link
           to="/stock/transfers"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-1"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-1"
         >
           <ChevronLeft size={14} />
           Retour aux transferts
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Nouveau transfert</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Nouveau transfert</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -158,27 +161,27 @@ export default function TransferCreatePage() {
         )}
 
         {/* Transfer info */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-          <h2 className="font-semibold text-gray-900">Informations du transfert</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">Informations du transfert</h2>
 
           {/* Source store (read-only) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
-            <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
+            <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300">
               {currentStore?.name ?? '-'}
             </div>
           </div>
 
           {/* Destination store */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Magasin de destination <span className="text-red-500">*</span>
             </label>
             <select
               value={toStoreId}
               onChange={(e) => setToStoreId(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
             >
               <option value="">Selectionner un magasin...</option>
               {destinationStores.map((store) => (
@@ -188,7 +191,7 @@ export default function TransferCreatePage() {
               ))}
             </select>
             {destinationStores.length === 0 && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Aucun autre magasin disponible.
               </p>
             )}
@@ -196,27 +199,27 @@ export default function TransferCreatePage() {
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes <span className="text-gray-400">(optionnel)</span>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Notes <span className="text-gray-400 dark:text-gray-500">(optionnel)</span>
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Notes sur ce transfert..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none resize-none"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none resize-none dark:bg-gray-700 dark:text-gray-100"
             />
           </div>
         </div>
 
         {/* Product lines */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">Produits</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Produits</h2>
             <button
               type="button"
               onClick={addLine}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               <Plus size={15} />
               Ajouter un produit
@@ -224,7 +227,7 @@ export default function TransferCreatePage() {
           </div>
 
           {lines.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-8 text-gray-400 dark:text-gray-500">
               <Package size={36} className="mb-2 opacity-40" />
               <p className="text-sm">Aucun produit ajoute.</p>
               <p className="text-xs">Cliquez sur "Ajouter un produit" pour commencer.</p>
@@ -254,23 +257,23 @@ export default function TransferCreatePage() {
                     }}
                     onFocus={() => setActiveSearchLine(line.id)}
                     placeholder="Rechercher un produit..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                   />
                   {/* Search dropdown */}
                   {activeSearchLine === line.id &&
                     activeSearch &&
                     productSearchData &&
                     productSearchData.results.length > 0 && (
-                      <div className="absolute z-10 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      <div className="absolute z-10 top-full mt-1 left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                         {productSearchData.results.map((stock) => (
                           <button
                             key={stock.id}
                             type="button"
                             onMouseDown={() => selectProduct(line.id, stock)}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm"
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm"
                           >
                             <div className="font-medium">{stock.product_name}</div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                               SKU: {stock.product_sku} — Disponible: {stock.available_qty}
                             </div>
                           </button>
@@ -286,7 +289,7 @@ export default function TransferCreatePage() {
                     min={1}
                     value={line.quantity}
                     onChange={(e) => updateLineQuantity(line.id, parseInt(e.target.value, 10))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-center"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-center dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Qte"
                   />
                 </div>
@@ -295,7 +298,7 @@ export default function TransferCreatePage() {
                 <button
                   type="button"
                   onClick={() => removeLine(line.id)}
-                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -308,7 +311,7 @@ export default function TransferCreatePage() {
         <div className="flex gap-3 justify-end">
           <Link
             to="/stock/transfers"
-            className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
           >
             Annuler
           </Link>

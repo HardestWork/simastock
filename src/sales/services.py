@@ -412,7 +412,7 @@ def _get_or_create_sequence(store, prefix: str):
 def generate_invoice_number(store) -> str:
     """Generate the next invoice number for *store*.
 
-    Uses prefix ``FA`` with year-based format: ``FA-2026-000001``.
+    Uses prefix ``FAC`` with format: ``FAC-STORE-2026-000001``.
 
     Parameters
     ----------
@@ -422,14 +422,14 @@ def generate_invoice_number(store) -> str:
     -------
     str
     """
-    sequence = _get_or_create_sequence(store, "FA")
+    sequence = _get_or_create_sequence(store, "FAC")
     return sequence.generate_next()
 
 
 def generate_quote_number(store) -> str:
     """Generate the next quote number for *store*.
 
-    Uses prefix ``DV`` with year-based format: ``DV-2026-000001``.
+    Uses prefix ``DEV`` with format: ``DEV-STORE-2026-000001``.
 
     Parameters
     ----------
@@ -439,7 +439,7 @@ def generate_quote_number(store) -> str:
     -------
     str
     """
-    sequence = _get_or_create_sequence(store, "DV")
+    sequence = _get_or_create_sequence(store, "DEV")
     return sequence.generate_next()
 
 

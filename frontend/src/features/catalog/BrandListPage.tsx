@@ -8,6 +8,7 @@ import { useSort } from '@/hooks/use-sort';
 import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
 import { ChevronLeft, Plus, Pencil, Trash2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Brand } from '@/api/types';
 import type { AxiosError } from 'axios';
 
@@ -52,10 +53,12 @@ export default function BrandListPage() {
   const createMutation = useMutation({
     mutationFn: (data: Partial<Brand>) => brandApi.create(data),
     onSuccess: () => {
+      toast.success('Marque creee avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.brands.all });
       resetForm();
     },
     onError: (err: AxiosError) => {
+      toast.error((err.response?.data as any)?.detail || (err.response?.data as any)?.non_field_errors?.[0] || 'Une erreur est survenue');
       const detail = (err.response?.data as any)?.detail
         ?? (err.response?.data as any)?.name?.[0]
         ?? err.message;
@@ -68,10 +71,12 @@ export default function BrandListPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<Brand> }) =>
       brandApi.update(id, data),
     onSuccess: () => {
+      toast.success('Marque mise a jour avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.brands.all });
       resetForm();
     },
     onError: (err: AxiosError) => {
+      toast.error((err.response?.data as any)?.detail || (err.response?.data as any)?.non_field_errors?.[0] || 'Une erreur est survenue');
       const detail = (err.response?.data as any)?.detail
         ?? (err.response?.data as any)?.name?.[0]
         ?? err.message;
@@ -83,7 +88,11 @@ export default function BrandListPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => brandApi.delete(id),
     onSuccess: () => {
+      toast.success('Marque supprimee avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.brands.all });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -137,14 +146,14 @@ export default function BrandListPage() {
     <div>
       <Link
         to="/catalog"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-1"
+        className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-1"
       >
         <ChevronLeft size={16} />
         Retour
       </Link>
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Marques</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Marques</h1>
         {!showForm && (
           <button
             onClick={() => { resetForm(); setShowForm(true); }}
@@ -158,8 +167,8 @@ export default function BrandListPage() {
 
       {/* Inline form */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
             {editingId ? 'Modifier la marque' : 'Nouvelle marque'}
           </h2>
 
@@ -172,14 +181,14 @@ export default function BrandListPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Nom <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full max-w-md px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 placeholder="Nom de la marque"
               />
             </div>
@@ -192,7 +201,7 @@ export default function BrandListPage() {
                 onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
                 className="rounded border-gray-300"
               />
-              <label htmlFor="is_active" className="text-sm text-gray-700">
+              <label htmlFor="is_active" className="text-sm text-gray-700 dark:text-gray-300">
                 Active
               </label>
             </div>
@@ -208,7 +217,7 @@ export default function BrandListPage() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+                className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
               >
                 Annuler
               </button>
@@ -228,20 +237,20 @@ export default function BrandListPage() {
           Erreur chargement marques: {((error as AxiosError)?.response?.data as any)?.detail ?? (error as Error).message}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
+                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
                   <SortableHeader field="name" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                   <SortableHeader field="is_active" label="Actif" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="center" />
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {data?.results.map((brand) => (
-                  <tr key={brand.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{brand.name}</td>
+                  <tr key={brand.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{brand.name}</td>
                     <td className="px-4 py-3 text-center">
                       <span
                         className={`inline-block w-2.5 h-2.5 rounded-full ${
@@ -253,7 +262,7 @@ export default function BrandListPage() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => startEdit(brand)}
-                          className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-primary"
+                          className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
                         >
                           <Pencil size={14} />
                           Modifier
@@ -272,7 +281,7 @@ export default function BrandListPage() {
                 ))}
                 {data?.results.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={3} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       Aucune marque trouvee.
                     </td>
                   </tr>

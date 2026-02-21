@@ -71,7 +71,7 @@ def provision_enterprise_for_user(user, company_name: str, store_name: str = "")
         )
 
         Sequence.objects.get_or_create(store=store, prefix="FAC", defaults={"next_number": 1})
-        Sequence.objects.get_or_create(store=store, prefix="AV", defaults={"next_number": 1})
+        Sequence.objects.get_or_create(store=store, prefix="DEV", defaults={"next_number": 1})
 
     return enterprise, store
 

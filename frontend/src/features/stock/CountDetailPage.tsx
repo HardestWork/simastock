@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { ChevronLeft, ClipboardList, Search, Save, CheckSquare } from 'lucide-react';
 import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
+import { toast } from 'sonner';
 import type { CountStatus } from '@/api/types';
 
 const STATUS_LABELS: Record<CountStatus, string> = {
@@ -33,7 +34,7 @@ function StatusBadge({ status }: { status: CountStatus }) {
 }
 
 function VarianceCell({ variance }: { variance: number | null }) {
-  if (variance === null) return <span className="text-gray-400">-</span>;
+  if (variance === null) return <span className="text-gray-400 dark:text-gray-500">-</span>;
   if (variance === 0) return <span className="text-green-600 font-medium">0</span>;
   if (variance < 0)
     return <span className="text-red-600 font-medium">{variance}</span>;
@@ -64,11 +65,13 @@ export default function CountDetailPage() {
     mutationFn: (lines: { id: string; counted_qty: number }[]) =>
       stockApi.updateCountLines(id!, { lines }),
     onSuccess: () => {
+      toast.success('Inventaire mis a jour avec succes');
       setSaveError('');
       setEditedQtys({});
       void queryClient.invalidateQueries({ queryKey: queryKeys.counts.detail(id!) });
     },
-    onError: () => {
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
       setSaveError("Une erreur est survenue lors de l'enregistrement.");
     },
   });
@@ -76,10 +79,12 @@ export default function CountDetailPage() {
   const { mutate: completeCount, isPending: isCompleting } = useMutation({
     mutationFn: () => stockApi.completeCount(id!),
     onSuccess: () => {
+      toast.success('Inventaire termine avec succes');
       setCompleteError('');
       void queryClient.invalidateQueries({ queryKey: queryKeys.counts.detail(id!) });
     },
-    onError: () => {
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
       setCompleteError("Une erreur est survenue lors de la finalisation de l'inventaire.");
     },
   });
@@ -152,7 +157,7 @@ export default function CountDetailPage() {
 
   if (error || !count) {
     return (
-      <div className="text-center py-16 text-gray-500">
+      <div className="text-center py-16 text-gray-500 dark:text-gray-400">
         <p>Impossible de charger l'inventaire.</p>
         <Link
           to="/stock/counts"
@@ -171,12 +176,12 @@ export default function CountDetailPage() {
         <div>
           <Link
             to="/stock/counts"
-            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-1"
+            className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-1"
           >
             <ChevronLeft size={14} />
             Retour aux inventaires
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <ClipboardList size={22} />
             Inventaire #{id!.substring(0, 8).toUpperCase()}
           </h1>
@@ -225,33 +230,33 @@ export default function CountDetailPage() {
           <div className="relative">
             <Search
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
             />
             <input
               type="text"
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
               placeholder="Filtrer par nom de produit..."
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+              className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
             />
           </div>
 
           {/* Lines table */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Produit</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">Systeme</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">Compte</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">Ecart</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Produit</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Systeme</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Compte</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Ecart</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredLines.map((line) => (
-                  <tr key={line.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{line.product_name}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">{line.system_qty}</td>
+                  <tr key={line.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{line.product_name}</td>
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{line.system_qty}</td>
                     <td className="px-4 py-3 text-right">
                       {isInProgress ? (
                         <input
@@ -263,10 +268,10 @@ export default function CountDetailPage() {
                               : (line.counted_qty ?? 0)
                           }
                           onChange={(e) => handleQtyChange(line.id, e.target.value)}
-                          className="w-24 text-right px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none ml-auto"
+                          className="w-24 text-right px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none ml-auto dark:bg-gray-700 dark:text-gray-100"
                         />
                       ) : (
-                        <span className="text-gray-700">
+                        <span className="text-gray-700 dark:text-gray-300">
                           {line.counted_qty !== null ? line.counted_qty : '-'}
                         </span>
                       )}
@@ -278,7 +283,7 @@ export default function CountDetailPage() {
                 ))}
                 {filteredLines.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       {searchFilter ? 'Aucun produit trouve pour cette recherche.' : 'Aucune ligne dans cet inventaire.'}
                     </td>
                   </tr>
@@ -290,35 +295,35 @@ export default function CountDetailPage() {
 
         {/* Summary sidebar */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4 sticky top-4">
-            <h2 className="font-semibold text-gray-900">Recapitulatif</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4 sticky top-4">
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Recapitulatif</h2>
 
             <div className="space-y-3">
               <div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide">Statut</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Statut</span>
                 <div className="mt-1">
                   <StatusBadge status={count.status} />
                 </div>
               </div>
 
               <div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide">Cree le</span>
-                <p className="text-sm font-medium text-gray-900 mt-1">
+                <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Cree le</span>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1">
                   {format(new Date(count.created_at), 'dd/MM/yyyy HH:mm')}
                 </p>
               </div>
 
               <div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide">Cree par</span>
-                <p className="text-sm font-medium text-gray-900 mt-1">
+                <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Cree par</span>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1">
                   {count.created_by_name ?? '-'}
                 </p>
               </div>
 
               {count.completed_at && (
                 <div>
-                  <span className="text-xs text-gray-500 uppercase tracking-wide">Termine le</span>
-                  <p className="text-sm font-medium text-gray-900 mt-1">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Termine le</span>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1">
                     {format(new Date(count.completed_at), 'dd/MM/yyyy HH:mm')}
                   </p>
                 </div>
@@ -326,24 +331,24 @@ export default function CountDetailPage() {
 
               {count.notes && (
                 <div>
-                  <span className="text-xs text-gray-500 uppercase tracking-wide">Notes</span>
-                  <p className="text-sm text-gray-700 mt-1">{count.notes}</p>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Notes</span>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{count.notes}</p>
                 </div>
               )}
 
-              <hr className="border-gray-100" />
+              <hr className="border-gray-100 dark:border-gray-700" />
 
               <div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide">
+                <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Lignes comptees
                 </span>
-                <p className="text-sm font-medium text-gray-900 mt-1">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1">
                   {countedLines} / {totalLines}
                 </p>
               </div>
 
               <div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide">
+                <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Lignes restantes
                 </span>
                 <p
@@ -357,7 +362,7 @@ export default function CountDetailPage() {
 
               {/* Progress bar */}
               <div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
+                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2">
                   <div
                     className="bg-primary h-2 rounded-full transition-all"
                     style={{
@@ -365,7 +370,7 @@ export default function CountDetailPage() {
                     }}
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1 text-right">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-right">
                   {totalLines > 0 ? Math.round((countedLines / totalLines) * 100) : 0}%
                 </p>
               </div>

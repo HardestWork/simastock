@@ -80,6 +80,7 @@ LOCAL_APPS = [
     "reports",
     "alerts",
     "analytics",
+    "expenses",
     "api",
 ]
 
@@ -247,6 +248,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "stores.tasks.warn_expiring_enterprises",
         "schedule": 86400,  # every 24 h
     },
+    "daily-database-backup": {
+        "task": "core.backup_database",
+        "schedule": 86400,  # every 24 h
+    },
+    "generate-due-recurring-expenses": {
+        "task": "expenses.tasks.generate_due_recurring_expenses",
+        "schedule": 3600,  # every hour
+    },
 }
 
 # DRF
@@ -355,3 +364,15 @@ LOGGING = {
         },
     },
 }
+
+# Sentry
+SENTRY_DSN = env("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=0.2,
+        profiles_sample_rate=0.1,
+        environment=env("SENTRY_ENVIRONMENT", default="production"),
+        send_default_pii=False,
+    )

@@ -1,4 +1,5 @@
 """Models for the stores app."""
+import re
 import uuid
 from decimal import Decimal
 
@@ -6,6 +7,7 @@ from django.conf import settings
 from django.db import models, transaction
 from django.db.models import F
 from django.utils import timezone
+from django.utils.text import slugify
 
 from core.models import TimeStampedModel
 
@@ -28,6 +30,7 @@ FEATURE_FLAG_LABELS = {
   "stock_entries": "Entrees et ajustements de stock",
   "purchases_management": "Achats (fournisseurs, commandes, receptions)",
   "credit_management": "Credits clients",
+  "expenses_management": "Gestion des depenses",
   "alerts_center": "Centre d'alertes",
   "reports_center": "Rapports standards",
   "vat": "TVA (calcul & affichage)",
@@ -49,6 +52,7 @@ FEATURE_FLAG_DEFAULTS = {
   "stock_entries": True,
   "purchases_management": True,
   "credit_management": True,
+  "expenses_management": True,
   "alerts_center": True,
   "reports_center": True,
   # TVA should not be systematic: enable only when configured/licensed.
@@ -404,7 +408,7 @@ class Sequence(models.Model):
     def generate_next(self):
         """Atomically increment and return the next formatted number.
 
-        Returns a string like ``FA-2026-000001``.  Uses an ``UPDATE ... SET
+        Returns a string like ``FAC-BQC-2026-000001``.  Uses an ``UPDATE ... SET
         next_number = next_number + 1`` query so that concurrent callers
         never receive the same number.
         """
@@ -415,7 +419,9 @@ class Sequence(models.Model):
             Sequence.objects.filter(pk=locked.pk).update(next_number=F("next_number") + 1)
             # Keep the in-memory object synchronized with DB.
             self.next_number = current + 1
-        return f"{self.prefix}-{self.year}-{current:06d}"
+        raw_code = slugify((self.store.code or "")).upper()
+        store_code = re.sub(r"[^A-Z0-9]", "", raw_code)[:10] or "STORE"
+        return f"{self.prefix}-{store_code}-{self.year}-{current:06d}"
 
 
 class AuditLog(models.Model):

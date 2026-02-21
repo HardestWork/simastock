@@ -122,8 +122,8 @@ function ProfitTrendChart({ data }: { data: DailyStatRow[] }) {
   );
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendance CA vs Benefice</h2>
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Tendance CA vs Benefice</h2>
       <ResponsiveContainer width="100%" height={350}>
         <AreaChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -187,14 +187,14 @@ function DailySalesTable({
     return sortDir === 'asc' ? <ArrowUp size={12} className="inline ml-0.5" /> : <ArrowDown size={12} className="inline ml-0.5" />;
   }
 
-  const thClass = 'px-4 py-3 font-medium text-gray-600 cursor-pointer hover:text-gray-900 select-none';
+  const thClass = 'px-4 py-3 font-medium text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 select-none';
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <h2 className="text-lg font-semibold px-5 py-4 border-b border-gray-200">Ventes par jour</h2>
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 px-5 py-4 border-b border-gray-200 dark:border-gray-700">Ventes par jour</h2>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
             <tr>
               <th className={`text-left ${thClass}`} onClick={() => toggleSort('date')}>Date <SortIcon col="date" /></th>
               <th className={`text-right ${thClass}`} onClick={() => toggleSort('nb_sales')}>Ventes <SortIcon col="nb_sales" /></th>
@@ -208,8 +208,8 @@ function DailySalesTable({
           </thead>
           <tbody>
             {sorted.map((row) => (
-              <tr key={row.date} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">{formatDateFr(row.date)}</td>
+              <tr key={row.date} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{formatDateFr(row.date)}</td>
                 <td className="px-4 py-3 text-right">{row.nb_sales}</td>
                 <td className="px-4 py-3 text-right font-medium">{formatCurrency(row.revenue)}</td>
                 <td className="px-4 py-3 text-right font-medium text-emerald-600">{formatCurrency(row.profit)}</td>
@@ -220,9 +220,9 @@ function DailySalesTable({
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-gray-50 border-t-2 border-gray-200 font-semibold">
+          <tfoot className="bg-gray-50 dark:bg-gray-700/50 border-t-2 border-gray-200 dark:border-gray-700 font-semibold">
             <tr>
-              <td className="px-4 py-3 text-gray-900">Total</td>
+              <td className="px-4 py-3 text-gray-900 dark:text-gray-100">Total</td>
               <td className="px-4 py-3 text-right">{summary.nb_sales}</td>
               <td className="px-4 py-3 text-right">{formatCurrency(summary.total_revenue)}</td>
               <td className="px-4 py-3 text-right text-emerald-600">{formatCurrency(summary.total_profit)}</td>
@@ -244,22 +244,22 @@ function TopProductsByProfit({
   data: Array<{ product_name: string; qty_sold: number; revenue: string; profit: string }>;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <h2 className="text-lg font-semibold px-5 py-4 border-b border-gray-200">Top produits par benefice</h2>
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 px-5 py-4 border-b border-gray-200 dark:border-gray-700">Top produits par benefice</h2>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Produit</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Qty</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">CA</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Benefice</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Produit</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Qty</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">CA</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Benefice</th>
             </tr>
           </thead>
           <tbody>
             {data.map((p, i) => (
-              <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">{p.product_name}</td>
+              <tr key={i} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100 max-w-[200px] truncate">{p.product_name}</td>
                 <td className="px-4 py-3 text-right">{p.qty_sold}</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(p.revenue)}</td>
                 <td className="px-4 py-3 text-right font-medium text-emerald-600">{formatCurrency(p.profit)}</td>
@@ -267,7 +267,7 @@ function TopProductsByProfit({
             ))}
             {data.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-gray-400">Aucune donnee</td>
+                <td colSpan={4} className="px-4 py-6 text-center text-gray-400 dark:text-gray-500">Aucune donnee</td>
               </tr>
             )}
           </tbody>
@@ -293,8 +293,8 @@ function PaymentMethodPieChart({
   );
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Methodes de paiement</h2>
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Methodes de paiement</h2>
       {chartData.length > 0 ? (
         <ResponsiveContainer width="100%" height={280}>
           <PieChart>
@@ -315,7 +315,7 @@ function PaymentMethodPieChart({
           </PieChart>
         </ResponsiveContainer>
       ) : (
-        <p className="text-gray-400 text-center py-8">Aucune donnee</p>
+        <p className="text-gray-400 dark:text-gray-500 text-center py-8">Aucune donnee</p>
       )}
     </div>
   );
@@ -339,8 +339,8 @@ function HourlyDistributionChart({
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <div className="flex items-center gap-2 mb-4">
-        <Clock size={20} className="text-gray-500" />
-        <h2 className="text-lg font-semibold text-gray-900">Distribution horaire des ventes</h2>
+        <Clock size={20} className="text-gray-500 dark:text-gray-400" />
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Distribution horaire des ventes</h2>
       </div>
       {chartData.length > 0 ? (
         <ResponsiveContainer width="100%" height={300}>
@@ -353,7 +353,7 @@ function HourlyDistributionChart({
           </BarChart>
         </ResponsiveContainer>
       ) : (
-        <p className="text-gray-400 text-center py-8">Aucune donnee</p>
+        <p className="text-gray-400 dark:text-gray-500 text-center py-8">Aucune donnee</p>
       )}
     </div>
   );
@@ -371,12 +371,12 @@ function BestWorstDayCards({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {bestDay && (
-        <div className="bg-white rounded-xl border border-emerald-200 p-5">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-emerald-200 dark:border-emerald-800 p-5">
           <div className="flex items-center gap-2 mb-2">
             <Trophy size={20} className="text-emerald-500" />
-            <h3 className="font-semibold text-gray-900">Meilleur jour</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Meilleur jour</h3>
           </div>
-          <p className="text-sm text-gray-500">{formatDateFr(bestDay.date)}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{formatDateFr(bestDay.date)}</p>
           <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
             <div>
               <span className="text-gray-500">CA:</span>{' '}
@@ -398,12 +398,12 @@ function BestWorstDayCards({
         </div>
       )}
       {worstDay && bestDay?.date !== worstDay.date && (
-        <div className="bg-white rounded-xl border border-orange-200 p-5">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-orange-200 dark:border-orange-800 p-5">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle size={20} className="text-orange-500" />
-            <h3 className="font-semibold text-gray-900">Jour le plus faible</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Jour le plus faible</h3>
           </div>
-          <p className="text-sm text-gray-500">{formatDateFr(worstDay.date)}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{formatDateFr(worstDay.date)}</p>
           <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
             <div>
               <span className="text-gray-500">CA:</span>{' '}
@@ -458,7 +458,7 @@ export default function StatisticsPage() {
 
   if (!currentStore) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
         Aucun magasin selectionne.
       </div>
     );
@@ -474,7 +474,7 @@ export default function StatisticsPage() {
 
   if (!data) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
         Aucune donnee disponible.
       </div>
     );
@@ -484,7 +484,7 @@ export default function StatisticsPage() {
     <div className="space-y-6 pb-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Statistiques</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Statistiques</h1>
         <PeriodSelector
           value={period}
           dateFrom={dateFrom}

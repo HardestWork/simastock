@@ -9,6 +9,7 @@ import { DollarSign, Clock, AlertCircle, Banknote, Lock, CheckCircle, Smartphone
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { AxiosError } from 'axios';
+import { toast } from 'sonner';
 
 export default function CashierDashboard() {
   const queryClient = useQueryClient();
@@ -45,9 +46,13 @@ export default function CashierDashboard() {
         opening_float: openingFloat || '0',
       }),
     onSuccess: () => {
+      toast.success('Session de caisse ouverte avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.cashShifts.all });
       setOpeningFloat('');
       setCloseSuccess(false);
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -59,12 +64,16 @@ export default function CashierDashboard() {
         notes: closeNotes || undefined,
       }),
     onSuccess: () => {
+      toast.success('Session de caisse fermee avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.cashShifts.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       setShowCloseForm(false);
       setClosingCash('');
       setCloseNotes('');
       setCloseSuccess(true);
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -74,7 +83,7 @@ export default function CashierDashboard() {
   const variancePreview = closingCash ? closingCashNum - expectedCash : null;
 
   if (!currentStore) {
-    return <div className="text-center py-12 text-gray-500">Aucun magasin selectionne.</div>;
+    return <div className="text-center py-12 text-gray-500 dark:text-gray-400">Aucun magasin selectionne.</div>;
   }
 
   if (shiftLoading) {
@@ -100,14 +109,14 @@ export default function CashierDashboard() {
             </div>
           </div>
         )}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 text-center">
           <AlertCircle size={48} className="mx-auto text-warning mb-4" />
-          <h2 className="text-lg font-semibold mb-2">Aucune session ouverte</h2>
-          <p className="text-sm text-gray-500 mb-4">
+          <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">Aucune session ouverte</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             Ouvrez une session de caisse pour commencer a encaisser.
           </p>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1 text-left">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-left">
               Fond de caisse (FCFA)
             </label>
             <input
@@ -115,7 +124,7 @@ export default function CashierDashboard() {
               min="0"
               value={openingFloat}
               onChange={(e) => setOpeningFloat(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
               placeholder="0"
             />
           </div>
@@ -134,86 +143,86 @@ export default function CashierDashboard() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Caisse</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Caisse</h1>
         <StatusBadge type="shift" value={shift.status} />
       </div>
 
       {/* Payment breakdown cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-3">
           <DollarSign size={20} className="text-emerald-600" />
           <div>
-            <p className="text-xs text-gray-500">Ventes totales</p>
-            <p className="text-lg font-bold">{formatCurrency(shift.totals.total_sales)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Ventes totales</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatCurrency(shift.totals.total_sales)}</p>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-3">
           <Banknote size={20} className="text-green-600" />
           <div>
-            <p className="text-xs text-gray-500">Especes</p>
-            <p className="text-lg font-bold">{formatCurrency(shift.totals.total_cash_payments)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Especes</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatCurrency(shift.totals.total_cash_payments)}</p>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-3">
           <Smartphone size={20} className="text-blue-600" />
           <div>
-            <p className="text-xs text-gray-500">Mobile Money</p>
-            <p className="text-lg font-bold">{formatCurrency(shift.totals.total_mobile_payments)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Mobile Money</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatCurrency(shift.totals.total_mobile_payments)}</p>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-3">
           <Building2 size={20} className="text-purple-600" />
           <div>
-            <p className="text-xs text-gray-500">Virement</p>
-            <p className="text-lg font-bold">{formatCurrency(shift.totals.total_bank_payments)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Virement</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatCurrency(shift.totals.total_bank_payments)}</p>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-3">
           <CreditCard size={20} className="text-orange-600" />
           <div>
-            <p className="text-xs text-gray-500">Credit</p>
-            <p className="text-lg font-bold">{formatCurrency(shift.totals.total_credit_payments)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Credit</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatCurrency(shift.totals.total_credit_payments)}</p>
           </div>
         </div>
       </div>
 
       {/* Session info */}
-      <div className="flex items-center gap-6 text-sm text-gray-500 mb-6">
+      <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400 mb-6">
         <div className="flex items-center gap-1.5">
-          <Clock size={14} className="text-gray-400" />
+          <Clock size={14} className="text-gray-400 dark:text-gray-500" />
           <span>Ouverture: {new Date(shift.opened_at).toLocaleString('fr-FR')}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <DollarSign size={14} className="text-gray-400" />
+          <DollarSign size={14} className="text-gray-400 dark:text-gray-500" />
           <span>Fond de caisse: {formatCurrency(shift.opening_float)}</span>
         </div>
       </div>
 
       {/* Pending sales */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
           Ventes en attente ({pendingSales?.count ?? 0})
         </h2>
         {pendingSales?.results.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-4">Aucune vente en attente.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Aucune vente en attente.</p>
         ) : (
           <div className="space-y-3">
             {pendingSales?.results.map((sale) => (
               <div
                 key={sale.id}
-                className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50"
+                className="flex items-center justify-between p-3 border border-gray-100 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50"
               >
                 <div>
-                  <span className="text-sm font-medium">{sale.invoice_number}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{sale.invoice_number}</span>
                   {sale.customer_name && (
-                    <span className="text-sm text-gray-600 ml-2">-- {sale.customer_name}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">-- {sale.customer_name}</span>
                   )}
-                  <span className="text-xs text-gray-500 ml-2">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
                     {new Date(sale.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold">{formatCurrency(sale.amount_due)}</span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{formatCurrency(sale.amount_due)}</span>
                   <button
                     onClick={() => navigate(`/cashier/payment/${sale.id}`)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary-dark transition-colors"
@@ -230,12 +239,12 @@ export default function CashierDashboard() {
 
       {/* Close shift section */}
       {shift.status === 'OPEN' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           {!showCloseForm ? (
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold">Fermer la session</h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Fermer la session</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Cloturez votre session de caisse en fin de service.
                 </p>
               </div>
@@ -249,19 +258,19 @@ export default function CashierDashboard() {
             </div>
           ) : (
             <div>
-              <h2 className="text-lg font-semibold mb-4">Fermer la session</h2>
+              <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Fermer la session</h2>
 
               {/* Expected cash display */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+              <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Fond de caisse</span>
-                  <span className="font-medium">{formatCurrency(shift.opening_float)}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Fond de caisse</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(shift.opening_float)}</span>
                 </div>
                 <div className="flex justify-between text-sm mt-1">
-                  <span className="text-gray-600">Encaissements especes</span>
-                  <span className="font-medium">{formatCurrency(shift.totals.total_cash_payments)}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Encaissements especes</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(shift.totals.total_cash_payments)}</span>
                 </div>
-                <div className="flex justify-between text-sm font-bold mt-2 pt-2 border-t border-gray-300">
+                <div className="flex justify-between text-sm font-bold mt-2 pt-2 border-t border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                   <span>Montant attendu en caisse</span>
                   <span>{formatCurrency(shift.expected_cash)}</span>
                 </div>
@@ -269,7 +278,7 @@ export default function CashierDashboard() {
 
               {/* Closing cash input */}
               <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Montant en caisse (FCFA)
                 </label>
                 <input
@@ -277,7 +286,7 @@ export default function CashierDashboard() {
                   min="0"
                   value={closingCash}
                   onChange={(e) => setClosingCash(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Comptez et saisissez le montant..."
                 />
               </div>
@@ -309,14 +318,14 @@ export default function CashierDashboard() {
 
               {/* Notes */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Notes (optionnel)
                 </label>
                 <textarea
                   value={closeNotes}
                   onChange={(e) => setCloseNotes(e.target.value)}
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none resize-none dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Observations, remarques..."
                 />
               </div>
@@ -337,7 +346,7 @@ export default function CashierDashboard() {
                     setClosingCash('');
                     setCloseNotes('');
                   }}
-                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                 >
                   Annuler
                 </button>

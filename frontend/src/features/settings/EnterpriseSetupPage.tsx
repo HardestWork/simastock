@@ -5,10 +5,11 @@ import { useMutation } from '@tanstack/react-query';
 import { enterpriseApi } from '@/api/endpoints';
 import type { EnterpriseSetupPayload, EnterpriseSetupResponse } from '@/api/types';
 import { ArrowLeft, Save, Loader2, AlertCircle, CheckCircle2, Building2, Store, UserCog, Copy, Mail } from 'lucide-react';
+import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
 const inputClass =
-  'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none';
+  'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100';
 
 function extractError(err: unknown): string {
   const ax = err as AxiosError<Record<string, unknown> | string>;
@@ -60,10 +61,14 @@ export default function EnterpriseSetupPage() {
   const mutation = useMutation({
     mutationFn: (data: EnterpriseSetupPayload) => enterpriseApi.setup(data),
     onSuccess: (data: EnterpriseSetupResponse) => {
+      toast.success('Entreprise creee avec succes');
       setSetupResult(data);
       setCopied(false);
     },
-    onError: (err: unknown) => setError(extractError(err)),
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      setError(extractError(err));
+    },
   });
 
   const canSubmit =
@@ -160,23 +165,23 @@ export default function EnterpriseSetupPage() {
 
     return (
       <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-xl border border-gray-200 p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8">
           <div className="text-center mb-6">
             <CheckCircle2 size={48} className="mx-auto text-green-500 mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Entreprise creee avec succes</h2>
-            <p className="text-sm text-gray-500">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Entreprise creee avec succes</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               L'entreprise, la boutique et l'utilisateur administrateur ont ete crees.
             </p>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-6">
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">Identifiants de connexion</h3>
-            <div className="text-sm text-gray-700 space-y-1">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 p-4 mb-6">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Identifiants de connexion</h3>
+            <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
               <div><span className="font-medium">Email:</span> {credentials.email}</div>
               <div><span className="font-medium">Mot de passe:</span> {credentials.password}</div>
               <div><span className="font-medium">Connexion:</span> {credentials.login_url}</div>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
               {credentials.password_generated
                 ? "Mot de passe genere automatiquement."
                 : "Mot de passe saisi manuellement."}
@@ -190,14 +195,14 @@ export default function EnterpriseSetupPage() {
               <button
                 type="button"
                 onClick={copyCredentials}
-                className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-white"
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-white dark:hover:bg-gray-700"
               >
                 <Copy size={14} />
                 {copied ? 'Copie' : 'Copier'}
               </button>
               <a
                 href={manualMailto}
-                className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-white"
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-white dark:hover:bg-gray-700"
               >
                 <Mail size={14} />
                 Envoyer
@@ -214,7 +219,7 @@ export default function EnterpriseSetupPage() {
             </button>
             <Link
               to="/settings/stores"
-              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               Retour aux parametres
             </Link>
@@ -228,55 +233,55 @@ export default function EnterpriseSetupPage() {
     <div className="max-w-3xl mx-auto">
       <Link
         to="/settings/stores"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-1"
+        className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-1"
       >
         <ArrowLeft size={16} />
         Retour aux parametres
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Creer une entreprise</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Creer une entreprise</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Section 1 — Enterprise */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-4">
             <Building2 size={20} className="text-primary" />
-            <h2 className="text-lg font-semibold text-gray-900">Entreprise</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Entreprise</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Nom <span className="text-red-500">*</span>
               </label>
               <input type="text" value={entName} onChange={(e) => setEntName(e.target.value)} className={inputClass} placeholder="Ex: Ma Societe" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Code <span className="text-red-500">*</span>
               </label>
               <input type="text" value={entCode} onChange={(e) => setEntCode(e.target.value)} className={inputClass} placeholder="Ex: MASOC" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Devise</label>
               <input type="text" value={entCurrency} onChange={(e) => setEntCurrency(e.target.value)} className={inputClass} placeholder="FCFA" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telephone</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telephone</label>
               <input type="text" value={entPhone} onChange={(e) => setEntPhone(e.target.value)} className={inputClass} placeholder="Telephone (optionnel)" />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
               <input type="email" value={entEmail} onChange={(e) => setEntEmail(e.target.value)} className={inputClass} placeholder="contact@entreprise.com (optionnel)" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Debut d'abonnement</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Debut d'abonnement</label>
               <input type="date" value={subscriptionStart} onChange={(e) => setSubscriptionStart(e.target.value)} className={inputClass} />
-              <p className="text-xs text-gray-400 mt-1">Vide = actif immediatement</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Vide = actif immediatement</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fin d'abonnement</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fin d'abonnement</label>
               <input type="date" value={subscriptionEnd} onChange={(e) => setSubscriptionEnd(e.target.value)} className={inputClass} />
-              <p className="text-xs text-gray-400 mt-1">Vide = pas d'expiration</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Vide = pas d'expiration</p>
             </div>
             <div className="sm:col-span-2">
               <label className="inline-flex items-center gap-3 cursor-pointer">
@@ -290,9 +295,9 @@ export default function EnterpriseSetupPage() {
                   <div className="w-10 h-6 bg-gray-300 rounded-full peer-checked:bg-primary transition-colors" />
                   <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform" />
                 </div>
-                <span className="text-sm font-medium text-gray-700">Autoriser la creation de boutiques</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Autoriser la creation de boutiques</span>
               </label>
-              <p className="text-xs text-gray-400 mt-1 ml-[52px]">
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 ml-[52px]">
                 L'administrateur de cette entreprise pourra creer de nouvelles boutiques.
               </p>
             </div>
@@ -300,70 +305,70 @@ export default function EnterpriseSetupPage() {
         </div>
 
         {/* Section 2 — Store */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-4">
             <Store size={20} className="text-primary" />
-            <h2 className="text-lg font-semibold text-gray-900">Premiere boutique</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Premiere boutique</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Nom <span className="text-red-500">*</span>
               </label>
               <input type="text" value={storeName} onChange={(e) => setStoreName(e.target.value)} className={inputClass} placeholder="Ex: Boutique Centre" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Code <span className="text-red-500">*</span>
               </label>
               <input type="text" value={storeCode} onChange={(e) => setStoreCode(e.target.value)} className={inputClass} placeholder="Ex: CENTRE01" required />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Adresse</label>
               <input type="text" value={storeAddress} onChange={(e) => setStoreAddress(e.target.value)} className={inputClass} placeholder="Adresse (optionnel)" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telephone</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telephone</label>
               <input type="text" value={storePhone} onChange={(e) => setStorePhone(e.target.value)} className={inputClass} placeholder="Telephone (optionnel)" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
               <input type="email" value={storeEmail} onChange={(e) => setStoreEmail(e.target.value)} className={inputClass} placeholder="boutique@email.com (optionnel)" />
             </div>
           </div>
         </div>
 
         {/* Section 3 — Admin User */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-4">
             <UserCog size={20} className="text-primary" />
-            <h2 className="text-lg font-semibold text-gray-900">Administrateur</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Administrateur</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email <span className="text-red-500">*</span>
               </label>
               <input type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} className={inputClass} placeholder="admin@entreprise.com" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Prenom <span className="text-red-500">*</span>
               </label>
               <input type="text" value={userFirstName} onChange={(e) => setUserFirstName(e.target.value)} className={inputClass} placeholder="Prenom" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Nom <span className="text-red-500">*</span>
               </label>
               <input type="text" value={userLastName} onChange={(e) => setUserLastName(e.target.value)} className={inputClass} placeholder="Nom" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telephone</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telephone</label>
               <input type="text" value={userPhone} onChange={(e) => setUserPhone(e.target.value)} className={inputClass} placeholder="Telephone (optionnel)" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
               <select
                 value={userRole}
                 onChange={(e) => setUserRole(e.target.value as 'ADMIN' | 'MANAGER')}
@@ -374,19 +379,19 @@ export default function EnterpriseSetupPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Mot de passe
               </label>
               <input type="password" value={userPassword} onChange={(e) => setUserPassword(e.target.value)} className={inputClass} placeholder="Laisser vide pour generation automatique" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Confirmer
               </label>
               <input type="password" value={userPasswordConfirm} onChange={(e) => setUserPasswordConfirm(e.target.value)} className={inputClass} placeholder="Confirmer le mot de passe" />
             </div>
             <div className="sm:col-span-2">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Si le mot de passe est vide, il sera genere automatiquement et envoye a l'email du compte.
               </p>
             </div>
@@ -405,7 +410,7 @@ export default function EnterpriseSetupPage() {
         <div className="flex items-center justify-end gap-3">
           <Link
             to="/settings/stores"
-            className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
           >
             Annuler
           </Link>

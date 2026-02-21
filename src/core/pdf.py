@@ -21,6 +21,15 @@ def _normalize_hex_color(value: str, fallback: str) -> str:
     return fallback
 
 
+def _safe_pdf_filename(stem: str, fallback: str = "document") -> str:
+    """Build a safe PDF filename from a human-readable stem."""
+    safe = re.sub(r'[\\/:*?"<>|]+', "-", (stem or "").strip())
+    safe = safe.strip(" .")
+    if not safe:
+        safe = fallback
+    return f"{safe}.pdf"
+
+
 def render_pdf(template_name, context, filename="document.pdf"):
     """Render a Django template to PDF and return an HttpResponse."""
     try:
@@ -135,7 +144,10 @@ def generate_invoice_pdf(sale, store, document_kind="invoice"):
         "document": document,
         "now": now,
     }
-    filename = f"facture_{sale.invoice_number or sale.id}.pdf"
+    filename = _safe_pdf_filename(
+        document.get("number") or sale.invoice_number or f"FACTURE-{sale.id}",
+        fallback="facture",
+    )
     return render_pdf(template_name, context, filename)
 
 
@@ -151,7 +163,8 @@ def generate_receipt_pdf(sale, store, payments=None, change=0, cashier_name=""):
         "cashier_name": cashier_name,
         "now": timezone.now(),
     }
-    filename = f"ticket_{sale.invoice_number or sale.id}.pdf"
+    sale_ref = sale.invoice_number or str(sale.id).split("-")[0].upper()
+    filename = _safe_pdf_filename(f"REC-{sale_ref}", fallback="recu")
     return render_pdf("pdf/receipt_ticket.html", context, filename)
 
 
@@ -213,7 +226,8 @@ def generate_credit_payment_receipt_pdf(account, entry, store):
         "invoice_config": _build_invoice_config(store),
         "now": timezone.now(),
     }
-    filename = f"remboursement_credit_{entry.pk}.pdf"
+    entry_ref = str(entry.pk).split("-")[0].upper()
+    filename = _safe_pdf_filename(f"RCR-{entry_ref}", fallback="remboursement-credit")
     return render_pdf("pdf/credit_payment_receipt.html", context, filename)
 
 
@@ -228,5 +242,8 @@ def generate_quote_pdf(quote, store):
         "invoice_config": invoice_config,
         "now": now,
     }
-    filename = f"devis_{quote.quote_number or quote.id}.pdf"
+    filename = _safe_pdf_filename(
+        quote.quote_number or f"DEV-{quote.id}",
+        fallback="devis",
+    )
     return render_pdf("pdf/quote_a4.html", context, filename)

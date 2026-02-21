@@ -1,6 +1,8 @@
 """Seed database with initial data for development/demo."""
+from datetime import timedelta
 from decimal import Decimal
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 from django.utils.text import slugify
 
 
@@ -36,13 +38,16 @@ class Command(BaseCommand):
         categories = self._create_categories(enterprise)
         brands = self._create_brands(enterprise)
         products = self._create_products(categories, brands, enterprise, store)
-        self._create_customers(enterprise, store)
+        customers = self._create_customers(enterprise, store)
         self._create_sequences(store)
+        expense_data = self._create_expense_data(enterprise, store, users)
 
         self.stdout.write(self.style.SUCCESS(
             f"Seed complete: 1 enterprise, 1 store, {len(users)} users, "
             f"{len(categories)} categories, {len(brands)} brands, "
-            f"{len(products)} products"
+            f"{len(products)} products, {customers} customers, "
+            f"{expense_data['categories']} expense categories, "
+            f"{expense_data['wallets']} wallets, {expense_data['expenses']} expenses"
         ))
 
     def _flush(self):
@@ -55,10 +60,12 @@ class Command(BaseCommand):
         from stores.models import Store, StoreUser, AuditLog, Sequence, Enterprise
         from alerts.models import Alert
         from accounts.models import User
+        from expenses.models import Expense, ExpenseCategory, ExpenseSequence, RecurringExpense, Wallet, Budget
 
         for model in [CreditLedgerEntry, CustomerAccount, Payment, Refund,
                       SaleItem, Sale, CashShift, InventoryMovement, ProductStock,
                       Product, Category, Brand, Customer, Alert, AuditLog,
+                      Expense, RecurringExpense, Budget, ExpenseSequence, Wallet, ExpenseCategory,
                       Sequence, StoreUser, Store, Enterprise]:
             model.objects.all().delete()
 
@@ -339,6 +346,7 @@ class Command(BaseCommand):
                     account.save(update_fields=["credit_limit", "updated_at"])
 
         self.stdout.write(f"  Customers: {len(customers_data)}")
+        return len(customers_data)
 
     def _create_sequences(self, store):
         from stores.models import Sequence
@@ -348,7 +356,162 @@ class Command(BaseCommand):
             defaults={"next_number": 1}
         )
         Sequence.objects.get_or_create(
-            store=store, prefix="AV",
+            store=store, prefix="DEV",
             defaults={"next_number": 1}
         )
-        self.stdout.write("  Sequences: FAC, AV")
+        self.stdout.write("  Sequences: FAC, DEV")
+
+    def _create_expense_data(self, enterprise, store, users):
+        """Create demo expense categories, wallets, budgets, and sample expenses."""
+        from expenses.models import ExpenseCategory, Wallet, Budget, RecurringExpense
+        from expenses.services import create_expense
+
+        # Pick an admin/manager for authored records.
+        actor = next(
+            (u for u in users if u.role in ("ADMIN", "MANAGER")),
+            users[0],
+        )
+
+        category_specs = [
+            ("Loyer", "FIXED", None),
+            ("Electricite", "FIXED", None),
+            ("Internet", "FIXED", None),
+            ("Maintenance", "VARIABLE", store),
+            ("Transport", "VARIABLE", store),
+            ("Approvisionnement urgent", "STOCK", store),
+        ]
+        categories = []
+        for name, cat_type, scoped_store in category_specs:
+            category, _ = ExpenseCategory.objects.get_or_create(
+                enterprise=enterprise,
+                store=scoped_store,
+                name=name,
+                defaults={"type": cat_type, "is_active": True},
+            )
+            categories.append(category)
+
+        wallet_specs = [
+            ("Caisse Principale", "CASH", Decimal("750000.00")),
+            ("Compte Banque BICEC", "BANK", Decimal("5000000.00")),
+            ("Orange Money", "MOBILE_MONEY", Decimal("1200000.00")),
+        ]
+        wallets = []
+        for name, wallet_type, initial_balance in wallet_specs:
+            wallet, created = Wallet.objects.get_or_create(
+                store=store,
+                name=name,
+                defaults={
+                    "type": wallet_type,
+                    "balance": initial_balance,
+                    "is_active": True,
+                },
+            )
+            if not created and wallet.type != wallet_type:
+                wallet.type = wallet_type
+                wallet.save(update_fields=["type", "updated_at"])
+            wallets.append(wallet)
+
+        current_period = timezone.now().date().strftime("%Y-%m")
+        budget_specs = [
+            (None, Decimal("1500000.00"), 80),
+            ("Loyer", Decimal("500000.00"), 90),
+            ("Electricite", Decimal("200000.00"), 85),
+            ("Internet", Decimal("150000.00"), 85),
+            ("Maintenance", Decimal("250000.00"), 80),
+        ]
+        for category_name, limit_amount, threshold in budget_specs:
+            category = None
+            if category_name:
+                category = next((c for c in categories if c.name == category_name), None)
+            Budget.objects.get_or_create(
+                store=store,
+                category=category,
+                period=current_period,
+                defaults={
+                    "limit_amount": limit_amount,
+                    "alert_threshold_percent": threshold,
+                },
+            )
+
+        sample_expenses = [
+            {
+                "category": "Loyer",
+                "wallet": "Compte Banque BICEC",
+                "amount": Decimal("350000.00"),
+                "description": "Paiement loyer mensuel",
+                "supplier_name": "SCI Centre Ville",
+                "days_ago": 12,
+            },
+            {
+                "category": "Electricite",
+                "wallet": "Orange Money",
+                "amount": Decimal("65000.00"),
+                "description": "Facture ENEO",
+                "supplier_name": "ENEO",
+                "days_ago": 8,
+            },
+            {
+                "category": "Internet",
+                "wallet": "Orange Money",
+                "amount": Decimal("45000.00"),
+                "description": "Abonnement fibre pro",
+                "supplier_name": "Orange Cameroun",
+                "days_ago": 6,
+            },
+            {
+                "category": "Maintenance",
+                "wallet": "Caisse Principale",
+                "amount": Decimal("28000.00"),
+                "description": "Maintenance climatiseur salle serveurs",
+                "supplier_name": "Froid Service",
+                "days_ago": 3,
+            },
+        ]
+
+        created_expenses = 0
+        for row in sample_expenses:
+            expense_date = timezone.now().date() - timedelta(days=row["days_ago"])
+            if store.expenses.filter(description=row["description"], expense_date=expense_date).exists():
+                continue
+            category = next((c for c in categories if c.name == row["category"]), None)
+            wallet = next((w for w in wallets if w.name == row["wallet"]), None)
+            if not category or not wallet:
+                continue
+            create_expense(
+                store=store,
+                category=category,
+                wallet=wallet,
+                amount=row["amount"],
+                description=row["description"],
+                supplier_name=row["supplier_name"],
+                expense_date=expense_date,
+                created_by=actor,
+            )
+            created_expenses += 1
+
+        maintenance_category = next((c for c in categories if c.name == "Maintenance"), None)
+        cash_wallet = next((w for w in wallets if w.name == "Caisse Principale"), None)
+        if maintenance_category and cash_wallet:
+            RecurringExpense.objects.get_or_create(
+                store=store,
+                category=maintenance_category,
+                wallet=cash_wallet,
+                description="Nettoyage & petites reparations",
+                defaults={
+                    "amount": Decimal("15000.00"),
+                    "supplier_name": "Prestataire local",
+                    "frequency": RecurringExpense.Frequency.MONTHLY,
+                    "next_run_date": timezone.now().date() + timedelta(days=15),
+                    "is_active": True,
+                    "created_by": actor,
+                },
+            )
+
+        self.stdout.write(
+            f"  Expenses: categories={len(categories)} wallets={len(wallets)} created={created_expenses}"
+        )
+        return {
+            "categories": len(categories),
+            "wallets": len(wallets),
+            "expenses": created_expenses,
+        }

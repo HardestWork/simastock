@@ -27,7 +27,7 @@ function SkeletonCards() {
       {[1, 2, 3].map((i) => (
         <div
           key={i}
-          className="bg-gray-100 rounded-xl h-48 animate-pulse"
+          className="bg-gray-100 dark:bg-gray-700 rounded-xl h-48 animate-pulse"
         />
       ))}
     </div>
@@ -46,20 +46,20 @@ interface InsightCardProps {
 
 function InsightCard({ icon, title, children }: InsightCardProps) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col">
       {/* Top: icon + title */}
       <div className="flex items-center gap-2 mb-3">
         {icon}
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
       </div>
 
       {/* Middle: content */}
-      <div className="flex-1 space-y-2 text-sm text-gray-700">
+      <div className="flex-1 space-y-2 text-sm text-gray-700 dark:text-gray-300">
         {children}
       </div>
 
       {/* Bottom: link */}
-      <div className="mt-4 pt-3 border-t border-gray-100">
+      <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
         <Link to="/analytics" className="text-sm text-primary hover:underline">
           Voir details &rarr;
         </Link>
@@ -87,8 +87,8 @@ export default function AiInsightsPanel({ data, isLoading }: AiInsightsPanelProp
     <section>
       {/* Section header */}
       <div className="flex items-center gap-2 mb-4">
-        <Brain size={20} className="text-gray-700" />
-        <h2 className="text-lg font-semibold text-gray-900">Insights IA</h2>
+        <Brain size={20} className="text-gray-700 dark:text-gray-300" />
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Insights IA</h2>
       </div>
 
       {/* Loading skeleton */}
@@ -96,7 +96,7 @@ export default function AiInsightsPanel({ data, isLoading }: AiInsightsPanelProp
 
       {/* No data */}
       {!isLoading && !data && (
-        <p className="text-sm text-gray-400 py-6 text-center">
+        <p className="text-sm text-gray-400 dark:text-gray-500 py-6 text-center">
           Analytics non disponible
         </p>
       )}
@@ -120,11 +120,11 @@ export default function AiInsightsPanel({ data, isLoading }: AiInsightsPanelProp
                     >
                       {cls}
                     </span>
-                    <span className="text-xs text-gray-600">
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
                       {info.products} produits
                     </span>
                   </div>
-                  <span className="text-xs font-medium text-gray-900">
+                  <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
                     {formatCurrency(info.revenue)}
                   </span>
                 </div>
@@ -162,7 +162,7 @@ export default function AiInsightsPanel({ data, isLoading }: AiInsightsPanelProp
               </p>
 
               {/* Progress bar */}
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full ${
                     data.credit.average_score >= 70
@@ -175,7 +175,7 @@ export default function AiInsightsPanel({ data, isLoading }: AiInsightsPanelProp
                 />
               </div>
 
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {data.credit.scored_accounts} comptes evalues
               </p>
             </InsightCard>
@@ -212,7 +212,7 @@ export default function AiInsightsPanel({ data, isLoading }: AiInsightsPanelProp
                   {data.fraud.critical} critiques
                 </p>
               )}
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {data.fraud.unresolved} non resolus
               </p>
             </InsightCard>

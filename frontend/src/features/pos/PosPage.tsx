@@ -10,6 +10,7 @@ import { useCapabilities } from '@/lib/capabilities';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { Sale, PosProduct } from '@/api/types';
 import { Search, Plus, Minus, Trash2, Send, Banknote, UserPlus, Percent, X, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
 type DiscountMode = 'none' | 'percent' | 'fixed';
@@ -79,7 +80,7 @@ export default function PosPage() {
         customer_id: customerId,
       }),
     onSuccess: (data) => { setActionError(null); setSale(data); },
-    onError: (err) => setActionError(extractErrorMessage(err)),
+    onError: (err) => { toast.error(extractErrorMessage(err)); setActionError(extractErrorMessage(err)); },
   });
 
   // Add item mutation (also used for incrementing quantity via +1)
@@ -87,45 +88,47 @@ export default function PosPage() {
     mutationFn: ({ productId, quantity }: { productId: string; quantity: number }) =>
       saleApi.addItem(sale!.id, { product_id: productId, quantity }),
     onSuccess: (data) => { setActionError(null); setSale(data); },
-    onError: (err) => setActionError(extractErrorMessage(err)),
+    onError: (err) => { toast.error(extractErrorMessage(err)); setActionError(extractErrorMessage(err)); },
   });
 
   // Remove item mutation
   const removeItemMut = useMutation({
     mutationFn: (itemId: string) => saleApi.removeItem(sale!.id, itemId),
     onSuccess: (data) => { setActionError(null); setSale(data); },
-    onError: (err) => setActionError(extractErrorMessage(err)),
+    onError: (err) => { toast.error(extractErrorMessage(err)); setActionError(extractErrorMessage(err)); },
   });
 
   // Update sale mutation (for discount & customer assignment)
   const updateSaleMut = useMutation({
     mutationFn: (data: Record<string, string>) => saleApi.update(sale!.id, data),
     onSuccess: (data) => { setActionError(null); setSale(data); },
-    onError: (err) => setActionError(extractErrorMessage(err)),
+    onError: (err) => { toast.error(extractErrorMessage(err)); setActionError(extractErrorMessage(err)); },
   });
 
   // Submit sale mutation
   const submitMut = useMutation({
     mutationFn: () => saleApi.submit(sale!.id),
     onSuccess: () => {
+      toast.success('Vente soumise avec succes');
       setActionError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       setSale(null);
       setDiscountMode('none');
       setDiscountValue('');
     },
-    onError: (err) => setActionError(extractErrorMessage(err)),
+    onError: (err) => { toast.error(extractErrorMessage(err)); setActionError(extractErrorMessage(err)); },
   });
 
   // Submit & navigate to cashier (when user has CAN_SELL + CAN_CASH)
   const submitAndCashMut = useMutation({
     mutationFn: () => saleApi.submit(sale!.id),
     onSuccess: (submittedSale) => {
+      toast.success('Vente soumise avec succes');
       setActionError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       navigate(`/cashier/payment/${submittedSale.id}`);
     },
-    onError: (err) => setActionError(extractErrorMessage(err)),
+    onError: (err) => { toast.error(extractErrorMessage(err)); setActionError(extractErrorMessage(err)); },
   });
 
   // Create customer mutation
@@ -137,6 +140,7 @@ export default function PosPage() {
         phone: newCustomerPhone.trim(),
       }),
     onSuccess: (newCustomer) => {
+      toast.success('Client cree avec succes');
       // Reset form
       setNewCustomerFirstName('');
       setNewCustomerLastName('');
@@ -153,6 +157,9 @@ export default function PosPage() {
         // Create sale with customer
         createSaleMut.mutate(newCustomer.id);
       }
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Erreur lors de la creation du client');
     },
   });
 
@@ -231,12 +238,12 @@ export default function PosPage() {
   const showCustomerSearch = !sale?.customer || !!sale?.customer_is_default || isChangingCustomer;
 
   if (!currentStore) {
-    return <div className="text-center py-12 text-gray-500">Aucun magasin selectionne.</div>;
+    return <div className="text-center py-12 text-gray-500 dark:text-gray-400">Aucun magasin selectionne.</div>;
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Nouvelle vente</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Nouvelle vente</h1>
 
       {/* Global error banner */}
       {actionError && (
@@ -256,9 +263,9 @@ export default function PosPage() {
         <div className="lg:col-span-2 space-y-4">
           {/* Customer search */}
           {showCustomerSearch && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">Client</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Client</label>
                 {isChangingCustomer && (
                   <button
                     type="button"
@@ -267,17 +274,17 @@ export default function PosPage() {
                       setCustomerSearch('');
                       setShowNewCustomerForm(false);
                     }}
-                    className="text-xs text-gray-500 hover:text-gray-700"
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                   >
                     Annuler
                   </button>
                 )}
               </div>
               {sale?.customer_is_default && (
-                <p className="text-xs text-gray-500 mb-2">Client comptant par defaut. Selectionnez un client si necessaire.</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Client comptant par defaut. Selectionnez un client si necessaire.</p>
               )}
               <div className="relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                 <input
                   type="text"
                   value={customerSearch}
@@ -286,16 +293,16 @@ export default function PosPage() {
                     setShowNewCustomerForm(false);
                   }}
                   placeholder="Rechercher un client..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
               {customers && customers.results.length > 0 && customerSearch && (
-                <div className="mt-2 border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
+                <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg max-h-40 overflow-y-auto">
                   {customers.results.map((c) => (
                     <button
                       key={c.id}
                       onClick={() => handleSelectCustomer(c.id)}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     >
                       {c.full_name} — {c.phone}
                     </button>
@@ -306,7 +313,7 @@ export default function PosPage() {
               {/* No results — offer to create a new customer */}
               {noCustomerResults && !showNewCustomerForm && (
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Aucun client trouve.</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Aucun client trouve.</span>
                   <button
                     type="button"
                     onClick={() => setShowNewCustomerForm(true)}
@@ -320,13 +327,13 @@ export default function PosPage() {
 
               {/* Inline customer creation form */}
               {showNewCustomerForm && (
-                <form onSubmit={handleCreateCustomerSubmit} className="mt-3 border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-2">
+                <form onSubmit={handleCreateCustomerSubmit} className="mt-3 border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900 space-y-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700">Nouveau client</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Nouveau client</span>
                     <button
                       type="button"
                       onClick={() => setShowNewCustomerForm(false)}
-                      className="p-0.5 text-gray-400 hover:text-gray-600"
+                      className="p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
                     >
                       <X size={14} />
                     </button>
@@ -338,7 +345,7 @@ export default function PosPage() {
                       onChange={(e) => setNewCustomerFirstName(e.target.value)}
                       placeholder="Prenom *"
                       required
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                      className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                     />
                     <input
                       type="text"
@@ -346,7 +353,7 @@ export default function PosPage() {
                       onChange={(e) => setNewCustomerLastName(e.target.value)}
                       placeholder="Nom *"
                       required
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                      className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                     />
                   </div>
                   <input
@@ -355,7 +362,7 @@ export default function PosPage() {
                     onChange={(e) => setNewCustomerPhone(e.target.value)}
                     placeholder="Telephone *"
                     required
-                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                   />
                   <button
                     type="submit"
@@ -376,9 +383,9 @@ export default function PosPage() {
 
           {/* Selected customer summary */}
           {sale?.customer && !sale?.customer_is_default && !showCustomerSearch && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Client</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Client</span>
                 <button
                   type="button"
                   onClick={() => setIsChangingCustomer(true)}
@@ -387,27 +394,27 @@ export default function PosPage() {
                   Changer
                 </button>
               </div>
-              <p className="mt-1 text-sm text-gray-900">{sale.customer_name || 'Client selectionne'}</p>
+              <p className="mt-1 text-sm text-gray-900 dark:text-gray-100">{sale.customer_name || 'Client selectionne'}</p>
             </div>
           )}
 
           {/* Product search */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Ajouter un produit</label>
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ajouter un produit</label>
             <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher par nom, SKU ou code-barres..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
 
             <div className="mt-2">
               {isProductsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-gray-500 py-3">
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-3">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
                   Chargement des produits...
                 </div>
@@ -424,17 +431,17 @@ export default function PosPage() {
                       disabled={!p.has_stock || p.available_qty <= 0}
                       className={`flex items-center gap-3 p-3 border rounded-lg text-left ${
                         !p.has_stock || p.available_qty <= 0
-                          ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
-                          : 'border-gray-200 hover:bg-gray-50'
+                          ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 opacity-60 cursor-not-allowed'
+                          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                       }`}
                       title={p.has_stock ? `Disponible: ${p.available_qty}` : 'Stock non initialise'}
                     >
                       <Plus size={18} className="text-primary shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium truncate">{p.name}</div>
-                        <div className="text-xs text-gray-500 flex items-center justify-between gap-3">
+                        <div className="text-sm font-medium truncate text-gray-900 dark:text-gray-100">{p.name}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between gap-3">
                           <span>{formatCurrency(p.selling_price)}</span>
-                          <span className={p.available_qty > 0 ? 'text-emerald-700' : 'text-gray-500'}>
+                          <span className={p.available_qty > 0 ? 'text-emerald-700' : 'text-gray-500 dark:text-gray-400'}>
                             {p.has_stock ? `Stock: ${p.available_qty}` : 'Stock: --'}
                           </span>
                         </div>
@@ -443,7 +450,7 @@ export default function PosPage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-sm text-gray-500 py-3">
+                <div className="text-sm text-gray-500 dark:text-gray-400 py-3">
                   {debouncedSearch.trim().length >= 2 ? 'Aucun produit ne correspond a la recherche.' : 'Tapez au moins 2 caracteres pour filtrer, ou choisissez dans la liste.'}
                 </div>
               )}
@@ -452,23 +459,23 @@ export default function PosPage() {
         </div>
 
         {/* Right — Cart / Summary */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 h-fit">
-          <h2 className="text-lg font-semibold mb-4">Panier</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 h-fit">
+          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Panier</h2>
 
           {!sale || sale.items.length === 0 ? (
-            <p className="text-sm text-gray-500 py-4 text-center">Le panier est vide.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">Le panier est vide.</p>
           ) : (
             <div className="space-y-3 mb-4">
               {sale.items.map((item) => (
-                <div key={item.id} className="py-2 border-b border-gray-100">
+                <div key={item.id} className="py-2 border-b border-gray-100 dark:border-gray-700">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{item.product_name}</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-sm font-medium truncate text-gray-900 dark:text-gray-100">{item.product_name}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         {formatCurrency(item.unit_price)} / unite
                       </div>
                     </div>
-                    <span className="text-sm font-semibold shrink-0">{formatCurrency(item.line_total)}</span>
+                    <span className="text-sm font-semibold shrink-0 text-gray-900 dark:text-gray-100">{formatCurrency(item.line_total)}</span>
                   </div>
                   <div className="flex items-center justify-between mt-1.5">
                     <div className="flex items-center gap-1">
@@ -476,19 +483,19 @@ export default function PosPage() {
                       <button
                         onClick={() => handleAddOneMore(item.product)}
                         disabled={addItemMut.isPending}
-                        className="p-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40"
+                        className="p-1 rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40"
                         title="Ajouter 1"
                       >
                         <Plus size={14} />
                       </button>
-                      <span className="text-sm font-medium min-w-[2rem] text-center">
+                      <span className="text-sm font-medium min-w-[2rem] text-center text-gray-900 dark:text-gray-100">
                         {item.quantity}
                       </span>
                       {/* Remove button */}
                       <button
                         onClick={() => removeItemMut.mutate(item.id)}
                         disabled={removeItemMut.isPending}
-                        className="p-1 rounded border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-40"
+                        className="p-1 rounded border border-red-200 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40"
                         title="Retirer du panier"
                       >
                         {item.quantity === 1 ? <Trash2 size={14} /> : <Minus size={14} />}
@@ -502,10 +509,10 @@ export default function PosPage() {
 
           {/* Discount section */}
           {sale && sale.items.length > 0 && (
-            <div className="border-t border-gray-200 pt-3 mb-3">
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mb-3">
               <div className="flex items-center gap-2 mb-2">
-                <Percent size={14} className="text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Remise</span>
+                <Percent size={14} className="text-gray-500 dark:text-gray-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Remise</span>
               </div>
               <div className="flex gap-1 mb-2">
                 <button
@@ -513,8 +520,8 @@ export default function PosPage() {
                   onClick={() => handleDiscountModeChange('none')}
                   className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
                     discountMode === 'none'
-                      ? 'bg-gray-900 text-white border-gray-900'
-                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                      ? 'bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100'
+                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                   }`}
                 >
                   Aucune
@@ -524,8 +531,8 @@ export default function PosPage() {
                   onClick={() => handleDiscountModeChange('percent')}
                   className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
                     discountMode === 'percent'
-                      ? 'bg-gray-900 text-white border-gray-900'
-                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                      ? 'bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100'
+                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                   }`}
                 >
                   Pourcentage
@@ -535,8 +542,8 @@ export default function PosPage() {
                   onClick={() => handleDiscountModeChange('fixed')}
                   className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
                     discountMode === 'fixed'
-                      ? 'bg-gray-900 text-white border-gray-900'
-                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                      ? 'bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100'
+                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                   }`}
                 >
                   Montant fixe
@@ -553,9 +560,9 @@ export default function PosPage() {
                       value={discountValue}
                       onChange={(e) => setDiscountValue(e.target.value)}
                       placeholder={discountMode === 'percent' ? '0 - 100' : 'Montant en FCFA'}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none pr-10"
+                      className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none pr-10 dark:bg-gray-700 dark:text-gray-100"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">
                       {discountMode === 'percent' ? '%' : 'FCFA'}
                     </span>
                   </div>
@@ -574,10 +581,10 @@ export default function PosPage() {
 
           {/* Totals */}
           {sale && (
-            <div className="border-t border-gray-200 pt-3 space-y-1">
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-1">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Sous-total</span>
-                <span>{formatCurrency(sale.subtotal)}</span>
+                <span className="text-gray-500 dark:text-gray-400">Sous-total</span>
+                <span className="text-gray-900 dark:text-gray-100">{formatCurrency(sale.subtotal)}</span>
               </div>
               {parseFloat(sale.discount_amount) > 0 && (
                 <div className="flex justify-between text-sm text-red-600">
@@ -592,11 +599,11 @@ export default function PosPage() {
               )}
               {parseFloat(sale.tax_amount) > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">TVA</span>
-                  <span>{formatCurrency(sale.tax_amount)}</span>
+                  <span className="text-gray-500 dark:text-gray-400">TVA</span>
+                  <span className="text-gray-900 dark:text-gray-100">{formatCurrency(sale.tax_amount)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-base font-bold pt-1">
+              <div className="flex justify-between text-base font-bold pt-1 text-gray-900 dark:text-gray-100">
                 <span>Total</span>
                 <span>{formatCurrency(sale.total)}</span>
               </div>

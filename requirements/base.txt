@@ -27,3 +27,6 @@ openpyxl>=3.1
 # Utils
 Pillow>=10.2
 python-dateutil>=2.9
+
+# Monitoring
+sentry-sdk>=2.0

@@ -30,19 +30,19 @@ function TrendIndicator({ trend }: { trend: number }) {
   }
 
   return (
-    <span className="text-xs font-medium text-gray-400">0%</span>
+    <span className="text-xs font-medium text-gray-400 dark:text-gray-500">0%</span>
   );
 }
 
 export default function KpiCard({ label, value, icon, color, trend }: KpiCardProps) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-4">
       <div className={`${color} text-white p-3 rounded-lg`}>
         {icon}
       </div>
       <div>
-        <p className="text-sm text-gray-500">{label}</p>
-        <p className="text-xl font-bold text-gray-900">{value}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
+        <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
         {trend != null && <TrendIndicator trend={trend} />}
       </div>
     </div>

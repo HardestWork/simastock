@@ -1079,7 +1079,17 @@ class StoreUserSerializer(serializers.ModelSerializer):
 
         # Guardrails: never allow sensitive capabilities for non-manager/admin users.
         # Low-risk capabilities (sell/cash/stock) can be mixed for flexibility.
-        high_risk = {"CAN_REFUND", "CAN_OVERRIDE_PRICE", "CAN_APPROVE", "CAN_VIEW_REPORTS"}
+        high_risk = {
+            "CAN_REFUND",
+            "CAN_OVERRIDE_PRICE",
+            "CAN_APPROVE",
+            "CAN_VIEW_REPORTS",
+            "CAN_EDIT_EXPENSE",
+            "CAN_VOID_EXPENSE",
+            "CAN_MANAGE_CATEGORIES",
+            "CAN_MANAGE_WALLETS",
+            "CAN_SET_BUDGETS",
+        }
         capabilities = attrs.get("capabilities")
         user = getattr(instance, "user", None)
         if capabilities is not None and user and getattr(user, "role", None) not in ("ADMIN", "MANAGER"):

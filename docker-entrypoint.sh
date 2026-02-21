@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+# If a command is provided (e.g., docker-compose dev), run it as-is.
+if [ "$#" -gt 0 ]; then
+  exec "$@"
+fi
+
 cd /app/src
 
 echo "Running database migrations..."

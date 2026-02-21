@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { ArrowLeft, Search, Filter } from 'lucide-react';
+import { ArrowLeft, Search, Filter, Download } from 'lucide-react';
+import { downloadCsv } from '@/lib/export';
 import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import type { MovementType } from '@/api/types';
@@ -96,38 +97,47 @@ export default function MovementListPage() {
   return (
     <div>
       {/* Page header */}
-      <div className="flex items-center gap-3 mb-6">
-        <Link
-          to="/stock"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/stock"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <ArrowLeft size={15} />
+            Stock
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Mouvements de stock</h1>
+        </div>
+        <button
+          onClick={() => downloadCsv(`stock-movements/export-csv/?store=${currentStore?.id ?? ''}`, 'mouvements_stock')}
+          className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         >
-          <ArrowLeft size={15} />
-          Stock
-        </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Mouvements de stock</h1>
+          <Download size={16} />
+          Exporter CSV
+        </button>
       </div>
 
       {/* Filters bar */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-wrap gap-3 items-center">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-4 flex flex-wrap gap-3 items-center">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Rechercher par produit ou reference..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
           />
         </div>
 
         {/* Movement type filter */}
         <div className="relative flex items-center gap-2">
-          <Filter size={16} className="text-gray-400 shrink-0" />
+          <Filter size={16} className="text-gray-400 dark:text-gray-500 shrink-0" />
           <select
             value={movementType}
             onChange={(e) => handleTypeChange(e.target.value)}
-            className="py-2 pl-3 pr-8 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white appearance-none cursor-pointer"
+            className="py-2 pl-3 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white dark:bg-gray-700 dark:text-gray-100 appearance-none cursor-pointer"
           >
             <option value="">Tous les types</option>
             {ALL_MOVEMENT_TYPES.map((type) => (
@@ -140,22 +150,22 @@ export default function MovementListPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
                 <SortableHeader field="created_at" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                 <SortableHeader field="product__name" label="Produit" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                 <SortableHeader field="movement_type" label="Type" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                 <SortableHeader field="quantity" label="Quantite" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Reference</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Motif</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Acteur</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Reference</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Motif</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Acteur</th>
               </tr>
             </thead>
             <tbody>
@@ -171,10 +181,10 @@ export default function MovementListPage() {
                 return (
                   <tr
                     key={movement.id}
-                    className="border-b border-gray-50 hover:bg-gray-50"
+                    className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   >
                     {/* Date — link to document if batch_id exists */}
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300">
                       {movement.batch_id ? (
                         <Link
                           to={`/stock/movements/${movement.batch_id}`}
@@ -211,25 +221,25 @@ export default function MovementListPage() {
                     </td>
 
                     {/* Reference */}
-                    <td className="px-4 py-3 text-gray-600">
-                      {movement.reference || '—'}
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                      {movement.reference || '\u2014'}
                     </td>
 
                     {/* Reason / Motif */}
-                    <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate">
-                      {movement.reason || '—'}
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400 max-w-[200px] truncate">
+                      {movement.reason || '\u2014'}
                     </td>
 
                     {/* Actor */}
-                    <td className="px-4 py-3 text-gray-600">
-                      {movement.actor_name || '—'}
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                      {movement.actor_name || '\u2014'}
                     </td>
                   </tr>
                 );
               })}
               {data?.results.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     Aucun mouvement enregistre.
                   </td>
                 </tr>

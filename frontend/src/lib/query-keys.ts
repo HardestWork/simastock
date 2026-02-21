@@ -119,6 +119,30 @@ export const queryKeys = {
     list: (params?: Record<string, string>) => ['payment-schedules', 'list', params] as const,
   },
 
+  // Expenses
+  expenses: {
+    all: ['expenses'] as const,
+    list: (params?: Record<string, string>) => ['expenses', 'list', params] as const,
+    detail: (id: string) => ['expenses', id] as const,
+    dashboard: (storeId: string, period?: string) => ['expenses', 'dashboard', storeId, period] as const,
+  },
+  expenseCategories: {
+    all: ['expense-categories'] as const,
+    list: (params?: Record<string, string>) => ['expense-categories', 'list', params] as const,
+  },
+  wallets: {
+    all: ['wallets'] as const,
+    list: (params?: Record<string, string>) => ['wallets', 'list', params] as const,
+  },
+  expenseBudgets: {
+    all: ['expense-budgets'] as const,
+    list: (params?: Record<string, string>) => ['expense-budgets', 'list', params] as const,
+  },
+  recurringExpenses: {
+    all: ['recurring-expenses'] as const,
+    list: (params?: Record<string, string>) => ['recurring-expenses', 'list', params] as const,
+  },
+
   // Purchases
   suppliers: {
     all: ['suppliers'] as const,

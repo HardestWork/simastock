@@ -41,7 +41,7 @@ export default function QuoteListPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Devis</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Devis</h1>
         <Link
           to="/quotes/new"
           className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm"
@@ -51,11 +51,11 @@ export default function QuoteListPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-4">
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
         >
           <option value="">Tous les statuts</option>
           <option value="DRAFT">Brouillon</option>
@@ -68,18 +68,18 @@ export default function QuoteListPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
                 <SortableHeader field="quote_number" label="N° Devis" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Client</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Cree par</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Client</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Cree par</th>
                 <SortableHeader field="status" label="Statut" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                 <SortableHeader field="total" label="Total" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
                 <SortableHeader field="valid_until" label="Validite" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
@@ -88,17 +88,17 @@ export default function QuoteListPage() {
             </thead>
             <tbody>
               {data?.results.map((quote) => (
-                <tr key={quote.id} className="border-b border-gray-50 hover:bg-gray-50">
+                <tr key={quote.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <td className="px-4 py-3 font-medium">
                     <Link to={`/quotes/${quote.id}`} className="text-primary hover:underline">
                       {quote.quote_number || '—'}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{quote.customer_name ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-600">{quote.created_by_name ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{quote.customer_name ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{quote.created_by_name ?? '—'}</td>
                   <td className="px-4 py-3"><StatusBadge type="quote" value={quote.status} /></td>
                   <td className="px-4 py-3 text-right font-medium">{formatCurrency(quote.total)}</td>
-                  <td className="px-4 py-3 text-gray-500">
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400">
                     {quote.valid_until ? (
                       <span className={quote.is_expired ? 'text-red-600' : ''}>
                         {new Date(quote.valid_until).toLocaleDateString('fr-FR')}
@@ -107,14 +107,14 @@ export default function QuoteListPage() {
                       '—'
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-500">
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400">
                     {new Date(quote.created_at).toLocaleDateString('fr-FR')}
                   </td>
                 </tr>
               ))}
               {data?.results.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     Aucun devis trouve.
                   </td>
                 </tr>

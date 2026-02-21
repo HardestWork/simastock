@@ -22,11 +22,11 @@ export default function AlertsWidget({ alerts, isLoading }: AlertsWidgetProps) {
   const visibleAlerts = alerts.slice(0, 5);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <Bell size={20} className="text-gray-700" />
-        <h2 className="text-lg font-semibold text-gray-900">Alertes recentes</h2>
+        <Bell size={20} className="text-gray-700 dark:text-gray-300" />
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Alertes recentes</h2>
       </div>
 
       {/* Loading state */}
@@ -38,7 +38,7 @@ export default function AlertsWidget({ alerts, isLoading }: AlertsWidgetProps) {
 
       {/* Empty state */}
       {!isLoading && visibleAlerts.length === 0 && (
-        <p className="text-sm text-gray-400 py-6 text-center">Aucune alerte</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500 py-6 text-center">Aucune alerte</p>
       )}
 
       {/* Alert list */}
@@ -60,9 +60,9 @@ export default function AlertsWidget({ alerts, isLoading }: AlertsWidgetProps) {
 
               {/* Content */}
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900">{alert.title}</p>
-                <p className="text-xs text-gray-500 line-clamp-1">{alert.message}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{alert.title}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{alert.message}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                   {formatDistanceToNow(new Date(alert.created_at), {
                     addSuffix: true,
                     locale: fr,
@@ -76,7 +76,7 @@ export default function AlertsWidget({ alerts, isLoading }: AlertsWidgetProps) {
 
       {/* Footer link */}
       {!isLoading && (
-        <div className="mt-4 pt-3 border-t border-gray-100">
+        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
           <Link
             to="/alerts"
             className="text-sm text-primary hover:underline"

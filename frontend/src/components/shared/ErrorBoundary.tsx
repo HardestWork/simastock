@@ -35,10 +35,10 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8">
           <AlertTriangle size={48} className="text-danger mb-4" />
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
             Une erreur est survenue
           </h2>
-          <p className="text-sm text-gray-500 mb-4 max-w-md">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 max-w-md">
             {this.state.error?.message ?? 'Erreur inattendue.'}
           </p>
           <button

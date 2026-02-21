@@ -1,4 +1,5 @@
 /** Printable movement batch document page. */
+import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -31,6 +32,10 @@ const MOVEMENT_TYPE_COLORS: Record<MovementType, string> = {
   PURCHASE: 'bg-green-100 text-green-700',
 };
 
+function sanitizePrintTitle(value: string): string {
+  return value.replace(/[\\/:*?"<>|]/g, '-').trim();
+}
+
 /** Returns true for movement types that increase stock (positive qty). */
 function isPositiveMovement(type: MovementType): boolean {
   return ['IN', 'TRANSFER_IN', 'RETURN', 'PURCHASE', 'ADJUST'].includes(type);
@@ -56,12 +61,12 @@ export default function MovementDocumentPage() {
   if (isError || !data) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-gray-400">
           Document introuvable ou une erreur s'est produite.
         </p>
         <Link
           to="/stock/movements"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
         >
           <ArrowLeft size={15} />
           Retour aux mouvements
@@ -72,13 +77,22 @@ export default function MovementDocumentPage() {
 
   const dateFormatted = format(new Date(data.date), 'dd/MM/yyyy HH:mm');
 
+  useEffect(() => {
+    const previousTitle = document.title;
+    const reference = data.reference || data.batch_id;
+    document.title = sanitizePrintTitle(`${data.doc_type}-${reference}`);
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [data.batch_id, data.doc_type, data.reference]);
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Top navigation — hidden when printing */}
       <div className="flex items-center justify-between mb-6 print:hidden">
         <Link
           to="/stock/movements"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
         >
           <ArrowLeft size={15} />
           Mouvements
@@ -93,59 +107,59 @@ export default function MovementDocumentPage() {
       </div>
 
       {/* Document card */}
-      <div className="bg-white rounded-xl border border-gray-200 p-8 print:border-0 print:rounded-none print:p-0">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 print:border-0 print:rounded-none print:p-0">
         {/* Document title */}
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-wide">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
             {data.doc_type}
           </h1>
         </div>
 
         {/* Metadata grid */}
-        <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-8 border border-gray-200 rounded-lg p-4 print:border-gray-300">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-8 border border-gray-200 dark:border-gray-700 rounded-lg p-4 print:border-gray-300">
           <div>
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Magasin
             </span>
-            <p className="text-sm font-semibold text-gray-800 mt-0.5">{data.store_name}</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{data.store_name}</p>
           </div>
           <div>
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Date
             </span>
-            <p className="text-sm font-semibold text-gray-800 mt-0.5">{dateFormatted}</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{dateFormatted}</p>
           </div>
           <div>
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Lot (Batch)
             </span>
-            <p className="text-sm font-semibold text-gray-800 mt-0.5 font-mono">{data.batch_id}</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5 font-mono">{data.batch_id}</p>
           </div>
           <div>
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Reference
             </span>
-            <p className="text-sm font-semibold text-gray-800 mt-0.5">{data.reference || '—'}</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{data.reference || '\u2014'}</p>
           </div>
           {data.reason && (
             <div className="col-span-2">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Motif
               </span>
-              <p className="text-sm font-semibold text-gray-800 mt-0.5">{data.reason}</p>
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{data.reason}</p>
             </div>
           )}
         </div>
 
         {/* Movements table */}
-        <div className="overflow-hidden border border-gray-200 rounded-lg print:border-gray-300 mb-6">
+        <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg print:border-gray-300 mb-6">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200 print:bg-gray-100">
+            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 print:bg-gray-100">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Produit</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Quantite</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Acteur</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Produit</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Quantite</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Type</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Acteur</th>
               </tr>
             </thead>
             <tbody>
@@ -157,10 +171,10 @@ export default function MovementDocumentPage() {
                 return (
                   <tr
                     key={movement.id}
-                    className="border-b border-gray-50 hover:bg-gray-50 print:hover:bg-transparent"
+                    className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 print:hover:bg-transparent"
                   >
                     {/* Product */}
-                    <td className="px-4 py-3 font-medium text-gray-800">
+                    <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">
                       {movement.product_name}
                     </td>
 
@@ -185,15 +199,15 @@ export default function MovementDocumentPage() {
                     </td>
 
                     {/* Actor */}
-                    <td className="px-4 py-3 text-gray-600">
-                      {movement.actor_name || '—'}
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                      {movement.actor_name || '\u2014'}
                     </td>
                   </tr>
                 );
               })}
               {data.movements.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     Aucune ligne dans ce document.
                   </td>
                 </tr>
@@ -204,14 +218,14 @@ export default function MovementDocumentPage() {
 
         {/* Summary */}
         <div className="flex justify-end">
-          <div className="border border-gray-200 rounded-lg p-4 min-w-[220px] print:border-gray-300">
-            <div className="flex justify-between items-center gap-8 py-1 border-b border-gray-100 text-sm">
-              <span className="text-gray-600">Nombre de lignes</span>
-              <span className="font-semibold text-gray-800">{data.total_lines}</span>
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-w-[220px] print:border-gray-300">
+            <div className="flex justify-between items-center gap-8 py-1 border-b border-gray-100 dark:border-gray-700 text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Nombre de lignes</span>
+              <span className="font-semibold text-gray-800 dark:text-gray-200">{data.total_lines}</span>
             </div>
             <div className="flex justify-between items-center gap-8 py-1 text-sm">
-              <span className="text-gray-600">Quantite totale</span>
-              <span className="font-bold text-gray-900">{data.total_qty}</span>
+              <span className="text-gray-600 dark:text-gray-400">Quantite totale</span>
+              <span className="font-bold text-gray-900 dark:text-gray-100">{data.total_qty}</span>
             </div>
           </div>
         </div>

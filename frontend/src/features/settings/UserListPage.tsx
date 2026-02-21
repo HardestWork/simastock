@@ -9,6 +9,7 @@ import { useSort } from '@/hooks/use-sort';
 import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
 import { Search, UserPlus, Pencil, UserCheck, UserX, Trash2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/auth/auth-store';
 import type { User, UserRole } from '@/api/types';
 import type { AxiosError } from 'axios';
@@ -70,15 +71,23 @@ export default function UserListPage() {
     mutationFn: (user: User) =>
       userApi.update(user.id, { is_active: !user.is_active }),
     onSuccess: () => {
+      toast.success('Statut utilisateur mis a jour');
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => userApi.delete(id),
     onSuccess: () => {
+      toast.success('Utilisateur supprime avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       setDeleteTarget(null);
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -98,7 +107,7 @@ export default function UserListPage() {
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           Gestion des utilisateurs
         </h1>
         <Link
@@ -111,7 +120,7 @@ export default function UserListPage() {
       </div>
 
       {/* Search + Role filter */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-4">
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
             <Search
@@ -126,7 +135,7 @@ export default function UserListPage() {
                 setPage(1);
               }}
               placeholder="Rechercher par nom ou email..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
             />
           </div>
           <div className="flex-1 max-w-xs">
@@ -136,7 +145,7 @@ export default function UserListPage() {
                 setRoleFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
             >
               {ROLE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -146,7 +155,7 @@ export default function UserListPage() {
             </select>
           </div>
           {data && (
-            <div className="ml-auto text-sm text-gray-500">
+            <div className="ml-auto text-sm text-gray-500 dark:text-gray-400">
               {data.count} utilisateur{data.count !== 1 ? 's' : ''}
             </div>
           )}
@@ -175,10 +184,10 @@ export default function UserListPage() {
             (error as Error).message}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-left text-gray-600">
+              <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 text-left text-gray-600 dark:text-gray-400">
                 <SortableHeader field="last_name" label="Utilisateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                 <th className="px-4 py-3 font-medium">Telephone</th>
                 <SortableHeader field="role" label="Role" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
@@ -190,16 +199,16 @@ export default function UserListPage() {
               {data?.results.map((user) => (
                 <tr
                   key={user.id}
-                  className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
+                  className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
                   onClick={() => navigate(`/settings/users/${user.id}/edit`)}
                 >
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">
+                    <div className="font-medium text-gray-900 dark:text-gray-100">
                       {user.first_name} {user.last_name}
                     </div>
-                    <div className="text-xs text-gray-400">{user.email}</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">{user.email}</div>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                     {user.phone || '\u2014'}
                   </td>
                   <td className="px-4 py-3">
@@ -224,7 +233,7 @@ export default function UserListPage() {
                           e.stopPropagation();
                           navigate(`/settings/users/${user.id}/edit`);
                         }}
-                        className="p-1.5 rounded-lg hover:bg-gray-100"
+                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                         title="Modifier"
                       >
                         <Pencil size={15} className="text-gray-500" />
@@ -262,7 +271,7 @@ export default function UserListPage() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-4 py-8 text-center text-gray-500"
+                    className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
                   >
                     Aucun utilisateur trouve.
                   </td>
@@ -278,11 +287,11 @@ export default function UserListPage() {
       {/* Delete confirmation modal */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               Supprimer l'utilisateur
             </h3>
-            <p className="text-sm text-gray-600 mb-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
               Etes-vous sur de vouloir supprimer{' '}
               <span className="font-medium text-gray-900">
                 {deleteTarget.first_name} {deleteTarget.last_name}
@@ -304,7 +313,7 @@ export default function UserListPage() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => { setDeleteTarget(null); deleteMutation.reset(); }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 disabled={deleteMutation.isPending}
               >
                 Annuler

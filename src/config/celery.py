@@ -58,4 +58,8 @@ app.conf.beat_schedule = {
         "task": "analytics.tasks.detect_fraud",
         "schedule": crontab(minute="*/30"),  # Every 30 minutes
     },
+    "expenses-generate-recurring": {
+        "task": "expenses.tasks.generate_due_recurring_expenses",
+        "schedule": crontab(minute=0, hour="*"),  # Every hour
+    },
 }

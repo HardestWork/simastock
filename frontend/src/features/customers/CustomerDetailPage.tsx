@@ -63,7 +63,7 @@ export default function CustomerDetailPage() {
         <p className="text-gray-500">Client introuvable ou une erreur s'est produite.</p>
         <Link
           to="/customers"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
         >
           <ChevronLeft size={16} />
           Retour aux clients
@@ -76,7 +76,7 @@ export default function CustomerDetailPage() {
     <div>
       <Link
         to="/customers"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-1"
+        className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-1"
       >
         <ChevronLeft size={16} />
         Retour
@@ -84,7 +84,7 @@ export default function CustomerDetailPage() {
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{customer.full_name}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{customer.full_name}</h1>
         <Link
           to={`/customers/${id}/edit`}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
@@ -95,8 +95,8 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* Info panel */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
           Informations
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -121,14 +121,14 @@ export default function CustomerDetailPage() {
 
       {/* Credit accounts */}
       {creditAccounts.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
             Comptes de credit
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 text-gray-500 text-left">
+                <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-left">
                   <th className="pb-2 font-medium">Limite</th>
                   <th className="pb-2 font-medium text-right">Solde</th>
                   <th className="pb-2 font-medium text-right">Disponible</th>
@@ -143,14 +143,14 @@ export default function CustomerDetailPage() {
                     account.available_credit,
                   );
                   return (
-                    <tr key={account.id} className="border-b border-gray-50">
+                    <tr key={account.id} className="border-b border-gray-50 dark:border-gray-700">
                       <td className="py-3 font-medium">{formatCurrency(account.credit_limit)}</td>
                       <td className="py-3 text-right font-medium">{formatCurrency(account.balance)}</td>
                       <td className="py-3 text-right">{formatCurrency(account.available_credit)}</td>
                       <td className="py-3 text-center">
                         <span className="inline-flex items-center gap-1.5">
                           <span className={`w-2.5 h-2.5 rounded-full ${healthColor}`} />
-                          <span className="text-gray-600">
+                          <span className="text-gray-600 dark:text-gray-400">
                             {account.is_active ? 'Actif' : 'Inactif'}
                           </span>
                         </span>
@@ -165,17 +165,17 @@ export default function CustomerDetailPage() {
       )}
 
       {/* Purchase history */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
           Historique des achats
         </h2>
         {sales.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-4">Aucun achat enregistre.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Aucun achat enregistre.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 text-gray-500 text-left">
+                <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-left">
                   <th className="pb-2 font-medium">Facture</th>
                   <th className="pb-2 font-medium">Date</th>
                   <th className="pb-2 font-medium text-right">Total</th>
@@ -184,9 +184,9 @@ export default function CustomerDetailPage() {
               </thead>
               <tbody>
                 {sales.map((sale) => (
-                  <tr key={sale.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr key={sale.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="py-3 font-medium">{sale.invoice_number ?? '—'}</td>
-                    <td className="py-3 text-gray-600">
+                    <td className="py-3 text-gray-600 dark:text-gray-400">
                       {new Date(sale.created_at).toLocaleDateString('fr-FR')}
                     </td>
                     <td className="py-3 text-right font-medium">{formatCurrency(sale.total)}</td>

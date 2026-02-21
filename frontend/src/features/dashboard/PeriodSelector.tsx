@@ -64,7 +64,7 @@ export default function PeriodSelector({
           className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
             value === preset.key
               ? 'bg-primary text-white'
-              : 'text-gray-600 hover:bg-gray-100'
+              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
           }`}
         >
           {preset.label}
@@ -77,14 +77,14 @@ export default function PeriodSelector({
             type="date"
             value={dateFrom}
             onChange={(e) => onChange('custom', e.target.value, dateTo)}
-            className="border border-gray-300 rounded-lg px-2 py-1 text-sm"
+            className="border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm dark:bg-gray-700 dark:text-gray-100"
           />
-          <span className="text-gray-400 text-sm">-</span>
+          <span className="text-gray-400 dark:text-gray-500 text-sm">-</span>
           <input
             type="date"
             value={dateTo}
             onChange={(e) => onChange('custom', dateFrom, e.target.value)}
-            className="border border-gray-300 rounded-lg px-2 py-1 text-sm"
+            className="border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm dark:bg-gray-700 dark:text-gray-100"
           />
         </div>
       )}

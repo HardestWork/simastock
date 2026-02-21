@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 from api.v1 import views as v1_views
 from api.v1 import analytics_views as analytics_api_views
+from api.v1 import expense_views as expense_api_views
 from api.auth_views import (
     CookieTokenObtainPairView,
     CookieTokenRefreshView,
@@ -40,6 +41,11 @@ router.register(r'alerts', v1_views.AlertViewSet)
 router.register(r'refunds', v1_views.RefundViewSet)
 router.register(r'audit-logs', v1_views.AuditLogViewSet)
 router.register(r'store-users', v1_views.StoreUserViewSet, basename='store-user')
+router.register(r'expense-categories', expense_api_views.ExpenseCategoryViewSet, basename='expense-category')
+router.register(r'wallets', expense_api_views.WalletViewSet, basename='wallet')
+router.register(r'expenses', expense_api_views.ExpenseViewSet, basename='expense')
+router.register(r'expense-budgets', expense_api_views.BudgetViewSet, basename='expense-budget')
+router.register(r'recurring-expenses', expense_api_views.RecurringExpenseViewSet, basename='recurring-expense')
 
 
 app_name = 'api'
@@ -70,4 +76,7 @@ urlpatterns = [
     path('analytics/forecast/', analytics_api_views.SalesForecastAPIView.as_view(), name='analytics-forecast'),
     path('analytics/fraud-events/', analytics_api_views.FraudEventsAPIView.as_view(), name='analytics-fraud-events'),
     path('analytics/forecast-summary/', analytics_api_views.ForecastSummaryView.as_view(), name='analytics-forecast-summary'),
+
+    # Expenses analytics
+    path('expenses/dashboard/', expense_api_views.ExpenseDashboardAPIView.as_view(), name='expenses-dashboard'),
 ]

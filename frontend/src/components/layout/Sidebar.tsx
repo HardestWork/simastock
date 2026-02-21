@@ -9,6 +9,7 @@ import {
   Layers,
   Users,
   CreditCard,
+  Wallet,
   Truck,
   BarChart3,
   Brain,
@@ -39,6 +40,8 @@ interface SubItem {
   path: string;
   label: string;
   icon: React.ReactNode;
+  roles?: UserRole[];
+  capability?: Capability;
   superuserOnly?: boolean;
 }
 
@@ -77,6 +80,18 @@ const navItems: NavItem[] = [
   },
   { path: '/customers', label: 'Clients', icon: <Users size={20} />, roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER'] },
   { path: '/credits', label: 'Credits', icon: <CreditCard size={20} />, roles: ['MANAGER', 'ADMIN', 'CASHIER'] },
+  {
+    path: '/expenses',
+    label: 'Depenses',
+    icon: <Wallet size={20} />,
+    roles: ['CASHIER', 'MANAGER', 'ADMIN'],
+    capability: 'CAN_VIEW_EXPENSE_REPORTS',
+    children: [
+      { path: '/expenses', label: 'Liste', icon: <Wallet size={16} />, roles: ['CASHIER', 'MANAGER', 'ADMIN'], capability: 'CAN_VIEW_EXPENSE_REPORTS' },
+      { path: '/expenses/dashboard', label: 'Dashboard', icon: <PieChart size={16} />, roles: ['CASHIER', 'MANAGER', 'ADMIN'], capability: 'CAN_VIEW_EXPENSE_REPORTS' },
+      { path: '/expenses/settings', label: 'Parametres', icon: <Settings size={16} />, roles: ['MANAGER', 'ADMIN'], capability: 'CAN_SET_BUDGETS' },
+    ],
+  },
   { path: '/purchases', label: 'Achats', icon: <Truck size={20} />, roles: ['MANAGER', 'ADMIN'] },
   { path: '/reports', label: 'Rapports', icon: <BarChart3 size={20} />, roles: ['MANAGER', 'ADMIN'], capability: 'CAN_VIEW_REPORTS' },
   { path: '/statistics', label: 'Statistiques', icon: <PieChart size={20} />, roles: ['MANAGER', 'ADMIN'], capability: 'CAN_VIEW_REPORTS' },
@@ -168,7 +183,12 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {visibleItems.map((item) => {
           const isSuperuser = user?.is_superuser ?? false;
           const filteredChildren = item.children?.filter(
-            (child) => !child.superuserOnly || isSuperuser,
+            (child) => {
+              if (child.superuserOnly && !isSuperuser) return false;
+              if (child.roles && user && !child.roles.includes(user.role)) return false;
+              if (child.capability && capabilities.length > 0 && !capabilities.includes(child.capability)) return false;
+              return true;
+            },
           );
           const hasChildren = filteredChildren && filteredChildren.length > 0;
           const isExpanded = expandedSections.has(item.path);

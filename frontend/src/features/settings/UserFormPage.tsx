@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi, roleApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { ArrowLeft, Save, Loader2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 
 const SYSTEM_ROLE_OPTIONS = [
@@ -101,10 +102,12 @@ export default function UserFormPage() {
       password_confirm: string;
     }) => userApi.create(data),
     onSuccess: () => {
+      toast.success('Utilisateur cree avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       navigate('/settings/users');
     },
     onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
       setSubmitError(extractErrorMessage(err));
     },
   });
@@ -114,11 +117,13 @@ export default function UserFormPage() {
     mutationFn: (data: Record<string, unknown>) =>
       userApi.update(id!, data as Parameters<typeof userApi.update>[1]),
     onSuccess: () => {
+      toast.success('Utilisateur mis a jour avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id!) });
       navigate('/settings/users');
     },
     onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
       setSubmitError(extractErrorMessage(err));
     },
   });
@@ -182,22 +187,22 @@ export default function UserFormPage() {
       {/* Header */}
       <Link
         to="/settings/users"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-1"
+        className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-1"
       >
         <ArrowLeft size={16} />
         Retour aux utilisateurs
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
         {isEdit ? "Modifier l'utilisateur" : 'Nouvel utilisateur'}
       </h1>
 
       <form onSubmit={handleSubmit}>
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Email */}
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email <span className="text-red-500">*</span>
               </label>
               <input
@@ -205,7 +210,7 @@ export default function UserFormPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-100"
                 placeholder="exemple@email.com"
                 required
               />
@@ -213,14 +218,14 @@ export default function UserFormPage() {
 
             {/* Prenom */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Prenom <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 placeholder="Prenom"
                 required
               />
@@ -228,14 +233,14 @@ export default function UserFormPage() {
 
             {/* Nom */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Nom <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 placeholder="Nom"
                 required
               />
@@ -243,14 +248,14 @@ export default function UserFormPage() {
 
             {/* Telephone */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Telephone
               </label>
               <input
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 placeholder="Telephone (optionnel)"
               />
             </div>
@@ -258,7 +263,7 @@ export default function UserFormPage() {
             {/* Custom role */}
             {customRoles.length > 0 ? (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Role <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -270,7 +275,7 @@ export default function UserFormPage() {
                     const cr = customRoles.find((r) => r.id === crId);
                     if (cr) setRole(cr.base_role);
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 >
                   <option value="">-- Selectionner un role --</option>
                   {customRoles.map((cr) => (
@@ -285,13 +290,13 @@ export default function UserFormPage() {
               </div>
             ) : (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Role <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 >
                   {SYSTEM_ROLE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -316,7 +321,7 @@ export default function UserFormPage() {
                     <div className="w-10 h-6 bg-gray-300 rounded-full peer-checked:bg-primary transition-colors" />
                     <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform" />
                   </div>
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Utilisateur actif
                   </span>
                 </label>
@@ -327,28 +332,28 @@ export default function UserFormPage() {
             {!isEdit && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Mot de passe <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Mot de passe"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Confirmer le mot de passe <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="password"
                     value={passwordConfirm}
                     onChange={(e) => setPasswordConfirm(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Confirmer le mot de passe"
                     required
                   />
@@ -369,7 +374,7 @@ export default function UserFormPage() {
           <div className="mt-6 flex items-center justify-end gap-3">
             <Link
               to="/settings/users"
-              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               Annuler
             </Link>

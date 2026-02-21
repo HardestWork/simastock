@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import { BarChart3, RefreshCw, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { analyticsApi } from '@/api/endpoints';
 import CurrencyDisplay from '@/components/shared/CurrencyDisplay';
@@ -200,7 +201,13 @@ export default function AnalyticsPage() {
 
   const recalcMut = useMutation({
     mutationFn: () => analyticsApi.strategicKpis({ ...params, refresh: '1' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),
+    onSuccess: () => {
+      toast.success('Indicateurs recalcules avec succes');
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+    },
   });
 
   const anyError =
@@ -235,7 +242,7 @@ export default function AnalyticsPage() {
   }, [forecastQ.data]);
 
   if (!storeId) {
-    return <div className="text-center py-12 text-gray-500">Aucun magasin selectionne.</div>;
+    return <div className="text-center py-12 text-gray-500 dark:text-gray-400">Aucun magasin selectionne.</div>;
   }
 
   const flags = strategicQ.data?.feature_flags ?? {};
@@ -252,27 +259,27 @@ export default function AnalyticsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <BarChart3 size={22} /> Analytics / AI
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Magasin: {store?.name}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Magasin: {store?.name}</p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <div className="flex items-center gap-2">
-            <div className="text-xs text-gray-500">Periode</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Periode</div>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="px-2 py-2 rounded-lg border border-gray-200 bg-white text-sm"
+              className="px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm dark:text-gray-100"
             />
-            <span className="text-sm text-gray-400">-</span>
+            <span className="text-sm text-gray-400 dark:text-gray-500">-</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="px-2 py-2 rounded-lg border border-gray-200 bg-white text-sm"
+              className="px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm dark:text-gray-100"
             />
           </div>
 
@@ -280,7 +287,7 @@ export default function AnalyticsPage() {
             type="button"
             onClick={() => recalcMut.mutate()}
             disabled={recalcMut.isPending}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Recalcule les indicateurs"
           >
             <RefreshCw size={16} className={recalcMut.isPending ? 'animate-spin' : ''} />
@@ -290,7 +297,7 @@ export default function AnalyticsPage() {
           <button
             type="button"
             onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all })}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm dark:text-gray-300"
           >
             Actualiser
           </button>
@@ -320,7 +327,7 @@ export default function AnalyticsPage() {
             disabled={!tabEnabled[k]}
             title={!tabEnabled[k] ? 'Fonctionnalite desactivee (feature flags)' : undefined}
             className={`px-3 py-2 rounded-lg border text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
-              tab === k ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 hover:bg-gray-50'
+              tab === k ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 dark:text-gray-300'
             }`}
           >
             {label}
@@ -331,16 +338,16 @@ export default function AnalyticsPage() {
       {tab === 'dashboard' && (
         <div className="space-y-4">
           {strategicQ.isLoading ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">Chargement...</div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-gray-500 dark:text-gray-400">Chargement...</div>
           ) : !strategicQ.data ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-gray-500 dark:text-gray-400">
               Aucune donnee. Cliquez sur Recalculer.
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <div className="text-xs text-gray-500">Chiffre d'affaires</div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Chiffre d'affaires</div>
                   <div className="text-xl font-semibold mt-1">
                     <CurrencyDisplay value={strategicQ.data.revenue} />
                   </div>
@@ -349,40 +356,40 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <div className="text-xs text-gray-500">Commandes</div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Commandes</div>
                   <div className="text-xl font-semibold mt-1">{strategicQ.data.orders}</div>
-                  <div className="text-xs text-gray-500 mt-1">Ventes actives: {strategicQ.data.active_sales_count}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Ventes actives: {strategicQ.data.active_sales_count}</div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <div className="text-xs text-gray-500">Panier moyen</div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Panier moyen</div>
                   <div className="text-xl font-semibold mt-1">
                     <CurrencyDisplay value={strategicQ.data.avg_basket} />
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Net: <CurrencyDisplay value={strategicQ.data.net_sales} />
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <div className="text-xs text-gray-500">Prevision (7j)</div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Prevision (7j)</div>
                   <div className="text-xl font-semibold mt-1">{toNum(strategicQ.data.forecast_next_7d_qty).toLocaleString('fr-FR')}</div>
-                  <div className="text-xs text-gray-500 mt-1">Ruptures: {strategicQ.data.stockout_count}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Ruptures: {strategicQ.data.stockout_count}</div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <div className="text-sm font-semibold text-gray-900 mb-2">ABC</div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">ABC</div>
                   {Object.keys(strategicQ.data.abc_distribution ?? {}).length === 0 ? (
-                    <div className="text-sm text-gray-500">Aucune analyse ABC. Cliquez Recalculer.</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Aucune analyse ABC. Cliquez Recalculer.</div>
                   ) : (
                     <div className="space-y-2 text-sm">
                       {Object.entries(strategicQ.data.abc_distribution).map(([cls, v]) => (
                         <div key={cls} className="flex items-center justify-between">
                           <div className="font-medium">Classe {cls}</div>
-                          <div className="text-gray-600">
+                          <div className="text-gray-600 dark:text-gray-400">
                             <CurrencyDisplay value={v.revenue} /> ({v.products} produits)
                           </div>
                         </div>
@@ -391,32 +398,32 @@ export default function AnalyticsPage() {
                   )}
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <div className="text-sm font-semibold text-gray-900 mb-2">Reassort</div>
-                  <div className="text-sm text-gray-700">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Reassort</div>
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
                     Total: <span className="font-medium">{strategicQ.data.reorder.total}</span>
                   </div>
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
                     Urgent: <span className="font-medium">{strategicQ.data.reorder.high}</span>
                   </div>
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
                     Moyen: <span className="font-medium">{strategicQ.data.reorder.medium}</span>
                   </div>
-                  <div className="text-xs text-gray-500 mt-2">Ouvrez l'onglet Reorder pour la liste detaillee.</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">Ouvrez l'onglet Reorder pour la liste detaillee.</div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <div className="text-sm font-semibold text-gray-900 mb-2">Risque</div>
-                  <div className="text-sm text-gray-700">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Risque</div>
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
                     Credit (comptes notes): <span className="font-medium">{strategicQ.data.credit.scored_accounts}</span>
                   </div>
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
                     Score moyen: <span className="font-medium">{strategicQ.data.credit.average_score}</span>
                   </div>
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
                     Fraude (evenements): <span className="font-medium">{strategicQ.data.fraud.events}</span> (non resolus: {strategicQ.data.fraud.unresolved})
                   </div>
-                  <div className="text-xs text-gray-500 mt-2">Cliquez Recalculer si c'est vide.</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">Cliquez Recalculer si c'est vide.</div>
                 </div>
               </div>
             </>
@@ -425,15 +432,15 @@ export default function AnalyticsPage() {
       )}
 
       {tab === 'abc' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 overflow-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 overflow-auto">
           {abcQ.isLoading ? (
-            <div className="text-sm text-gray-500">Chargement...</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Chargement...</div>
           ) : (abcQ.data?.length ?? 0) === 0 ? (
-            <div className="text-sm text-gray-500">Aucune donnee. Cliquez Recalculer, puis revenez ici.</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Aucune donnee. Cliquez Recalculer, puis revenez ici.</div>
           ) : (
             <table className="min-w-full text-sm">
-              <thead className="text-xs text-gray-500">
-                <tr className="border-b">
+              <thead className="text-xs text-gray-500 dark:text-gray-400">
+                <tr className="border-b dark:border-gray-700">
                   <th className="text-left py-2 pr-4">Classe</th>
                   <th className="text-left py-2 pr-4">Produit</th>
                   <th className="text-left py-2 pr-4">SKU</th>
@@ -445,10 +452,10 @@ export default function AnalyticsPage() {
               </thead>
               <tbody>
                 {abcQ.data?.map((row) => (
-                  <tr key={row.id} className="border-b last:border-b-0">
+                  <tr key={row.id} className="border-b dark:border-gray-700 last:border-b-0">
                     <td className="py-2 pr-4 font-medium">{row.abc_class}</td>
                     <td className="py-2 pr-4">{row.product_name}</td>
-                    <td className="py-2 pr-4 text-gray-500">{row.product_sku}</td>
+                    <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{row.product_sku}</td>
                     <td className="py-2 pr-4 text-right">{toNum(row.quantity_sold).toLocaleString('fr-FR')}</td>
                     <td className="py-2 pr-4 text-right">
                       <CurrencyDisplay value={row.revenue} />
@@ -464,15 +471,15 @@ export default function AnalyticsPage() {
       )}
 
       {tab === 'reorder' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 overflow-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 overflow-auto">
           {reorderQ.isLoading ? (
-            <div className="text-sm text-gray-500">Chargement...</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Chargement...</div>
           ) : (reorderQ.data?.length ?? 0) === 0 ? (
-            <div className="text-sm text-gray-500">Aucune recommandation. Cliquez Recalculer pour generer.</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Aucune recommandation. Cliquez Recalculer pour generer.</div>
           ) : (
             <table className="min-w-full text-sm">
-              <thead className="text-xs text-gray-500">
-                <tr className="border-b">
+              <thead className="text-xs text-gray-500 dark:text-gray-400">
+                <tr className="border-b dark:border-gray-700">
                   <th className="text-left py-2 pr-4">Produit</th>
                   <th className="text-left py-2 pr-4">SKU</th>
                   <th className="text-right py-2 pr-4">Disponible</th>
@@ -484,9 +491,9 @@ export default function AnalyticsPage() {
               </thead>
               <tbody>
                 {reorderQ.data?.map((row) => (
-                  <tr key={row.id} className="border-b last:border-b-0">
+                  <tr key={row.id} className="border-b dark:border-gray-700 last:border-b-0">
                     <td className="py-2 pr-4">{row.product_name}</td>
-                    <td className="py-2 pr-4 text-gray-500">{row.product_sku}</td>
+                    <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{row.product_sku}</td>
                     <td className="py-2 pr-4 text-right">{toNum(row.current_available).toLocaleString('fr-FR')}</td>
                     <td className="py-2 pr-4 text-right">{toNum(row.reorder_point).toLocaleString('fr-FR')}</td>
                     <td className="py-2 pr-4 text-right font-medium">{toNum(row.suggested_order_qty).toLocaleString('fr-FR')}</td>
@@ -513,15 +520,15 @@ export default function AnalyticsPage() {
       )}
 
       {tab === 'credit' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 overflow-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 overflow-auto">
           {creditQ.isLoading ? (
-            <div className="text-sm text-gray-500">Chargement...</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Chargement...</div>
           ) : (creditQ.data?.length ?? 0) === 0 ? (
-            <div className="text-sm text-gray-500">Aucune donnee. Cliquez Recalculer pour noter les comptes.</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Aucune donnee. Cliquez Recalculer pour noter les comptes.</div>
           ) : (
             <table className="min-w-full text-sm">
-              <thead className="text-xs text-gray-500">
-                <tr className="border-b">
+              <thead className="text-xs text-gray-500 dark:text-gray-400">
+                <tr className="border-b dark:border-gray-700">
                   <th className="text-left py-2 pr-4">Client</th>
                   <th className="text-left py-2 pr-4">Telephone</th>
                   <th className="text-right py-2 pr-4">Score</th>
@@ -533,9 +540,9 @@ export default function AnalyticsPage() {
               </thead>
               <tbody>
                 {creditQ.data?.map((row) => (
-                  <tr key={row.id} className="border-b last:border-b-0">
+                  <tr key={row.id} className="border-b dark:border-gray-700 last:border-b-0">
                     <td className="py-2 pr-4">{row.customer_name}</td>
-                    <td className="py-2 pr-4 text-gray-500">{row.customer_phone}</td>
+                    <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{row.customer_phone}</td>
                     <td className="py-2 pr-4 text-right font-medium">{row.score}</td>
                     <td className="py-2 pr-4">{row.grade}</td>
                     <td className="py-2 pr-4 text-right">{fmtPct01(row.utilization_rate)}</td>
@@ -552,25 +559,25 @@ export default function AnalyticsPage() {
       )}
 
       {tab === 'forecast' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           {forecastQ.isLoading ? (
-            <div className="text-sm text-gray-500">Chargement...</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Chargement...</div>
           ) : (forecastQ.data?.length ?? 0) === 0 ? (
-            <div className="text-sm text-gray-500">Aucune prevision. Cliquez Recalculer pour generer.</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Aucune prevision. Cliquez Recalculer pour generer.</div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
-                <div className="text-sm font-semibold text-gray-900 mb-2">Demande prevue par jour</div>
+                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Demande prevue par jour</div>
                 <table className="min-w-full text-sm">
-                  <thead className="text-xs text-gray-500">
-                    <tr className="border-b">
+                  <thead className="text-xs text-gray-500 dark:text-gray-400">
+                    <tr className="border-b dark:border-gray-700">
                       <th className="text-left py-2 pr-4">Date</th>
                       <th className="text-right py-2">Qte</th>
                     </tr>
                   </thead>
                   <tbody>
                     {forecastAgg.dates.map(([d, qty]) => (
-                      <tr key={d} className="border-b last:border-b-0">
+                      <tr key={d} className="border-b dark:border-gray-700 last:border-b-0">
                         <td className="py-2 pr-4">{d}</td>
                         <td className="py-2 text-right">{qty.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</td>
                       </tr>
@@ -580,10 +587,10 @@ export default function AnalyticsPage() {
               </div>
 
               <div>
-                <div className="text-sm font-semibold text-gray-900 mb-2">Top produits (horizon)</div>
+                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Top produits (horizon)</div>
                 <table className="min-w-full text-sm">
-                  <thead className="text-xs text-gray-500">
-                    <tr className="border-b">
+                  <thead className="text-xs text-gray-500 dark:text-gray-400">
+                    <tr className="border-b dark:border-gray-700">
                       <th className="text-left py-2 pr-4">Produit</th>
                       <th className="text-left py-2 pr-4">SKU</th>
                       <th className="text-right py-2">Qte</th>
@@ -591,9 +598,9 @@ export default function AnalyticsPage() {
                   </thead>
                   <tbody>
                     {forecastAgg.topProducts.map((p) => (
-                      <tr key={`${p.sku}::${p.name}`} className="border-b last:border-b-0">
+                      <tr key={`${p.sku}::${p.name}`} className="border-b dark:border-gray-700 last:border-b-0">
                         <td className="py-2 pr-4">{p.name}</td>
-                        <td className="py-2 pr-4 text-gray-500">{p.sku}</td>
+                        <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{p.sku}</td>
                         <td className="py-2 text-right">{p.qty.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</td>
                       </tr>
                     ))}
@@ -608,14 +615,14 @@ export default function AnalyticsPage() {
       {tab === 'fraud' && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="text-xs text-gray-500">Statut</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Statut</div>
             {(['all', 'open', 'resolved'] as const).map((k) => (
               <button
                 key={k}
                 type="button"
                 onClick={() => setFraudStatus(k)}
                 className={`px-3 py-2 rounded-lg border text-sm ${
-                  fraudStatus === k ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 hover:bg-gray-50'
+                  fraudStatus === k ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 dark:text-gray-300'
                 }`}
               >
                 {k === 'all' ? 'Tous' : k === 'open' ? 'Ouverts' : 'Resolus'}
@@ -623,15 +630,15 @@ export default function AnalyticsPage() {
             ))}
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-4 overflow-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 overflow-auto">
             {fraudQ.isLoading ? (
-              <div className="text-sm text-gray-500">Chargement...</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Chargement...</div>
             ) : (fraudQ.data?.length ?? 0) === 0 ? (
-              <div className="text-sm text-gray-500">Aucun evenement. Cliquez Recalculer pour lancer la detection (ou ajustez la periode).</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Aucun evenement. Cliquez Recalculer pour lancer la detection (ou ajustez la periode).</div>
             ) : (
               <table className="min-w-full text-sm">
-                <thead className="text-xs text-gray-500">
-                  <tr className="border-b">
+                <thead className="text-xs text-gray-500 dark:text-gray-400">
+                  <tr className="border-b dark:border-gray-700">
                     <th className="text-left py-2 pr-4">Date</th>
                     <th className="text-left py-2 pr-4">Severite</th>
                     <th className="text-right py-2 pr-4">Score</th>
@@ -642,16 +649,16 @@ export default function AnalyticsPage() {
                 </thead>
                 <tbody>
                   {fraudQ.data?.map((row) => (
-                    <tr key={row.id} className="border-b last:border-b-0">
+                    <tr key={row.id} className="border-b dark:border-gray-700 last:border-b-0">
                       <td className="py-2 pr-4">{row.detected_on}</td>
                       <td className="py-2 pr-4">
                         <FraudSeverityBadge value={row.severity} />
                       </td>
                       <td className="py-2 pr-4 text-right font-medium">{row.risk_score}</td>
-                      <td className="py-2 pr-4 text-gray-600">{row.sale_invoice ?? '-'}</td>
+                      <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">{row.sale_invoice ?? '-'}</td>
                       <td className="py-2 pr-4">
                         <div className="font-medium">{row.title}</div>
-                        {row.description ? <div className="text-xs text-gray-500">{row.description}</div> : null}
+                        {row.description ? <div className="text-xs text-gray-500 dark:text-gray-400">{row.description}</div> : null}
                       </td>
                       <td className="py-2">
                         <span

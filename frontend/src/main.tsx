@@ -1,7 +1,20 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import * as Sentry from '@sentry/react'
 import './index.css'
 import App from './App'
+
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
+    tracesSampleRate: 0.2,
+    replaysSessionSampleRate: 0,
+    replaysOnErrorSampleRate: 1.0,
+    environment: import.meta.env.MODE,
+  });
+}
 
 // When a new deployment changes chunk hashes, stale tabs may fail to load
 // lazy-imported modules.  Detect this and force a full page reload so the
@@ -27,6 +40,8 @@ sessionStorage.removeItem('__chunk_reload');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Sentry.ErrorBoundary fallback={<p>Une erreur est survenue.</p>}>
+      <App />
+    </Sentry.ErrorBoundary>
   </StrictMode>,
 )

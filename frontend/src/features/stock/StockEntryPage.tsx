@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Minus, X, PackagePlus, Search } from 'lucide-react';
 import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
+import { toast } from 'sonner';
 import type { ProductStock } from '@/api/types';
 
 // ---------------------------------------------------------------------------
@@ -73,9 +74,13 @@ export default function StockEntryPage() {
       reason?: string;
     }) => stockApi.bulkEntry(payload),
     onSuccess: (response) => {
+      toast.success('Entree de stock enregistree avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.stockLevels.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all });
       navigate(`/stock/movements/${response.batch_id}`);
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -157,13 +162,13 @@ export default function StockEntryPage() {
       <div className="flex items-center gap-3">
         <Link
           to="/stock"
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+          className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
         >
           <ArrowLeft size={16} />
           <span>Stock</span>
         </Link>
-        <span className="text-gray-300">/</span>
-        <h1 className="text-2xl font-bold text-gray-900">Entree de stock</h1>
+        <span className="text-gray-300 dark:text-gray-600">/</span>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Entree de stock</h1>
       </div>
 
       {/* Main 3-column layout */}
@@ -173,20 +178,20 @@ export default function StockEntryPage() {
         {/* Left column — Product search                                        */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-3">
-          <h2 className="text-base font-semibold text-gray-800">Rechercher un produit</h2>
+          <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">Rechercher un produit</h2>
 
           {/* Search input */}
           <div className="relative">
             <Search
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
             />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Nom, SKU..."
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary dark:bg-gray-700 dark:text-gray-100"
             />
           </div>
 
@@ -199,7 +204,7 @@ export default function StockEntryPage() {
             )}
 
             {!searchLoading && searchData?.results.length === 0 && (
-              <p className="text-sm text-gray-500 text-center py-6">Aucun produit trouve.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">Aucun produit trouve.</p>
             )}
 
             {!searchLoading &&
@@ -213,19 +218,19 @@ export default function StockEntryPage() {
                     className={`text-left w-full p-3 rounded-lg border transition-colors ${
                       alreadyAdded
                         ? 'border-green-200 bg-green-50 cursor-default opacity-60'
-                        : 'border-gray-200 bg-white hover:border-primary hover:bg-primary/5 cursor-pointer'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-primary hover:bg-primary/5 cursor-pointer'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                           {stock.product_name}
                         </p>
-                        <p className="text-xs text-gray-500">{stock.product_sku}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{stock.product_sku}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-xs text-gray-500">Stock actuel</p>
-                        <p className="text-sm font-semibold text-gray-700">{stock.quantity}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Stock actuel</p>
+                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{stock.quantity}</p>
                       </div>
                     </div>
                     {alreadyAdded && (
@@ -241,10 +246,10 @@ export default function StockEntryPage() {
         {/* Middle column — Entry lines                                         */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-3">
-          <h2 className="text-base font-semibold text-gray-800">
+          <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">
             Lignes d'entree
             {totalProducts > 0 && (
-              <span className="ml-2 text-sm font-normal text-gray-500">
+              <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
                 ({totalProducts} produit{totalProducts > 1 ? 's' : ''})
               </span>
             )}
@@ -253,8 +258,8 @@ export default function StockEntryPage() {
           <div className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-260px)]">
             {lines.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <PackagePlus size={36} className="text-gray-300 mb-3" />
-                <p className="text-sm text-gray-500">
+                <PackagePlus size={36} className="text-gray-300 dark:text-gray-600 mb-3" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Selectionnez des produits depuis la recherche pour commencer.
                 </p>
               </div>
@@ -263,17 +268,17 @@ export default function StockEntryPage() {
             {lines.map((line) => (
               <div
                 key={line.product_id}
-                className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col gap-2"
+                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex flex-col gap-2"
               >
                 {/* Product info + remove */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{line.product_name}</p>
-                    <p className="text-xs text-gray-500">{line.product_sku}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{line.product_name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{line.product_sku}</p>
                   </div>
                   <button
                     onClick={() => handleRemoveLine(line.product_id)}
-                    className="p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                    className="p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0"
                     title="Retirer"
                   >
                     <X size={14} />
@@ -283,15 +288,15 @@ export default function StockEntryPage() {
                 {/* Stock info + quantity control */}
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs text-gray-500">Stock actuel</p>
-                    <p className="text-sm font-semibold text-gray-700">{line.current_stock}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Stock actuel</p>
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{line.current_stock}</p>
                   </div>
 
                   {/* Quantity control */}
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleDecrement(line.product_id)}
-                      className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
+                      className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                     >
                       <Minus size={12} />
                     </button>
@@ -302,11 +307,11 @@ export default function StockEntryPage() {
                       onChange={(e) =>
                         handleQuantityChange(line.product_id, parseInt(e.target.value) || 1)
                       }
-                      className="w-16 text-center text-sm font-semibold border border-gray-200 rounded-md py-1 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      className="w-16 text-center text-sm font-semibold border border-gray-200 dark:border-gray-600 rounded-md py-1 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary dark:bg-gray-700 dark:text-gray-100"
                     />
                     <button
                       onClick={() => handleIncrement(line.product_id)}
-                      className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
+                      className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                     >
                       <Plus size={12} />
                     </button>
@@ -321,45 +326,45 @@ export default function StockEntryPage() {
         {/* Right column — Summary & Submit                                     */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-4">
-          <h2 className="text-base font-semibold text-gray-800">Recapitulatif</h2>
+          <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">Recapitulatif</h2>
 
           {/* Summary card */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col gap-3">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col gap-3">
             <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">Nombre de produits</span>
-              <span className="font-semibold text-gray-900">{totalProducts}</span>
+              <span className="text-gray-600 dark:text-gray-400">Nombre de produits</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">{totalProducts}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">Quantite totale</span>
-              <span className="font-semibold text-gray-900">{totalQuantity}</span>
+              <span className="text-gray-600 dark:text-gray-400">Quantite totale</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">{totalQuantity}</span>
             </div>
           </div>
 
           {/* Reference input */}
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">
-              Reference <span className="text-gray-400 font-normal">(optionnel)</span>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Reference <span className="text-gray-400 dark:text-gray-500 font-normal">(optionnel)</span>
             </label>
             <input
               type="text"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               placeholder="Ex: BL-2024-001"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary dark:bg-gray-700 dark:text-gray-100"
             />
           </div>
 
           {/* Reason textarea */}
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">
-              Motif <span className="text-gray-400 font-normal">(optionnel)</span>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Motif <span className="text-gray-400 dark:text-gray-500 font-normal">(optionnel)</span>
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
               placeholder="Ex: Livraison fournisseur, reapprovisionnement..."
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary dark:bg-gray-700 dark:text-gray-100"
             />
           </div>
 
@@ -392,7 +397,7 @@ export default function StockEntryPage() {
           </button>
 
           {lines.length === 0 && (
-            <p className="text-xs text-gray-400 text-center">
+            <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
               Ajoutez au moins un produit pour valider.
             </p>
           )}

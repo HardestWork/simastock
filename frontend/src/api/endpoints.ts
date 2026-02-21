@@ -25,6 +25,7 @@ import type {
   Payment,
   CashShift,
   CustomerAccount,
+  CreditPaymentResult,
   CreditLedgerEntry,
   PaymentSchedule,
   Supplier,
@@ -38,6 +39,12 @@ import type {
   StockValueTrend,
   DailyStatistics,
   CsvImportResult,
+  ExpenseCategory,
+  Wallet,
+  Expense,
+  ExpenseBudget,
+  RecurringExpense,
+  ExpenseDashboardData,
   StoreUserRecord,
   CapabilityPreset,
   PaginatedResponse,
@@ -492,10 +499,104 @@ export const creditApi = {
     apiClient.get<PaginatedResponse<CreditLedgerEntry>>('credit-ledger/', { params }).then((r) => r.data),
 
   pay: (accountId: string, data: { amount: string; reference?: string }) =>
-    apiClient.post<CustomerAccount>(`credit-accounts/${accountId}/pay/`, data).then((r) => r.data),
+    apiClient.post<CreditPaymentResult>(`credit-accounts/${accountId}/pay/`, data).then((r) => r.data),
 
   schedules: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<PaymentSchedule>>('payment-schedules/', { params }).then((r) => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// Expenses
+// ---------------------------------------------------------------------------
+
+export const expenseApi = {
+  categories: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<ExpenseCategory>>('expense-categories/', { params }).then((r) => r.data),
+
+  createCategory: (data: { store?: string; name: string; type: 'STOCK' | 'FIXED' | 'VARIABLE' }) =>
+    apiClient.post<ExpenseCategory>('expense-categories/', data).then((r) => r.data),
+
+  updateCategory: (id: string, data: Partial<ExpenseCategory>) =>
+    apiClient.patch<ExpenseCategory>(`expense-categories/${id}/`, data).then((r) => r.data),
+
+  deleteCategory: (id: string) =>
+    apiClient.delete(`expense-categories/${id}/`).then((r) => r.data),
+
+  wallets: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<Wallet>>('wallets/', { params }).then((r) => r.data),
+
+  createWallet: (data: { store: string; name: string; type: 'CASH' | 'BANK' | 'MOBILE_MONEY'; initial_balance?: string }) =>
+    apiClient.post<Wallet>('wallets/', data).then((r) => r.data),
+
+  updateWallet: (id: string, data: Partial<Wallet> & { new_balance?: string }) =>
+    apiClient.patch<Wallet>(`wallets/${id}/`, data).then((r) => r.data),
+
+  deleteWallet: (id: string) =>
+    apiClient.delete(`wallets/${id}/`).then((r) => r.data),
+
+  expenses: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<Expense>>('expenses/', { params }).then((r) => r.data),
+
+  createExpense: (data: {
+    store: string;
+    category: string;
+    wallet: string;
+    amount: string;
+    description: string;
+    supplier_name?: string;
+    expense_date: string;
+  }) => apiClient.post<Expense>('expenses/', data).then((r) => r.data),
+
+  updateExpense: (id: string, data: Partial<Expense>) =>
+    apiClient.patch<Expense>(`expenses/${id}/`, data).then((r) => r.data),
+
+  voidExpense: (id: string, reason?: string) =>
+    apiClient.post<Expense>(`expenses/${id}/void/`, reason ? { reason } : {}).then((r) => r.data),
+
+  budgets: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<ExpenseBudget>>('expense-budgets/', { params }).then((r) => r.data),
+
+  createBudget: (data: {
+    store: string;
+    category?: string | null;
+    period: string;
+    limit_amount: string;
+    alert_threshold_percent: number;
+  }) => apiClient.post<ExpenseBudget>('expense-budgets/', data).then((r) => r.data),
+
+  updateBudget: (id: string, data: Partial<ExpenseBudget>) =>
+    apiClient.patch<ExpenseBudget>(`expense-budgets/${id}/`, data).then((r) => r.data),
+
+  deleteBudget: (id: string) =>
+    apiClient.delete(`expense-budgets/${id}/`).then((r) => r.data),
+
+  recurring: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<RecurringExpense>>('recurring-expenses/', { params }).then((r) => r.data),
+
+  createRecurring: (data: {
+    store: string;
+    category: string;
+    wallet: string;
+    amount: string;
+    description: string;
+    supplier_name?: string;
+    frequency: 'WEEKLY' | 'MONTHLY';
+    next_run_date: string;
+  }) => apiClient.post<RecurringExpense>('recurring-expenses/', data).then((r) => r.data),
+
+  updateRecurring: (id: string, data: Partial<RecurringExpense>) =>
+    apiClient.patch<RecurringExpense>(`recurring-expenses/${id}/`, data).then((r) => r.data),
+
+  deleteRecurring: (id: string) =>
+    apiClient.delete(`recurring-expenses/${id}/`).then((r) => r.data),
+
+  runRecurringDue: (data?: { store?: string; run_date?: string }) =>
+    apiClient.post<{ generated_count: number; generated_ids: string[]; failed_count: number; failures: Array<{ recurring_id: string; store_id: string; error: string }> }>(
+      'recurring-expenses/run_due/', data ?? {},
+    ).then((r) => r.data),
+
+  dashboard: (params: { store: string; period?: string }) =>
+    apiClient.get<ExpenseDashboardData>('expenses/dashboard/', { params }).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------

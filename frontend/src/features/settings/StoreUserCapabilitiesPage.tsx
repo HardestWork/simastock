@@ -6,6 +6,7 @@ import { storeUserApi, storeApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
 import { ArrowLeft, Shield, Users, Check, X, Loader2, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Capability, StoreUserRecord, UserRole } from '@/api/types';
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,13 @@ const CAPABILITY_COLORS: Record<Capability, string> = {
   CAN_OVERRIDE_PRICE: 'bg-orange-100 text-orange-700',
   CAN_APPROVE: 'bg-violet-100 text-violet-700',
   CAN_VIEW_REPORTS: 'bg-indigo-100 text-indigo-700',
+  CAN_CREATE_EXPENSE: 'bg-lime-100 text-lime-700',
+  CAN_EDIT_EXPENSE: 'bg-teal-100 text-teal-700',
+  CAN_VOID_EXPENSE: 'bg-red-100 text-red-700',
+  CAN_VIEW_EXPENSE_REPORTS: 'bg-cyan-100 text-cyan-700',
+  CAN_MANAGE_CATEGORIES: 'bg-fuchsia-100 text-fuchsia-700',
+  CAN_MANAGE_WALLETS: 'bg-blue-100 text-blue-700',
+  CAN_SET_BUDGETS: 'bg-purple-100 text-purple-700',
 };
 
 const CAPABILITY_LABELS_FALLBACK: Record<Capability, string> = {
@@ -46,6 +54,13 @@ const CAPABILITY_LABELS_FALLBACK: Record<Capability, string> = {
   CAN_OVERRIDE_PRICE: 'Modifier les prix',
   CAN_APPROVE: 'Approuver',
   CAN_VIEW_REPORTS: 'Voir les rapports',
+  CAN_CREATE_EXPENSE: 'Creer des depenses',
+  CAN_EDIT_EXPENSE: 'Modifier des depenses',
+  CAN_VOID_EXPENSE: 'Annuler des depenses',
+  CAN_VIEW_EXPENSE_REPORTS: 'Voir rapports depenses',
+  CAN_MANAGE_CATEGORIES: 'Gerer categories depenses',
+  CAN_MANAGE_WALLETS: 'Gerer wallets',
+  CAN_SET_BUDGETS: 'Configurer budgets depenses',
 };
 
 // ---------------------------------------------------------------------------
@@ -130,6 +145,7 @@ export default function StoreUserCapabilitiesPage() {
     mutationFn: (args: { id: string; capabilities: Capability[] }) =>
       storeUserApi.update(args.id, { capabilities: args.capabilities }),
     onSuccess: (updated) => {
+      toast.success('Permissions enregistrees avec succes');
       queryClient.invalidateQueries({ queryKey: ['store-users'] });
       setSaveSuccess(true);
       setSaveError('');
@@ -138,6 +154,7 @@ export default function StoreUserCapabilitiesPage() {
       setDraftCapabilities(updated.capabilities);
     },
     onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || err?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
       const detail = err?.response?.data?.detail ?? err?.message ?? 'Erreur inconnue';
       setSaveError(typeof detail === 'string' ? detail : 'Erreur lors de la sauvegarde.');
       setSaveSuccess(false);
@@ -200,26 +217,26 @@ export default function StoreUserCapabilitiesPage() {
       <div className="flex items-center gap-4 mb-6">
         <Link
           to="/settings/stores"
-          className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+          className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
           title="Retour"
         >
-          <ArrowLeft size={18} className="text-gray-600" />
+          <ArrowLeft size={18} className="text-gray-600 dark:text-gray-400" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <Shield size={24} className="text-primary" />
             Permissions
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             Gerez les permissions par utilisateur et par magasin.
           </p>
         </div>
       </div>
 
       {/* Store selector */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-4">
         <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
             Magasin :
           </label>
           <select
@@ -228,7 +245,7 @@ export default function StoreUserCapabilitiesPage() {
               setSelectedStoreId(e.target.value);
               closeEdit();
             }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none max-w-sm"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100 max-w-sm"
           >
             {myStoresQ.isLoading && <option value="">Chargement...</option>}
             {myStoresQ.data?.map((s) => (
@@ -239,7 +256,7 @@ export default function StoreUserCapabilitiesPage() {
             {myStoresQ.data?.length === 0 && <option value="">Aucun magasin disponible</option>}
           </select>
           {storeUsersQ.data && (
-            <div className="ml-auto text-sm text-gray-500 hidden sm:block">
+            <div className="ml-auto text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
               {storeUsersQ.data.count} utilisateur{storeUsersQ.data.count !== 1 ? 's' : ''}
             </div>
           )}
@@ -273,18 +290,18 @@ export default function StoreUserCapabilitiesPage() {
               Erreur lors du chargement des utilisateurs.
             </div>
           ) : storeUsers.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-              <Users size={48} className="mx-auto mb-3 text-gray-300" />
-              <p className="text-gray-500 font-medium">Aucun utilisateur</p>
-              <p className="text-sm text-gray-400 mt-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+              <Users size={48} className="mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+              <p className="text-gray-500 dark:text-gray-400 font-medium">Aucun utilisateur</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
                 Aucun utilisateur n'est associe a {selectedStoreName || 'ce magasin'}.
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50 text-left text-gray-600">
+                  <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 text-left text-gray-600 dark:text-gray-400">
                     <th className="px-4 py-3 font-medium">Utilisateur</th>
                     <th className="px-4 py-3 font-medium hidden sm:table-cell">Role</th>
                     <th className="px-4 py-3 font-medium">Permissions effectives</th>
@@ -295,13 +312,13 @@ export default function StoreUserCapabilitiesPage() {
                     <tr
                       key={su.id}
                       onClick={() => openEdit(su)}
-                      className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${
+                      className={`border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors ${
                         editingUser?.id === su.id ? 'bg-primary/5 ring-1 ring-inset ring-primary/20' : ''
                       }`}
                     >
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900">{su.user_name}</div>
-                        <div className="text-xs text-gray-400">{su.user_email}</div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">{su.user_name}</div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500">{su.user_email}</div>
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <span
@@ -313,7 +330,7 @@ export default function StoreUserCapabilitiesPage() {
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
                           {su.effective_capabilities.length === 0 && (
-                            <span className="text-xs text-gray-400 italic">Aucune</span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500 italic">Aucune</span>
                           )}
                           {su.effective_capabilities.map((cap) => (
                             <span
@@ -336,14 +353,14 @@ export default function StoreUserCapabilitiesPage() {
         {/* Edit panel */}
         {editingUser && (
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl border border-gray-200 p-5 sticky top-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 sticky top-4">
               {/* Panel header */}
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-gray-900">Modifier les permissions</h2>
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Modifier les permissions</h2>
                 <button
                   type="button"
                   onClick={closeEdit}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   title="Fermer"
                 >
                   <X size={18} className="text-gray-400" />
@@ -351,9 +368,9 @@ export default function StoreUserCapabilitiesPage() {
               </div>
 
               {/* User info (read-only) */}
-              <div className="bg-gray-50 rounded-lg p-3 mb-5">
-                <div className="font-medium text-gray-900">{editingUser.user_name}</div>
-                <div className="text-sm text-gray-500">{editingUser.user_email}</div>
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 mb-5">
+                <div className="font-medium text-gray-900 dark:text-gray-100">{editingUser.user_name}</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">{editingUser.user_email}</div>
                 <span
                   className={`inline-flex items-center mt-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${ROLE_BADGE_CLASSES[editingUser.user_role]}`}
                 >
@@ -364,7 +381,7 @@ export default function StoreUserCapabilitiesPage() {
               {/* Presets */}
               {Object.keys(presets).length > 0 && (
                 <div className="mb-5">
-                  <div className="text-sm font-medium text-gray-700 mb-2">Profils predefinis</div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Profils predefinis</div>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(presets).map(([key, preset]) => {
                       const isActive =
@@ -378,7 +395,7 @@ export default function StoreUserCapabilitiesPage() {
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                             isActive
                               ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                              : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                           }`}
                         >
                           {isActive && <Check size={14} />}
@@ -392,7 +409,7 @@ export default function StoreUserCapabilitiesPage() {
 
               {/* Capability checkboxes */}
               <div className="mb-5">
-                <div className="text-sm font-medium text-gray-700 mb-2">Permissions individuelles</div>
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Permissions individuelles</div>
                 <div className="space-y-1.5">
                   {capabilityCodes.map((cap) => {
                     const checked = draftCapabilities.includes(cap);
@@ -402,7 +419,7 @@ export default function StoreUserCapabilitiesPage() {
                         className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
                           checked
                             ? 'border-primary/30 bg-primary/5'
-                            : 'border-gray-100 hover:bg-gray-50'
+                            : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                         }`}
                       >
                         <input
@@ -411,7 +428,7 @@ export default function StoreUserCapabilitiesPage() {
                           onChange={() => toggleCapability(cap)}
                           className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/20"
                         />
-                        <span className="text-sm text-gray-800">
+                        <span className="text-sm text-gray-800 dark:text-gray-200">
                           {capabilityLabelMap[cap] ?? cap}
                         </span>
                         <span
@@ -442,7 +459,7 @@ export default function StoreUserCapabilitiesPage() {
                 <button
                   type="button"
                   onClick={resetCapabilities}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   title="Reinitialiser (vider les permissions personnalisees)"
                 >
                   <RotateCcw size={15} />

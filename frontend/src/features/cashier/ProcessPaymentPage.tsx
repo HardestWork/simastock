@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -79,8 +80,12 @@ export default function ProcessPaymentPage() {
   const submitMut = useMutation({
     mutationFn: (id: string) => saleApi.submit(id),
     onSuccess: () => {
+      toast.success('Vente soumise avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.detail(saleId!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
     },
   });
 
@@ -105,6 +110,7 @@ export default function ProcessPaymentPage() {
     mutationFn: (payload: { sale_id: string; payments: Array<{ method: string; amount: string; reference?: string }> }) =>
       paymentApi.create(payload),
     onSuccess: () => {
+      toast.success('Paiement enregistre avec succes');
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.cashShifts.all });
@@ -112,6 +118,7 @@ export default function ProcessPaymentPage() {
       navigate(`/cashier/receipt/${saleId}`);
     },
     onError: (err: unknown) => {
+      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
       const msg =
         (err as { response?: { data?: { detail?: string; non_field_errors?: string[] } } })
           ?.response?.data?.detail ||
@@ -260,13 +267,13 @@ export default function ProcessPaymentPage() {
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate('/cashier')}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           title="Retour"
         >
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Encaissement</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Encaissement</h1>
           <p className="text-sm text-gray-500">
             Facture {sale.invoice_number}
           </p>
@@ -277,8 +284,8 @@ export default function ProcessPaymentPage() {
         {/* ====== LEFT: Sale details ====== */}
         <div className="space-y-4">
           {/* Customer & meta info */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
               Details de la vente
             </h2>
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -310,14 +317,14 @@ export default function ProcessPaymentPage() {
           </div>
 
           {/* Items table */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
               Articles
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 text-gray-500 text-left">
+                  <tr className="border-b border-gray-100 dark:border-gray-700 text-gray-500 text-left">
                     <th className="pb-2 font-medium">Produit</th>
                     <th className="pb-2 font-medium text-right">Qte</th>
                     <th className="pb-2 font-medium text-right">Prix unit.</th>
@@ -326,7 +333,7 @@ export default function ProcessPaymentPage() {
                 </thead>
                 <tbody>
                   {sale.items.map((item) => (
-                    <tr key={item.id} className="border-b border-gray-50">
+                    <tr key={item.id} className="border-b border-gray-50 dark:border-gray-700">
                       <td className="py-2">{item.product_name}</td>
                       <td className="py-2 text-right">{item.quantity}</td>
                       <td className="py-2 text-right">{formatCurrency(item.unit_price)}</td>
@@ -339,7 +346,7 @@ export default function ProcessPaymentPage() {
           </div>
 
           {/* Totals */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Sous-total</span>
@@ -357,7 +364,7 @@ export default function ProcessPaymentPage() {
                   <span>{formatCurrency(sale.tax_amount)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-2">
+              <div className="flex justify-between font-bold text-base border-t border-gray-200 dark:border-gray-700 pt-2">
                 <span>Total</span>
                 <span>{formatCurrency(sale.total)}</span>
               </div>
@@ -367,7 +374,7 @@ export default function ProcessPaymentPage() {
                   <span>{formatCurrency(sale.amount_paid)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-bold text-lg text-primary border-t border-gray-200 pt-2">
+              <div className="flex justify-between font-bold text-lg text-primary border-t border-gray-200 dark:border-gray-700 pt-2">
                 <span>Reste a payer</span>
                 <span>{formatCurrency(sale.amount_due)}</span>
               </div>
@@ -376,14 +383,14 @@ export default function ProcessPaymentPage() {
 
           {/* Previous payments (for partially-paid sales) */}
           {existingPayments.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+              <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
                 Paiements precedents
               </h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100 text-gray-500 text-left">
+                    <tr className="border-b border-gray-100 dark:border-gray-700 text-gray-500 text-left">
                       <th className="pb-2 font-medium">Mode</th>
                       <th className="pb-2 font-medium text-right">Montant</th>
                       <th className="pb-2 font-medium">Reference</th>
@@ -392,7 +399,7 @@ export default function ProcessPaymentPage() {
                   </thead>
                   <tbody>
                     {existingPayments.map((payment) => (
-                      <tr key={payment.id} className="border-b border-gray-50">
+                      <tr key={payment.id} className="border-b border-gray-50 dark:border-gray-700">
                         <td className="py-2">{METHOD_LABELS[payment.method] ?? payment.method}</td>
                         <td className="py-2 text-right font-medium">{formatCurrency(payment.amount)}</td>
                         <td className="py-2 text-gray-600">{payment.reference || '—'}</td>
@@ -417,9 +424,9 @@ export default function ProcessPaymentPage() {
         {/* ====== RIGHT: Payment form ====== */}
         <div className="space-y-4">
           {/* Payment lines */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Paiements
               </h2>
               <button
@@ -438,10 +445,10 @@ export default function ProcessPaymentPage() {
                 return (
                   <div
                     key={line.id}
-                    className="border border-gray-100 rounded-lg p-4 space-y-3"
+                    className="border border-gray-100 dark:border-gray-700 rounded-lg p-4 space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                         <Icon size={16} />
                         Paiement {idx + 1}
                       </div>
@@ -464,7 +471,7 @@ export default function ProcessPaymentPage() {
                       <select
                         value={line.method}
                         onChange={(e) => updateLine(line.id, 'method', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100 bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                       >
                         {PAYMENT_METHODS.map((m) => (
                           <option key={m.value} value={m.value}>
@@ -487,12 +494,12 @@ export default function ProcessPaymentPage() {
                           value={line.amount}
                           onChange={(e) => updateLine(line.id, 'amount', e.target.value)}
                           placeholder="0"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                         />
                         <button
                           type="button"
                           onClick={() => fillExact(line.id)}
-                          className="px-3 py-2 text-xs font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors whitespace-nowrap"
+                          className="px-3 py-2 text-xs font-medium bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors whitespace-nowrap"
                           title="Remplir avec le montant restant"
                         >
                           Montant exact
@@ -511,7 +518,7 @@ export default function ProcessPaymentPage() {
                           value={line.reference}
                           onChange={(e) => updateLine(line.id, 'reference', e.target.value)}
                           placeholder="N° de transaction..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                         />
                       </div>
                     )}
@@ -522,8 +529,8 @@ export default function ProcessPaymentPage() {
           </div>
 
           {/* Summary & submit */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
               Recapitulatif
             </h2>
 
@@ -547,7 +554,7 @@ export default function ProcessPaymentPage() {
               )}
 
               {change > 0 && (
-                <div className="flex justify-between text-blue-600 font-bold border-t border-gray-200 pt-2">
+                <div className="flex justify-between text-blue-600 font-bold border-t border-gray-200 dark:border-gray-700 pt-2">
                   <span>Monnaie a rendre</span>
                   <span>{formatCurrency(change)}</span>
                 </div>

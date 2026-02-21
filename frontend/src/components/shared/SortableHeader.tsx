@@ -27,7 +27,7 @@ export default function SortableHeader({
 
   return (
     <th
-      className={`px-4 py-3 font-medium text-gray-600 cursor-pointer select-none hover:bg-gray-100 transition-colors text-${align} ${className}`}
+      className={`px-4 py-3 font-medium text-gray-600 dark:text-gray-400 cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-${align} ${className}`}
       onClick={() => onSort(field)}
     >
       <span className={`inline-flex items-center gap-1 ${alignClass}`}>
@@ -39,7 +39,7 @@ export default function SortableHeader({
             <ChevronDown size={14} className="text-primary" />
           )
         ) : (
-          <ChevronsUpDown size={14} className="text-gray-300" />
+          <ChevronsUpDown size={14} className="text-gray-300 dark:text-gray-600" />
         )}
       </span>
     </th>
