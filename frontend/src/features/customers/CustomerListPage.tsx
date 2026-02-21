@@ -1,4 +1,4 @@
-/** Customer list page with search. */
+﻿/** Customer list page with search. */
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,7 +11,7 @@ import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
 import { Search, Plus, Upload, AlertCircle, Download } from 'lucide-react';
 import { downloadCsv } from '@/lib/export';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { AxiosError } from 'axios';
 import type { CsvImportResult } from '@/api/types';
 
@@ -47,7 +47,13 @@ export default function CustomerListPage() {
   const importMutation = useMutation({
     mutationFn: (file: File) => customerApi.importCsv(file),
     onSuccess: (result) => {
-      toast.success('Import CSV termine avec succes');
+      if (result.error_count === 0 && (result.created > 0 || result.updated > 0)) {
+        toast.success(`Import clients termine: ${result.created} crees, ${result.updated} mis a jour.`);
+      } else if (result.error_count === 0) {
+        toast.info('Import clients termine: aucune modification detectee.');
+      } else {
+        toast.warning(`Import clients partiel: ${result.error_count} erreur(s) detectee(s).`);
+      }
       setImportResult(result);
       setImportError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
@@ -206,3 +212,4 @@ export default function CustomerListPage() {
     </div>
   );
 }
+

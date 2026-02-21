@@ -1,4 +1,4 @@
-/** Simple form to create a new inventory count. */
+﻿/** Simple form to create a new inventory count. */
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -6,7 +6,7 @@ import { ChevronLeft, ClipboardList, Info } from 'lucide-react';
 import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 export default function CountCreatePage() {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export default function CountCreatePage() {
   const { mutate: createCount, isPending } = useMutation({
     mutationFn: (data: { store_id: string; notes?: string }) => stockApi.createCount(data),
     onSuccess: (response) => {
-      toast.success('Inventaire cree avec succes');
+      toast.success(`Inventaire cree: #${response.id.substring(0, 8).toUpperCase()}`);
       void queryClient.invalidateQueries({ queryKey: queryKeys.counts.all });
       navigate(`/stock/counts/${response.id}`);
     },
@@ -121,3 +121,4 @@ export default function CountCreatePage() {
     </div>
   );
 }
+

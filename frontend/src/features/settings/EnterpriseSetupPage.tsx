@@ -1,11 +1,11 @@
-/** One-step enterprise + store + admin user creation page (ADMIN only). */
+﻿/** One-step enterprise + store + admin user creation page (ADMIN only). */
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { enterpriseApi } from '@/api/endpoints';
 import type { EnterpriseSetupPayload, EnterpriseSetupResponse } from '@/api/types';
 import { ArrowLeft, Save, Loader2, AlertCircle, CheckCircle2, Building2, Store, UserCog, Copy, Mail } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { AxiosError } from 'axios';
 
 const inputClass =
@@ -61,7 +61,9 @@ export default function EnterpriseSetupPage() {
   const mutation = useMutation({
     mutationFn: (data: EnterpriseSetupPayload) => enterpriseApi.setup(data),
     onSuccess: (data: EnterpriseSetupResponse) => {
-      toast.success('Entreprise creee avec succes');
+      toast.success(
+        `Entreprise creee: ${data.enterprise.name}${data.credentials.email_sent ? ' (identifiants envoyes)' : ''}`,
+      );
       setSetupResult(data);
       setCopied(false);
     },
@@ -168,7 +170,7 @@ export default function EnterpriseSetupPage() {
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8">
           <div className="text-center mb-6">
             <CheckCircle2 size={48} className="mx-auto text-green-500 mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Entreprise creee avec succes</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Entreprise creee</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               L'entreprise, la boutique et l'utilisateur administrateur ont ete crees.
             </p>
@@ -242,7 +244,7 @@ export default function EnterpriseSetupPage() {
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Creer une entreprise</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Section 1 — Enterprise */}
+        {/* Section 1 â€” Enterprise */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-4">
             <Building2 size={20} className="text-primary" />
@@ -304,7 +306,7 @@ export default function EnterpriseSetupPage() {
           </div>
         </div>
 
-        {/* Section 2 — Store */}
+        {/* Section 2 â€” Store */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-4">
             <Store size={20} className="text-primary" />
@@ -338,7 +340,7 @@ export default function EnterpriseSetupPage() {
           </div>
         </div>
 
-        {/* Section 3 — Admin User */}
+        {/* Section 3 â€” Admin User */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-4">
             <UserCog size={20} className="text-primary" />
@@ -436,3 +438,4 @@ export default function EnterpriseSetupPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-/** Product catalog page with grid/list views, filters, and CRUD. */
+﻿/** Product catalog page with grid/list views, filters, and CRUD. */
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import { useSort } from '@/hooks/use-sort';
 import { useAuthStore } from '@/auth/auth-store';
 import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import {
   Search,
   Package,
@@ -23,7 +24,7 @@ import {
   AlertCircle,
   Upload,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { Product, CsvImportResult } from '@/api/types';
 import type { AxiosError } from 'axios';
 
@@ -41,6 +42,7 @@ export default function ProductListPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [importResult, setImportResult] = useState<CsvImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const debouncedSearch = useDebounce(search, 300);
   const { sortField, sortDirection, ordering, toggleSort } = useSort('name', 'asc');
@@ -75,10 +77,11 @@ export default function ProductListPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => productApi.delete(id),
-    onSuccess: () => {
-      toast.success('Produit supprime avec succes');
+    mutationFn: (payload: { id: string; name: string }) => productApi.delete(payload.id),
+    onSuccess: (_result, payload) => {
+      toast.warning(`Produit supprime: ${payload.name}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+      setProductToDelete(null);
     },
     onError: (err: unknown) => {
       toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
@@ -88,7 +91,13 @@ export default function ProductListPage() {
   const importMutation = useMutation({
     mutationFn: (file: File) => productApi.importCsv(file),
     onSuccess: (result) => {
-      toast.success('Import CSV termine avec succes');
+      if (result.error_count === 0 && result.created + result.updated > 0) {
+        toast.success(`Import CSV termine: ${result.created} crees, ${result.updated} mis a jour.`);
+      } else if (result.error_count === 0) {
+        toast.info('Import CSV termine: aucune modification detectee.');
+      } else {
+        toast.warning(`Import CSV partiel: ${result.error_count} erreur(s) detectee(s).`);
+      }
       setImportResult(result);
       setImportError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
@@ -112,9 +121,7 @@ export default function ProductListPage() {
   });
 
   const handleDelete = (product: Product) => {
-    if (window.confirm(`Supprimer le produit "${product.name}" ?`)) {
-      deleteMutation.mutate(product.id);
-    }
+    setProductToDelete(product);
   };
 
   const handleImportPick = () => {
@@ -317,7 +324,7 @@ export default function ProductListPage() {
               <p className="text-xs text-gray-500 dark:text-gray-400">{product.sku}</p>
               {(product.category_name || product.brand_name) && (
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                  {[product.category_name, product.brand_name].filter(Boolean).join(' · ')}
+                  {[product.category_name, product.brand_name].filter(Boolean).join(' Â· ')}
                 </p>
               )}
               <p className="text-base font-bold text-primary mt-2">
@@ -392,8 +399,8 @@ export default function ProductListPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.sku}</td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.category_name || '—'}</td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.brand_name || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.category_name || 'â€”'}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.brand_name || 'â€”'}</td>
                   <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">{formatCurrency(product.cost_price)}</td>
                   <td className="px-4 py-3 text-right font-semibold text-primary">{formatCurrency(product.selling_price)}</td>
                   <td className="px-4 py-3 text-center">
@@ -432,6 +439,25 @@ export default function ProductListPage() {
       )}
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      <ConfirmDialog
+        open={!!productToDelete}
+        title="Supprimer ce produit ?"
+        message={
+          productToDelete
+            ? `Le produit "${productToDelete.name}" sera supprime definitivement.`
+            : ''
+        }
+        confirmLabel="Supprimer"
+        tone="danger"
+        loading={deleteMutation.isPending}
+        onClose={() => setProductToDelete(null)}
+        onConfirm={() => {
+          if (!productToDelete) return;
+          deleteMutation.mutate({ id: productToDelete.id, name: productToDelete.name });
+        }}
+      />
     </div>
   );
 }
+

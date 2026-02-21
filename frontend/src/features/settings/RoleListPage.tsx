@@ -1,4 +1,4 @@
-/** CRUD page for custom roles (ADMIN only). */
+﻿/** CRUD page for custom roles (ADMIN only). */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { roleApi } from '@/api/endpoints';
@@ -6,7 +6,7 @@ import { queryKeys } from '@/lib/query-keys';
 import { useSort } from '@/hooks/use-sort';
 import SortableHeader from '@/components/shared/SortableHeader';
 import { Plus, Pencil, Trash2, X, Save, Loader2, Shield } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { CustomRole, UserRole } from '@/api/types';
 
 const BASE_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
@@ -55,8 +55,8 @@ export default function RoleListPage() {
 
   const createMut = useMutation({
     mutationFn: (d: Partial<CustomRole>) => roleApi.create(d),
-    onSuccess: () => {
-      toast.success('Role cree avec succes');
+    onSuccess: (createdRole) => {
+      toast.success(`Role cree: ${createdRole.name}`);
       void queryClient.invalidateQueries({ queryKey: queryKeys.roles.all });
       resetForm();
     },
@@ -68,8 +68,8 @@ export default function RoleListPage() {
 
   const updateMut = useMutation({
     mutationFn: ({ id, data: d }: { id: string; data: Partial<CustomRole> }) => roleApi.update(id, d),
-    onSuccess: () => {
-      toast.success('Role mis a jour avec succes');
+    onSuccess: (updatedRole) => {
+      toast.info(`Role mis a jour: ${updatedRole.name}`);
       void queryClient.invalidateQueries({ queryKey: queryKeys.roles.all });
       resetForm();
     },
@@ -82,7 +82,8 @@ export default function RoleListPage() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => roleApi.delete(id),
     onSuccess: () => {
-      toast.success('Role supprime avec succes');
+      const removedRole = roles.find((r) => r.id === deleteConfirm);
+      toast.warning(`Role supprime: ${removedRole?.name ?? 'role'}`);
       void queryClient.invalidateQueries({ queryKey: queryKeys.roles.all });
       setDeleteConfirm(null);
     },
@@ -338,3 +339,4 @@ export default function RoleListPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-/** Form to create a new stock transfer. */
+﻿/** Form to create a new stock transfer. */
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -7,7 +7,7 @@ import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
 import { useAuthStore } from '@/auth/auth-store';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { ProductStock } from '@/api/types';
 
 interface TransferLine {
@@ -38,7 +38,7 @@ export default function TransferCreatePage() {
   // Destination stores: exclude currentStore
   const destinationStores = stores.filter((s) => s.id !== currentStore?.id);
 
-  // Search products query — only run when there's an active search line with a search term
+  // Search products query â€” only run when there's an active search line with a search term
   const activeSearch = activeSearchLine ? (searchTerms[activeSearchLine] ?? '') : '';
   const productSearchParams: Record<string, string> = {
     store: currentStore?.id ?? '',
@@ -60,7 +60,7 @@ export default function TransferCreatePage() {
       lines: { product_id: string; quantity: number }[];
     }) => stockApi.createTransfer(data),
     onSuccess: (response) => {
-      toast.success('Transfert cree avec succes');
+      toast.success(`Transfert cree: #${response.id.substring(0, 8).toUpperCase()}`);
       void queryClient.invalidateQueries({ queryKey: queryKeys.transfers.all });
       navigate(`/stock/transfers/${response.id}`);
     },
@@ -274,7 +274,7 @@ export default function TransferCreatePage() {
                           >
                             <div className="font-medium">{stock.product_name}</div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">
-                              SKU: {stock.product_sku} — Disponible: {stock.available_qty}
+                              SKU: {stock.product_sku} â€” Disponible: {stock.available_qty}
                             </div>
                           </button>
                         ))}
@@ -327,3 +327,4 @@ export default function TransferCreatePage() {
     </div>
   );
 }
+

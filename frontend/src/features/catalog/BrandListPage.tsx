@@ -1,4 +1,4 @@
-/** Brand CRUD management page. */
+﻿/** Brand CRUD management page. */
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -7,8 +7,9 @@ import { queryKeys } from '@/lib/query-keys';
 import { useSort } from '@/hooks/use-sort';
 import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import { ChevronLeft, Plus, Pencil, Trash2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { Brand } from '@/api/types';
 import type { AxiosError } from 'axios';
 
@@ -31,6 +32,7 @@ export default function BrandListPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<BrandFormData>(emptyForm);
   const [formError, setFormError] = useState('');
+  const [brandToDelete, setBrandToDelete] = useState<Brand | null>(null);
   const { sortField, sortDirection, ordering, toggleSort } = useSort('name', 'asc');
 
   useEffect(() => { setPage(1); }, [ordering]);
@@ -53,7 +55,7 @@ export default function BrandListPage() {
   const createMutation = useMutation({
     mutationFn: (data: Partial<Brand>) => brandApi.create(data),
     onSuccess: () => {
-      toast.success('Marque creee avec succes');
+      toast.success(`Marque creee: ${form.name.trim()}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.brands.all });
       resetForm();
     },
@@ -71,7 +73,7 @@ export default function BrandListPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<Brand> }) =>
       brandApi.update(id, data),
     onSuccess: () => {
-      toast.success('Marque mise a jour avec succes');
+      toast.success(`Marque mise a jour: ${form.name.trim()}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.brands.all });
       resetForm();
     },
@@ -86,10 +88,11 @@ export default function BrandListPage() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => brandApi.delete(id),
-    onSuccess: () => {
-      toast.success('Marque supprimee avec succes');
+    mutationFn: (payload: { id: string; name: string }) => brandApi.delete(payload.id),
+    onSuccess: (_result, payload) => {
+      toast.warning(`Marque supprimee: ${payload.name}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.brands.all });
+      setBrandToDelete(null);
     },
     onError: (err: unknown) => {
       toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
@@ -135,9 +138,7 @@ export default function BrandListPage() {
   }
 
   function handleDelete(brand: Brand) {
-    if (window.confirm(`Supprimer la marque "${brand.name}" ? Cette action est irreversible.`)) {
-      deleteMutation.mutate(brand.id);
-    }
+    setBrandToDelete(brand);
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -293,6 +294,25 @@ export default function BrandListPage() {
       )}
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      <ConfirmDialog
+        open={!!brandToDelete}
+        title="Supprimer cette marque ?"
+        message={
+          brandToDelete
+            ? `La marque "${brandToDelete.name}" sera supprimee definitivement.`
+            : ''
+        }
+        confirmLabel="Supprimer"
+        tone="danger"
+        loading={deleteMutation.isPending}
+        onClose={() => setBrandToDelete(null)}
+        onConfirm={() => {
+          if (!brandToDelete) return;
+          deleteMutation.mutate({ id: brandToDelete.id, name: brandToDelete.name });
+        }}
+      />
     </div>
   );
 }
+

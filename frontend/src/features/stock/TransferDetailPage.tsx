@@ -1,4 +1,4 @@
-/** Detail view for a single stock transfer. */
+﻿/** Detail view for a single stock transfer. */
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -7,7 +7,7 @@ import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
 import { useAuthStore } from '@/auth/auth-store';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { TransferStatus } from '@/api/types';
 
 const STATUS_LABELS: Record<TransferStatus, string> = {
@@ -64,7 +64,7 @@ export default function TransferDetailPage() {
   const { mutate: approveTransfer, isPending: isApproving } = useMutation({
     mutationFn: () => stockApi.approveTransfer(id!),
     onSuccess: () => {
-      toast.success('Transfert approuve avec succes');
+      toast.info(`Transfert approuve: #${transfer?.id.substring(0, 8).toUpperCase() ?? 'sans numero'}`);
       void queryClient.invalidateQueries({ queryKey: queryKeys.transfers.detail(id!) });
     },
     onError: (err: unknown) => {
@@ -75,7 +75,7 @@ export default function TransferDetailPage() {
   const { mutate: receiveTransfer, isPending: isReceiving } = useMutation({
     mutationFn: () => stockApi.receiveTransfer(id!),
     onSuccess: () => {
-      toast.success('Transfert marque comme recu');
+      toast.success(`Transfert recu: #${transfer?.id.substring(0, 8).toUpperCase() ?? 'sans numero'}`);
       void queryClient.invalidateQueries({ queryKey: queryKeys.transfers.detail(id!) });
     },
     onError: (err: unknown) => {
@@ -221,3 +221,4 @@ export default function TransferDetailPage() {
     </div>
   );
 }
+

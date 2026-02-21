@@ -1,4 +1,4 @@
-/** Detail view for a single quote (devis). */
+﻿/** Detail view for a single quote (devis). */
 import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -22,8 +22,9 @@ import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { useAuthStore } from '@/auth/auth-store';
 import StatusBadge from '@/components/shared/StatusBadge';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import type { AxiosError } from 'axios';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
@@ -61,6 +62,7 @@ export default function QuoteDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [refuseReason, setRefuseReason] = useState('');
   const [showRefuseModal, setShowRefuseModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   /* ---- Permission checks ------------------------------------------------- */
 
@@ -81,9 +83,10 @@ export default function QuoteDetailPage() {
 
   /* ---- Mutations --------------------------------------------------------- */
 
-  const invalidateQuote = {
+  const sendMut = useMutation({
+    mutationFn: () => quoteApi.send(id!),
     onSuccess: () => {
-      toast.success('Action effectuee avec succes');
+      toast.info(`Devis envoye: ${quote?.quote_number ?? 'sans numero'}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.detail(id!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
     },
@@ -91,22 +94,25 @@ export default function QuoteDetailPage() {
       toast.error(extractErrorMessage(err));
       setActionError(extractErrorMessage(err));
     },
-  };
-
-  const sendMut = useMutation({
-    mutationFn: () => quoteApi.send(id!),
-    ...invalidateQuote,
   });
 
   const acceptMut = useMutation({
     mutationFn: () => quoteApi.accept(id!),
-    ...invalidateQuote,
+    onSuccess: () => {
+      toast.success(`Devis accepte: ${quote?.quote_number ?? 'sans numero'}`);
+      queryClient.invalidateQueries({ queryKey: queryKeys.quotes.detail(id!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
+    },
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err));
+      setActionError(extractErrorMessage(err));
+    },
   });
 
   const refuseMut = useMutation({
     mutationFn: () => quoteApi.refuse(id!, refuseReason),
     onSuccess: () => {
-      toast.success('Devis refuse');
+      toast.warning(`Devis refuse: ${quote?.quote_number ?? 'sans numero'}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.detail(id!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       setShowRefuseModal(false);
@@ -121,7 +127,7 @@ export default function QuoteDetailPage() {
   const convertMut = useMutation({
     mutationFn: () => quoteApi.convert(id!),
     onSuccess: (sale) => {
-      toast.success('Devis converti en facture');
+      toast.success(`Devis converti en facture: ${quote?.quote_number ?? 'sans numero'}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.detail(id!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
@@ -136,7 +142,7 @@ export default function QuoteDetailPage() {
   const duplicateMut = useMutation({
     mutationFn: () => quoteApi.duplicate(id!),
     onSuccess: (newQuote: { id: string }) => {
-      toast.success('Devis duplique avec succes');
+      toast.info(`Copie du devis creee depuis ${quote?.quote_number ?? 'ce devis'}.`);
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       navigate(`/quotes/${newQuote.id}`);
     },
@@ -149,8 +155,9 @@ export default function QuoteDetailPage() {
   const deleteMut = useMutation({
     mutationFn: () => quoteApi.delete(id!),
     onSuccess: () => {
-      toast.success('Devis supprime avec succes');
+      toast.warning(`Devis supprime: ${quote?.quote_number ?? 'sans numero'}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
+      setShowDeleteConfirm(false);
       navigate('/quotes');
     },
     onError: (err: unknown) => {
@@ -220,7 +227,7 @@ export default function QuoteDetailPage() {
           </h1>
           <StatusBadge type="quote" value={quote.status} />
           {quote.is_expired && quote.status === 'SENT' && (
-            <span className="text-xs text-red-600 font-medium">Ce devis a expiré</span>
+            <span className="text-xs text-red-600 font-medium">Ce devis a expirÃ©</span>
           )}
         </div>
       </div>
@@ -272,11 +279,7 @@ export default function QuoteDetailPage() {
             <button
               type="button"
               disabled={anyMutating}
-              onClick={() => {
-                if (window.confirm('Supprimer ce devis ? Cette action est irréversible.')) {
-                  deleteMut.mutate();
-                }
-              }}
+              onClick={() => setShowDeleteConfirm(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60"
             >
               <Trash2 className="h-4 w-4" />
@@ -423,40 +426,40 @@ export default function QuoteDetailPage() {
 
       {/* ---- Info panel --------------------------------------------------- */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
-        <InfoRow label="Client" value={quote.customer_name || '—'} />
-        <InfoRow label="Créé par" value={quote.created_by_name || '—'} />
+        <InfoRow label="Client" value={quote.customer_name || 'â€”'} />
+        <InfoRow label="CrÃ©Ã© par" value={quote.created_by_name || 'â€”'} />
         <InfoRow
-          label="Date création"
+          label="Date crÃ©ation"
           value={format(new Date(quote.created_at), 'dd/MM/yyyy HH:mm')}
         />
         <InfoRow
-          label="Validité"
+          label="ValiditÃ©"
           value={
             quote.valid_until ? (
               <span className={quote.is_expired ? 'text-red-600' : undefined}>
                 {format(new Date(quote.valid_until), 'dd/MM/yyyy')}
               </span>
             ) : (
-              '—'
+              'â€”'
             )
           }
         />
         <InfoRow label="Statut" value={<StatusBadge type="quote" value={quote.status} />} />
         {quote.sent_at && (
           <InfoRow
-            label="Envoyé le"
+            label="EnvoyÃ© le"
             value={format(new Date(quote.sent_at), 'dd/MM/yyyy HH:mm')}
           />
         )}
         {quote.accepted_at && (
           <InfoRow
-            label="Accepté le"
+            label="AcceptÃ© le"
             value={format(new Date(quote.accepted_at), 'dd/MM/yyyy HH:mm')}
           />
         )}
         {quote.refused_at && (
           <InfoRow
-            label="Refusé le"
+            label="RefusÃ© le"
             value={format(new Date(quote.refused_at), 'dd/MM/yyyy HH:mm')}
           />
         )}
@@ -493,7 +496,7 @@ export default function QuoteDetailPage() {
             <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
               <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Produit</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Prix unitaire</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Quantité</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">QuantitÃ©</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Remise</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Total ligne</th>
             </tr>
@@ -597,6 +600,18 @@ export default function QuoteDetailPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Supprimer ce devis ?"
+        message="Cette action est irreversible et supprimera definitivement ce document."
+        confirmLabel="Supprimer"
+        tone="danger"
+        loading={deleteMut.isPending}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => deleteMut.mutate()}
+      />
     </div>
   );
 }
+

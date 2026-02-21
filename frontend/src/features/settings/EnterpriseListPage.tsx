@@ -1,11 +1,11 @@
-/** Superadmin-only page to manage all enterprises in the SaaS system. */
+﻿/** Superadmin-only page to manage all enterprises in the SaaS system. */
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { enterpriseApi } from '@/api/endpoints';
 import type { Enterprise } from '@/api/types';
 import { Building2, Search, Plus, Save, Loader2, Power, Calendar, Store, X, Trash2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -116,8 +116,9 @@ export default function EnterpriseListPage() {
 
   const toggleActiveMutation = useMutation({
     mutationFn: (id: string) => enterpriseApi.toggleActive(id),
-    onSuccess: () => {
-      toast.success('Statut entreprise mis a jour');
+    onSuccess: (updated, id) => {
+      const enterpriseName = enterprises.find((ent) => ent.id === id)?.name ?? updated.name;
+      toast.info(`Statut entreprise mis a jour: ${enterpriseName} (${updated.is_active ? 'active' : 'inactive'})`);
       queryClient.invalidateQueries({ queryKey: ['enterprises'] });
     },
     onError: (err: unknown) => {
@@ -129,7 +130,7 @@ export default function EnterpriseListPage() {
     mutationFn: (args: { id: string; data: Partial<Enterprise> }) =>
       enterpriseApi.update(args.id, args.data),
     onSuccess: (updated) => {
-      toast.success('Entreprise mise a jour avec succes');
+      toast.success(`Entreprise mise a jour: ${updated.name}`);
       queryClient.invalidateQueries({ queryKey: ['enterprises'] });
       setSaveSuccess(true);
       setSaveError('');
@@ -145,7 +146,7 @@ export default function EnterpriseListPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => enterpriseApi.delete(id),
     onSuccess: () => {
-      toast.success('Entreprise supprimee avec succes');
+      toast.warning(`Entreprise supprimee: ${deleteTarget?.name ?? 'sans nom'}`);
       queryClient.invalidateQueries({ queryKey: ['enterprises'] });
       setDeleteTarget(null);
       if (editingEnterprise?.id === deleteTarget?.id) closeEdit();
@@ -496,7 +497,7 @@ export default function EnterpriseListPage() {
               )}
               {saveSuccess && (
                 <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-4 py-3 text-sm mb-4">
-                  Entreprise mise a jour avec succes.
+                  Configuration enregistree pour {editingEnterprise.name}.
                 </div>
               )}
 
@@ -573,3 +574,4 @@ export default function EnterpriseListPage() {
     </div>
   );
 }
+

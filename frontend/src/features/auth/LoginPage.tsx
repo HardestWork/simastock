@@ -1,14 +1,14 @@
-/** Login page with email + password form. */
+﻿/** Login page with email + password form. */
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/auth/auth-store';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, isLoading, isAuthenticated } = useAuthStore();
 
-  // Already logged in → redirect to dashboard (prevents back-button loop)
+  // Already logged in â†’ redirect to dashboard (prevents back-button loop)
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -97,3 +97,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

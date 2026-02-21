@@ -1,4 +1,4 @@
-/** Category CRUD management page. */
+﻿/** Category CRUD management page. */
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -7,8 +7,9 @@ import { queryKeys } from '@/lib/query-keys';
 import { useSort } from '@/hooks/use-sort';
 import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import { ChevronLeft, Plus, Pencil, Trash2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { Category } from '@/api/types';
 import type { AxiosError } from 'axios';
 
@@ -35,6 +36,7 @@ export default function CategoryListPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<CategoryFormData>(emptyForm);
   const [formError, setFormError] = useState('');
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const { sortField, sortDirection, ordering, toggleSort } = useSort('name', 'asc');
 
   useEffect(() => { setPage(1); }, [ordering]);
@@ -63,7 +65,7 @@ export default function CategoryListPage() {
   const createMutation = useMutation({
     mutationFn: (data: Partial<Category>) => categoryApi.create(data),
     onSuccess: () => {
-      toast.success('Categorie creee avec succes');
+      toast.success(`Categorie creee: ${form.name.trim()}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
       resetForm();
     },
@@ -81,7 +83,7 @@ export default function CategoryListPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<Category> }) =>
       categoryApi.update(id, data),
     onSuccess: () => {
-      toast.success('Categorie mise a jour avec succes');
+      toast.success(`Categorie mise a jour: ${form.name.trim()}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
       resetForm();
     },
@@ -96,10 +98,11 @@ export default function CategoryListPage() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => categoryApi.delete(id),
-    onSuccess: () => {
-      toast.success('Categorie supprimee avec succes');
+    mutationFn: (payload: { id: string; name: string }) => categoryApi.delete(payload.id),
+    onSuccess: (_result, payload) => {
+      toast.warning(`Categorie supprimee: ${payload.name}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
+      setCategoryToDelete(null);
     },
     onError: (err: unknown) => {
       toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
@@ -149,9 +152,7 @@ export default function CategoryListPage() {
   }
 
   function handleDelete(cat: Category) {
-    if (window.confirm(`Supprimer la categorie "${cat.name}" ? Cette action est irreversible.`)) {
-      deleteMutation.mutate(cat.id);
-    }
+    setCategoryToDelete(cat);
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -300,10 +301,10 @@ export default function CategoryListPage() {
                   <tr key={cat.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{cat.name}</td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400 max-w-xs truncate">
-                      {cat.description || '—'}
+                      {cat.description || 'â€”'}
                     </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {cat.parent_name || '—'}
+                      {cat.parent_name || 'â€”'}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span
@@ -347,6 +348,25 @@ export default function CategoryListPage() {
       )}
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      <ConfirmDialog
+        open={!!categoryToDelete}
+        title="Supprimer cette categorie ?"
+        message={
+          categoryToDelete
+            ? `La categorie "${categoryToDelete.name}" sera supprimee definitivement.`
+            : ''
+        }
+        confirmLabel="Supprimer"
+        tone="danger"
+        loading={deleteMutation.isPending}
+        onClose={() => setCategoryToDelete(null)}
+        onConfirm={() => {
+          if (!categoryToDelete) return;
+          deleteMutation.mutate({ id: categoryToDelete.id, name: categoryToDelete.name });
+        }}
+      />
     </div>
   );
 }
+

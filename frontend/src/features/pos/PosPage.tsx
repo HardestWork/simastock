@@ -1,4 +1,4 @@
-/** POS (Point of Sale) page — create a new sale with product search and cart. */
+﻿/** POS (Point of Sale) page â€” create a new sale with product search and cart. */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import { useCapabilities } from '@/lib/capabilities';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { Sale, PosProduct } from '@/api/types';
 import { Search, Plus, Minus, Trash2, Send, Banknote, UserPlus, Percent, X, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { AxiosError } from 'axios';
 
 type DiscountMode = 'none' | 'percent' | 'fixed';
@@ -108,8 +108,8 @@ export default function PosPage() {
   // Submit sale mutation
   const submitMut = useMutation({
     mutationFn: () => saleApi.submit(sale!.id),
-    onSuccess: () => {
-      toast.success('Vente soumise avec succes');
+    onSuccess: (submittedSale) => {
+      toast.info(`Vente soumise: ${submittedSale.invoice_number ?? 'sans numero'}`);
       setActionError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       setSale(null);
@@ -123,7 +123,7 @@ export default function PosPage() {
   const submitAndCashMut = useMutation({
     mutationFn: () => saleApi.submit(sale!.id),
     onSuccess: (submittedSale) => {
-      toast.success('Vente soumise avec succes');
+      toast.success(`Vente soumise pour encaissement: ${submittedSale.invoice_number ?? 'sans numero'}`);
       setActionError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       navigate(`/cashier/payment/${submittedSale.id}`);
@@ -140,7 +140,7 @@ export default function PosPage() {
         phone: newCustomerPhone.trim(),
       }),
     onSuccess: (newCustomer) => {
-      toast.success('Client cree avec succes');
+      toast.success(`Client cree: ${newCustomer.full_name}`);
       // Reset form
       setNewCustomerFirstName('');
       setNewCustomerLastName('');
@@ -259,7 +259,7 @@ export default function PosPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left — Product Search */}
+        {/* Left â€” Product Search */}
         <div className="lg:col-span-2 space-y-4">
           {/* Customer search */}
           {showCustomerSearch && (
@@ -304,13 +304,13 @@ export default function PosPage() {
                       onClick={() => handleSelectCustomer(c.id)}
                       className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     >
-                      {c.full_name} — {c.phone}
+                      {c.full_name} â€” {c.phone}
                     </button>
                   ))}
                 </div>
               )}
 
-              {/* No results — offer to create a new customer */}
+              {/* No results â€” offer to create a new customer */}
               {noCustomerResults && !showNewCustomerForm && (
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Aucun client trouve.</span>
@@ -458,7 +458,7 @@ export default function PosPage() {
           </div>
         </div>
 
-        {/* Right — Cart / Summary */}
+        {/* Right â€” Cart / Summary */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 h-fit">
           <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Panier</h2>
 
@@ -645,3 +645,4 @@ export default function PosPage() {
     </div>
   );
 }
+

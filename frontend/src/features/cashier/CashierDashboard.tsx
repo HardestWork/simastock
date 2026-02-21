@@ -1,4 +1,4 @@
-/** Cashier dashboard — shift status, pending sales, payment processing. */
+﻿/** Cashier dashboard â€” shift status, pending sales, payment processing. */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cashShiftApi, saleApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
@@ -9,7 +9,7 @@ import { DollarSign, Clock, AlertCircle, Banknote, Lock, CheckCircle, Smartphone
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { AxiosError } from 'axios';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 export default function CashierDashboard() {
   const queryClient = useQueryClient();
@@ -46,7 +46,7 @@ export default function CashierDashboard() {
         opening_float: openingFloat || '0',
       }),
     onSuccess: () => {
-      toast.success('Session de caisse ouverte avec succes');
+      toast.success(`Session de caisse ouverte (${currentStore?.name ?? 'magasin courant'}).`);
       queryClient.invalidateQueries({ queryKey: queryKeys.cashShifts.all });
       setOpeningFloat('');
       setCloseSuccess(false);
@@ -64,7 +64,7 @@ export default function CashierDashboard() {
         notes: closeNotes || undefined,
       }),
     onSuccess: () => {
-      toast.success('Session de caisse fermee avec succes');
+      toast.warning('Session de caisse fermee.');
       queryClient.invalidateQueries({ queryKey: queryKeys.cashShifts.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       setShowCloseForm(false);
@@ -94,7 +94,7 @@ export default function CashierDashboard() {
     );
   }
 
-  // No open shift — show open shift form (with optional success message from recent close)
+  // No open shift â€” show open shift form (with optional success message from recent close)
   if (!shift) {
     return (
       <div className="max-w-md mx-auto mt-12">
@@ -102,7 +102,7 @@ export default function CashierDashboard() {
           <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start gap-3">
             <CheckCircle size={20} className="text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-emerald-800">Session fermee avec succes</p>
+              <p className="text-sm font-medium text-emerald-800">Session de caisse cloturee</p>
               <p className="text-xs text-emerald-600 mt-0.5">
                 Vous pouvez ouvrir une nouvelle session ci-dessous.
               </p>
@@ -367,3 +367,4 @@ export default function CashierDashboard() {
     </div>
   );
 }
+

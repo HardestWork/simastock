@@ -1,4 +1,4 @@
-/** Payment processing page — allows the cashier to record payments for a sale. */
+﻿/** Payment processing page â€” allows the cashier to record payments for a sale. */
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -17,7 +17,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,7 +80,7 @@ export default function ProcessPaymentPage() {
   const submitMut = useMutation({
     mutationFn: (id: string) => saleApi.submit(id),
     onSuccess: () => {
-      toast.success('Vente soumise avec succes');
+      toast.info(`Vente envoyee en caisse: ${sale?.invoice_number ?? saleId ?? 'sans numero'}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.detail(saleId!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
     },
@@ -110,7 +110,7 @@ export default function ProcessPaymentPage() {
     mutationFn: (payload: { sale_id: string; payments: Array<{ method: string; amount: string; reference?: string }> }) =>
       paymentApi.create(payload),
     onSuccess: () => {
-      toast.success('Paiement enregistre avec succes');
+      toast.success(`Paiement encaisse: ${sale?.invoice_number ?? saleId ?? 'sans numero'}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.cashShifts.all });
@@ -402,7 +402,7 @@ export default function ProcessPaymentPage() {
                       <tr key={payment.id} className="border-b border-gray-50 dark:border-gray-700">
                         <td className="py-2">{METHOD_LABELS[payment.method] ?? payment.method}</td>
                         <td className="py-2 text-right font-medium">{formatCurrency(payment.amount)}</td>
-                        <td className="py-2 text-gray-600">{payment.reference || '—'}</td>
+                        <td className="py-2 text-gray-600">{payment.reference || 'â€”'}</td>
                         <td className="py-2 text-gray-600">
                           {new Date(payment.created_at).toLocaleString('fr-FR', {
                             day: '2-digit',
@@ -517,7 +517,7 @@ export default function ProcessPaymentPage() {
                           type="text"
                           value={line.reference}
                           onChange={(e) => updateLine(line.id, 'reference', e.target.value)}
-                          placeholder="N° de transaction..."
+                          placeholder="NÂ° de transaction..."
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                         />
                       </div>
@@ -593,3 +593,4 @@ export default function ProcessPaymentPage() {
     </div>
   );
 }
+

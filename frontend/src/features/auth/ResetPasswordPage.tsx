@@ -1,9 +1,9 @@
-/** Password reset confirmation page. */
+﻿/** Password reset confirmation page. */
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { AxiosError } from 'axios';
 import { KeyRound, ArrowLeft, Save } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 import { authApi } from '@/api/endpoints';
 
@@ -53,12 +53,13 @@ export default function ResetPasswordPage() {
         new_password1: pw1,
         new_password2: pw2,
       });
-      toast.success('Mot de passe reinitialise avec succes');
+      toast.success('Mot de passe reinitialise. Vous pouvez vous connecter.');
       setSuccess(res.detail);
       setTimeout(() => navigate('/login'), 1200);
     } catch (err) {
-      toast.error('Une erreur est survenue');
-      setError(errDetail(err));
+      const message = errDetail(err);
+      toast.error(message);
+      setError(message);
     } finally {
       setIsPending(false);
     }

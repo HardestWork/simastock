@@ -1,4 +1,4 @@
-/** User management page (ADMIN only) with search, role filter, and table. */
+﻿/** User management page (ADMIN only) with search, role filter, and table. */
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -9,7 +9,7 @@ import { useSort } from '@/hooks/use-sort';
 import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
 import { Search, UserPlus, Pencil, UserCheck, UserX, Trash2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/auth/auth-store';
 import type { User, UserRole } from '@/api/types';
 import type { AxiosError } from 'axios';
@@ -70,8 +70,10 @@ export default function UserListPage() {
   const toggleActiveMutation = useMutation({
     mutationFn: (user: User) =>
       userApi.update(user.id, { is_active: !user.is_active }),
-    onSuccess: () => {
-      toast.success('Statut utilisateur mis a jour');
+    onSuccess: (updatedUser, user) => {
+      toast.info(
+        `Utilisateur ${user.first_name} ${user.last_name} ${updatedUser.is_active ? 'active' : 'desactive'}.`,
+      );
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     },
     onError: (err: unknown) => {
@@ -82,7 +84,9 @@ export default function UserListPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => userApi.delete(id),
     onSuccess: () => {
-      toast.success('Utilisateur supprime avec succes');
+      toast.warning(
+        `Utilisateur supprime: ${deleteTarget?.first_name ?? ''} ${deleteTarget?.last_name ?? ''}`.trim(),
+      );
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       setDeleteTarget(null);
     },
@@ -332,3 +336,4 @@ export default function UserListPage() {
     </div>
   );
 }
+

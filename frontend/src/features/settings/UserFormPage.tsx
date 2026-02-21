@@ -1,11 +1,11 @@
-/** Unified user create / edit page (ADMIN only). */
+﻿/** Unified user create / edit page (ADMIN only). */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi, roleApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { ArrowLeft, Save, Loader2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { AxiosError } from 'axios';
 
 const SYSTEM_ROLE_OPTIONS = [
@@ -102,7 +102,7 @@ export default function UserFormPage() {
       password_confirm: string;
     }) => userApi.create(data),
     onSuccess: () => {
-      toast.success('Utilisateur cree avec succes');
+      toast.success(`Utilisateur cree: ${firstName.trim()} ${lastName.trim()}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       navigate('/settings/users');
     },
@@ -117,7 +117,7 @@ export default function UserFormPage() {
     mutationFn: (data: Record<string, unknown>) =>
       userApi.update(id!, data as Parameters<typeof userApi.update>[1]),
     onSuccess: () => {
-      toast.success('Utilisateur mis a jour avec succes');
+      toast.info(`Utilisateur mis a jour: ${firstName.trim()} ${lastName.trim()}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id!) });
       navigate('/settings/users');
@@ -307,7 +307,7 @@ export default function UserFormPage() {
               </div>
             )}
 
-            {/* Actif toggle — edit mode only */}
+            {/* Actif toggle â€” edit mode only */}
             {isEdit && (
               <div className="sm:col-span-2">
                 <label className="inline-flex items-center gap-3 cursor-pointer">
@@ -328,7 +328,7 @@ export default function UserFormPage() {
               </div>
             )}
 
-            {/* Password fields — create mode only */}
+            {/* Password fields â€” create mode only */}
             {!isEdit && (
               <>
                 <div>
@@ -401,3 +401,4 @@ export default function UserFormPage() {
     </div>
   );
 }
+

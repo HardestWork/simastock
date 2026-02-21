@@ -1,9 +1,9 @@
-/** Password reset request page (forgot password). */
+﻿/** Password reset request page (forgot password). */
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { AxiosError } from 'axios';
 import { Mail, ArrowLeft, Send } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 import { authApi } from '@/api/endpoints';
 
@@ -32,12 +32,13 @@ export default function ForgotPasswordPage() {
     setIsPending(true);
     try {
       const res = await authApi.requestPasswordReset(email.trim());
-      toast.success('Lien de reinitialisation envoye');
+      toast.success(`Lien de reinitialisation envoye: ${email.trim()}`);
       setSuccess(res.detail);
       if (res.debug_reset_url) setDebugLink(res.debug_reset_url);
     } catch (err) {
-      toast.error('Une erreur est survenue');
-      setError(errDetail(err));
+      const message = errDetail(err);
+      toast.error(message);
+      setError(message);
     } finally {
       setIsPending(false);
     }

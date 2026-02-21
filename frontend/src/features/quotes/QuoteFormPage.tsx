@@ -1,4 +1,4 @@
-/** Quote form page — create or edit a draft quote. */
+﻿/** Quote form page â€” create or edit a draft quote. */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,7 +21,7 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import type { AxiosError } from 'axios';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 type DiscountMode = 'none' | 'percent' | 'fixed';
 
@@ -131,7 +131,7 @@ export default function QuoteFormPage() {
         conditions: conditions || undefined,
       }),
     onSuccess: (data) => {
-      toast.success('Devis cree avec succes');
+      toast.success(`Devis cree: ${data.quote_number ?? `#${data.id.slice(0, 8).toUpperCase()}`}`);
       setActionError(null);
       setQuote(data);
     },
@@ -144,8 +144,10 @@ export default function QuoteFormPage() {
   const addItemMut = useMutation({
     mutationFn: ({ productId, quantity }: { productId: string; quantity: number }) =>
       quoteApi.addItem(quote!.id, { product_id: productId, quantity }),
-    onSuccess: (data) => {
-      toast.success('Article ajoute au devis');
+    onSuccess: (data, variables) => {
+      const productName =
+        products?.results.find((product) => product.id === variables.productId)?.name ?? 'Article';
+      toast.info(`Article ajoute: ${productName}`);
       setActionError(null);
       setQuote(data);
     },
@@ -157,8 +159,10 @@ export default function QuoteFormPage() {
 
   const removeItemMut = useMutation({
     mutationFn: (itemId: string) => quoteApi.removeItem(quote!.id, itemId),
-    onSuccess: (data) => {
-      toast.success('Article retire du devis');
+    onSuccess: (data, itemId) => {
+      const removedItemName =
+        quote?.items.find((item) => item.id === itemId)?.product_name ?? 'Article';
+      toast.warning(`Article retire: ${removedItemName}`);
       setActionError(null);
       setQuote(data);
     },
@@ -171,7 +175,7 @@ export default function QuoteFormPage() {
   const updateQuoteMut = useMutation({
     mutationFn: (data: Record<string, string>) => quoteApi.update(quote!.id, data),
     onSuccess: (data) => {
-      toast.success('Devis mis a jour');
+      toast.info(`Devis mis a jour: ${data.quote_number ?? 'brouillon'}`);
       setActionError(null);
       setQuote(data);
     },
@@ -189,7 +193,7 @@ export default function QuoteFormPage() {
         phone: newCustomerPhone.trim(),
       }),
     onSuccess: (newCustomer) => {
-      toast.success('Client cree avec succes');
+      toast.success(`Client cree: ${newCustomer.full_name}`);
       setNewCustomerFirstName('');
       setNewCustomerLastName('');
       setNewCustomerPhone('');
@@ -217,7 +221,7 @@ export default function QuoteFormPage() {
         conditions,
       }),
     onSuccess: () => {
-      toast.success('Devis enregistre avec succes');
+      toast.success(`Devis enregistre: ${quote?.quote_number ?? 'sans numero'}`);
       setActionError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       navigate(`/quotes/${quote!.id}`);
@@ -374,7 +378,7 @@ export default function QuoteFormPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left — 2 cols: Notes, Customer search, Product search */}
+        {/* Left â€” 2 cols: Notes, Customer search, Product search */}
         <div className="lg:col-span-2 space-y-4">
           {/* Notes & conditions */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
@@ -442,13 +446,13 @@ export default function QuoteFormPage() {
                       onClick={() => handleSelectCustomer(c.id)}
                       className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     >
-                      {c.full_name} — {c.phone}
+                      {c.full_name} â€” {c.phone}
                     </button>
                   ))}
                 </div>
               )}
 
-              {/* No results — offer to create a new customer */}
+              {/* No results â€” offer to create a new customer */}
               {noCustomerResults && !showNewCustomerForm && (
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Aucun client trouve.</span>
@@ -604,7 +608,7 @@ export default function QuoteFormPage() {
           </div>
         </div>
 
-        {/* Right — Cart / Summary */}
+        {/* Right â€” Cart / Summary */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 h-fit">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Articles du devis</h2>
 
@@ -774,3 +778,4 @@ export default function QuoteFormPage() {
     </div>
   );
 }
+

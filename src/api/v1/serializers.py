@@ -835,44 +835,133 @@ class SupplierSerializer(serializers.ModelSerializer):
 
 class PurchaseOrderLineSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
+    product_sku = serializers.CharField(source='product.sku', read_only=True)
+    remaining_qty = serializers.SerializerMethodField()
 
     class Meta:
         model = PurchaseOrderLine
         fields = [
             "id", "purchase_order", "product", "product_name",
-            "quantity_ordered", "quantity_received", "unit_cost", "line_total",
+            "product_sku", "quantity_ordered", "quantity_received", "remaining_qty",
+            "unit_cost", "line_total",
         ]
         read_only_fields = ["id", "quantity_received", "line_total"]
+
+    def get_remaining_qty(self, obj):
+        remaining = int(obj.quantity_ordered) - int(obj.quantity_received)
+        return remaining if remaining > 0 else 0
+
+
+class _PurchaseOrderLineInputSerializer(serializers.Serializer):
+    product_id = serializers.UUIDField()
+    quantity_ordered = serializers.IntegerField(min_value=1)
+    unit_cost = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+    )
+
+
+class PurchaseOrderCreateSerializer(serializers.Serializer):
+    store = serializers.UUIDField()
+    supplier = serializers.UUIDField()
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    po_number = serializers.CharField(required=False, allow_blank=True, default="")
+    submit_now = serializers.BooleanField(required=False, default=False)
+    lines = _PurchaseOrderLineInputSerializer(many=True)
+
+    def validate_lines(self, value):
+        if not value:
+            raise serializers.ValidationError("Au moins une ligne est requise.")
+        return value
+
+
+class PurchaseOrderUpdateSerializer(serializers.Serializer):
+    supplier = serializers.UUIDField(required=False)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    lines = _PurchaseOrderLineInputSerializer(many=True, required=False)
+
+    def validate_lines(self, value):
+        if value is not None and not value:
+            raise serializers.ValidationError("Si fourni, lines ne peut pas etre vide.")
+        return value
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError("Aucune modification fournie.")
+        return attrs
+
+
+class PurchaseOrderCancelSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class PurchaseOrderSerializer(serializers.ModelSerializer):
     lines = PurchaseOrderLineSerializer(many=True, read_only=True)
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = PurchaseOrder
         fields = [
             "id", "store", "supplier", "supplier_name", "created_by",
-            "po_number", "status", "subtotal", "notes", "lines",
+            "created_by_name", "po_number", "status", "subtotal", "notes",
+            "created_at", "updated_at", "lines",
         ]
         read_only_fields = ["id", "created_by", "status", "subtotal"]
 
+    def get_created_by_name(self, obj):
+        return obj.created_by.get_full_name() if obj.created_by else None
+
+
+class _GoodsReceiptLineInputSerializer(serializers.Serializer):
+    purchase_order_line_id = serializers.UUIDField()
+    quantity_received = serializers.IntegerField(min_value=1)
+
+
+class GoodsReceiptCreateSerializer(serializers.Serializer):
+    store = serializers.UUIDField()
+    purchase_order = serializers.UUIDField()
+    receipt_number = serializers.CharField(required=False, allow_blank=True, default="")
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    lines = _GoodsReceiptLineInputSerializer(many=True)
+
+    def validate_lines(self, value):
+        if not value:
+            raise serializers.ValidationError("Au moins une ligne de reception est requise.")
+        return value
+
 
 class GoodsReceiptLineSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="purchase_order_line.product.name", read_only=True)
+    product_sku = serializers.CharField(source="purchase_order_line.product.sku", read_only=True)
+    quantity_ordered = serializers.IntegerField(source="purchase_order_line.quantity_ordered", read_only=True)
+    quantity_received_total = serializers.IntegerField(source="purchase_order_line.quantity_received", read_only=True)
+
     class Meta:
         model = GoodsReceiptLine
-        fields = ["id", "receipt", "purchase_order_line", "quantity_received"]
+        fields = [
+            "id",
+            "receipt",
+            "purchase_order_line",
+            "product_name",
+            "product_sku",
+            "quantity_ordered",
+            "quantity_received",
+            "quantity_received_total",
+        ]
         read_only_fields = ["id"]
 
 
 class GoodsReceiptSerializer(serializers.ModelSerializer):
     lines = GoodsReceiptLineSerializer(many=True, read_only=True)
+    purchase_order_number = serializers.CharField(source="purchase_order.po_number", read_only=True)
 
     class Meta:
         model = GoodsReceipt
         fields = [
             "id", "store", "purchase_order", "received_by",
-            "receipt_number", "notes", "created_at", "lines",
+            "purchase_order_number", "receipt_number", "notes", "created_at", "lines",
         ]
         read_only_fields = ["id", "received_by", "created_at"]
 

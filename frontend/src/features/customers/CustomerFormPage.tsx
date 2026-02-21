@@ -1,11 +1,11 @@
-/** Unified customer create / edit page. */
+﻿/** Unified customer create / edit page. */
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customerApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { ChevronLeft, Save } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 export default function CustomerFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -46,7 +46,7 @@ export default function CustomerFormPage() {
     mutationFn: (data: Partial<{ first_name: string; last_name: string; phone: string; email: string; address: string; company: string }>) =>
       customerApi.create(data),
     onSuccess: (response) => {
-      toast.success('Client cree avec succes');
+      toast.success(`Client cree: ${firstName.trim()} ${lastName.trim()}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
       navigate(`/customers/${response.id}`);
     },
@@ -64,7 +64,7 @@ export default function CustomerFormPage() {
     mutationFn: (data: Partial<{ first_name: string; last_name: string; phone: string; email: string; address: string; company: string }>) =>
       customerApi.update(id!, data),
     onSuccess: () => {
-      toast.success('Client mis a jour avec succes');
+      toast.info(`Client mis a jour: ${firstName.trim()} ${lastName.trim()}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
       navigate(`/customers/${id}`);
     },
@@ -241,3 +241,4 @@ export default function CustomerFormPage() {
     </div>
   );
 }
+

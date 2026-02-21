@@ -80,7 +80,11 @@ from api.v1.serializers import (
     CustomerAccountSerializer,
     CreditLedgerEntrySerializer,
     SupplierSerializer,
+    PurchaseOrderCreateSerializer,
+    PurchaseOrderUpdateSerializer,
+    PurchaseOrderCancelSerializer,
     PurchaseOrderSerializer,
+    GoodsReceiptCreateSerializer,
     GoodsReceiptSerializer,
     AlertSerializer,
     KPISerializer,
@@ -2487,19 +2491,147 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
     search_fields = ["po_number"]
     ordering_fields = ["created_at", "po_number", "status", "subtotal"]
 
+    def get_serializer_class(self):
+        if self.action == "create":
+            return PurchaseOrderCreateSerializer
+        if self.action in ("update", "partial_update"):
+            return PurchaseOrderUpdateSerializer
+        return PurchaseOrderSerializer
+
     def get_queryset(self):
         qs = super().get_queryset()
         store_ids = _user_store_ids(self.request.user)
         return qs.filter(store_id__in=store_ids)
 
-    def perform_create(self, serializer):
-        store = serializer.validated_data["store"]
-        supplier = serializer.validated_data["supplier"]
-        if supplier.enterprise_id != store.enterprise_id:
-            raise ValidationError(
-                {"supplier": "Le fournisseur doit appartenir a la meme entreprise que la boutique."},
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        store_id = serializer.validated_data["store"]
+        supplier_id = serializer.validated_data["supplier"]
+        store_ids = _user_store_ids(request.user)
+
+        if not Store.objects.filter(pk=store_id, pk__in=store_ids, is_active=True).exists():
+            return Response(
+                {"detail": "Acces refuse a cette boutique."},
+                status=status.HTTP_403_FORBIDDEN,
             )
-        serializer.save(created_by=self.request.user)
+
+        try:
+            store = Store.objects.get(pk=store_id, is_active=True)
+        except Store.DoesNotExist:
+            return Response(
+                {"detail": "Boutique introuvable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            supplier = Supplier.objects.get(pk=supplier_id, enterprise_id=store.enterprise_id)
+        except Supplier.DoesNotExist:
+            return Response(
+                {"detail": "Fournisseur introuvable pour cette boutique."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from purchases.services import create_purchase_order
+
+        try:
+            purchase_order = create_purchase_order(
+                store=store,
+                supplier=supplier,
+                actor=request.user,
+                lines=serializer.validated_data["lines"],
+                notes=serializer.validated_data.get("notes", ""),
+                po_number=serializer.validated_data.get("po_number", ""),
+                submit_now=serializer.validated_data.get("submit_now", False),
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            PurchaseOrderSerializer(purchase_order, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        purchase_order = self.get_object()
+        serializer = self.get_serializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        supplier = None
+        supplier_id = serializer.validated_data.get("supplier")
+        if supplier_id:
+            try:
+                supplier = Supplier.objects.get(
+                    pk=supplier_id,
+                    enterprise_id=purchase_order.store.enterprise_id,
+                )
+            except Supplier.DoesNotExist:
+                return Response(
+                    {"detail": "Fournisseur introuvable pour cette boutique."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        from purchases.services import update_purchase_order
+
+        try:
+            purchase_order = update_purchase_order(
+                purchase_order,
+                actor=request.user,
+                supplier=supplier,
+                notes=serializer.validated_data.get("notes")
+                if "notes" in serializer.validated_data
+                else None,
+                lines=serializer.validated_data.get("lines")
+                if "lines" in serializer.validated_data
+                else None,
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(PurchaseOrderSerializer(purchase_order, context={"request": request}).data)
+
+    def update(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+    @action(detail=True, methods=["post"], url_path="submit")
+    def submit(self, request, pk=None):
+        purchase_order = self.get_object()
+        from purchases.services import submit_purchase_order
+
+        try:
+            purchase_order = submit_purchase_order(purchase_order, actor=request.user)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(PurchaseOrderSerializer(purchase_order, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        purchase_order = self.get_object()
+        serializer = PurchaseOrderCancelSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+
+        from purchases.services import cancel_purchase_order
+
+        try:
+            purchase_order = cancel_purchase_order(
+                purchase_order,
+                actor=request.user,
+                reason=serializer.validated_data.get("reason", ""),
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(PurchaseOrderSerializer(purchase_order, context={"request": request}).data)
+
+    def perform_destroy(self, instance):
+        if instance.status != PurchaseOrder.Status.DRAFT:
+            raise ValidationError(
+                {"detail": "Seul un bon de commande en brouillon peut etre supprime."},
+            )
+        instance.lines.all().delete()
+        instance.delete()
 
 
 class GoodsReceiptViewSet(viewsets.ModelViewSet):
@@ -2510,19 +2642,69 @@ class GoodsReceiptViewSet(viewsets.ModelViewSet):
     search_fields = ["receipt_number"]
     ordering_fields = ["created_at", "receipt_number"]
 
+    def get_serializer_class(self):
+        if self.action == "create":
+            return GoodsReceiptCreateSerializer
+        return GoodsReceiptSerializer
+
     def get_queryset(self):
         qs = super().get_queryset()
         store_ids = _user_store_ids(self.request.user)
         return qs.filter(store_id__in=store_ids)
 
-    def perform_create(self, serializer):
-        store = serializer.validated_data["store"]
-        purchase_order = serializer.validated_data["purchase_order"]
-        if purchase_order.store_id != store.id:
-            raise ValidationError(
-                {"purchase_order": "Le bon de reception doit etre lie a la meme boutique."},
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        store_id = serializer.validated_data["store"]
+        purchase_order_id = serializer.validated_data["purchase_order"]
+        store_ids = _user_store_ids(request.user)
+        if not Store.objects.filter(pk=store_id, pk__in=store_ids, is_active=True).exists():
+            return Response(
+                {"detail": "Acces refuse a cette boutique."},
+                status=status.HTTP_403_FORBIDDEN,
             )
-        serializer.save(received_by=self.request.user)
+
+        try:
+            store = Store.objects.get(pk=store_id, is_active=True)
+        except Store.DoesNotExist:
+            return Response(
+                {"detail": "Boutique introuvable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            purchase_order = PurchaseOrder.objects.select_related("store").get(
+                pk=purchase_order_id,
+                store_id=store.id,
+            )
+        except PurchaseOrder.DoesNotExist:
+            return Response(
+                {"detail": "Bon de commande introuvable pour cette boutique."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from purchases.services import generate_goods_receipt_number, receive_goods
+
+        receipt_number = (serializer.validated_data.get("receipt_number") or "").strip()
+        if not receipt_number:
+            receipt_number = generate_goods_receipt_number(store)
+
+        try:
+            receipt = receive_goods(
+                purchase_order=purchase_order,
+                receipt_number=receipt_number,
+                lines=serializer.validated_data["lines"],
+                actor=request.user,
+                notes=serializer.validated_data.get("notes", ""),
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            GoodsReceiptSerializer(receipt, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ---------------------------------------------------------------------------

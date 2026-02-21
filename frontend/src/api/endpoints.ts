@@ -30,7 +30,10 @@ import type {
   PaymentSchedule,
   Supplier,
   PurchaseOrder,
+  PurchaseOrderCreatePayload,
+  PurchaseOrderUpdatePayload,
   GoodsReceipt,
+  GoodsReceiptCreatePayload,
   Alert,
   KPIData,
   SalesReport,
@@ -627,11 +630,20 @@ export const purchaseOrderApi = {
   get: (id: string) =>
     apiClient.get<PurchaseOrder>(`purchase-orders/${id}/`).then((r) => r.data),
 
-  create: (data: Partial<PurchaseOrder>) =>
+  create: (data: PurchaseOrderCreatePayload) =>
     apiClient.post<PurchaseOrder>('purchase-orders/', data).then((r) => r.data),
 
-  update: (id: string, data: Partial<PurchaseOrder>) =>
+  update: (id: string, data: PurchaseOrderUpdatePayload) =>
     apiClient.patch<PurchaseOrder>(`purchase-orders/${id}/`, data).then((r) => r.data),
+
+  submit: (id: string) =>
+    apiClient.post<PurchaseOrder>(`purchase-orders/${id}/submit/`).then((r) => r.data),
+
+  cancel: (id: string, reason?: string) =>
+    apiClient.post<PurchaseOrder>(`purchase-orders/${id}/cancel/`, reason ? { reason } : {}).then((r) => r.data),
+
+  delete: (id: string) =>
+    apiClient.delete(`purchase-orders/${id}/`).then((r) => r.data),
 };
 
 export const goodsReceiptApi = {
@@ -641,7 +653,7 @@ export const goodsReceiptApi = {
   get: (id: string) =>
     apiClient.get<GoodsReceipt>(`goods-receipts/${id}/`).then((r) => r.data),
 
-  create: (data: Partial<GoodsReceipt>) =>
+  create: (data: GoodsReceiptCreatePayload) =>
     apiClient.post<GoodsReceipt>('goods-receipts/', data).then((r) => r.data),
 };
 

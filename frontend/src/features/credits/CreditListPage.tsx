@@ -1,4 +1,4 @@
-/** Credit accounts list page. */
+﻿/** Credit accounts list page. */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +13,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { useSort } from '@/hooks/use-sort';
 import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { CustomerAccount } from '@/api/types';
 
 const PAGE_SIZE = 25;
@@ -79,10 +79,14 @@ export default function CreditListPage() {
       await creditApi.pay(selected.id, payload);
     },
     onSuccess: async () => {
-      toast.success('Paiement enregistre avec succes');
+      toast.success(
+        `Paiement credit enregistre: ${selected?.customer_name ?? selected?.customer ?? 'Client'} (${formatCurrency(amount || '0')})`,
+      );
       await queryClient.invalidateQueries({ queryKey: queryKeys.creditAccounts.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.creditLedger.all });
-      setSuccessMsg('Paiement enregistre avec succes.');
+      setSuccessMsg(
+        `Paiement enregistre pour ${selected?.customer_name ?? selected?.customer ?? 'le client'}.`,
+      );
       setTimeout(() => setSuccessMsg(null), 3500);
       setSelected(null);
       setAmount('');
@@ -302,3 +306,4 @@ export default function CreditListPage() {
     </div>
   );
 }
+

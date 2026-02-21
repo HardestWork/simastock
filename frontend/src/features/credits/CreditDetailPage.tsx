@@ -1,4 +1,4 @@
-/** Detail view for a single credit account with ledger history and payment form. */
+﻿/** Detail view for a single credit account with ledger history and payment form. */
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -7,7 +7,7 @@ import { ChevronLeft, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { creditApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { CustomerAccount, CreditLedgerEntry, ScheduleStatus } from '@/api/types';
 
 // ---------------------------------------------------------------------------
@@ -138,14 +138,14 @@ export default function CreditDetailPage() {
         (result.payment_entry?.id
           ? `/api/v1/credit-accounts/${accountId}/payments/${result.payment_entry.id}/receipt/`
           : null);
-      toast.success('Paiement enregistre avec succes');
+      toast.success(`Paiement credit enregistre: ${account?.customer_name ?? account?.customer ?? 'Client'} (${formatCurrency(amount)})`);
       void queryClient.invalidateQueries({ queryKey: queryKeys.creditAccounts.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.creditAccounts.detail(accountId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.creditLedger.all });
       setAmount('');
       setReference('');
       setLatestReceiptUrl(receiptUrl);
-      setSuccessMessage('Paiement enregistre avec succes.');
+      setSuccessMessage(`Paiement enregistre pour ${account?.customer_name ?? account?.customer ?? 'le client'}.`);
       setTimeout(() => setSuccessMessage(''), 4000);
     },
     onError: (err: unknown) => {
@@ -419,3 +419,4 @@ export default function CreditDetailPage() {
     </div>
   );
 }
+

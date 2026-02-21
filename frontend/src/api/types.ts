@@ -569,11 +569,20 @@ export interface PurchaseOrderLine {
   purchase_order: string;
   product: string;
   product_name: string;
+  product_sku: string;
   quantity_ordered: number;
   quantity_received: number;
+  remaining_qty: number;
   unit_cost: string;
   line_total: string;
 }
+
+export type PurchaseOrderStatus =
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'PARTIALLY_RECEIVED'
+  | 'RECEIVED'
+  | 'CANCELLED';
 
 export interface PurchaseOrder {
   id: string;
@@ -581,21 +590,71 @@ export interface PurchaseOrder {
   supplier: string;
   supplier_name: string;
   created_by: string;
+  created_by_name: string | null;
   po_number: string;
-  status: string;
+  status: PurchaseOrderStatus;
   subtotal: string;
   notes: string;
+  created_at: string;
+  updated_at: string;
   lines: PurchaseOrderLine[];
+}
+
+export interface PurchaseOrderLineInput {
+  product_id: string;
+  quantity_ordered: number;
+  unit_cost: string;
+}
+
+export interface PurchaseOrderCreatePayload {
+  store: string;
+  supplier: string;
+  notes?: string;
+  po_number?: string;
+  submit_now?: boolean;
+  lines: PurchaseOrderLineInput[];
+}
+
+export interface PurchaseOrderUpdatePayload {
+  supplier?: string;
+  notes?: string;
+  lines?: PurchaseOrderLineInput[];
+}
+
+export interface GoodsReceiptLine {
+  id: string;
+  receipt: string;
+  purchase_order_line: string;
+  product_name: string;
+  product_sku: string;
+  quantity_ordered: number;
+  quantity_received: number;
+  quantity_received_total: number;
 }
 
 export interface GoodsReceipt {
   id: string;
   store: string;
   purchase_order: string;
+  purchase_order_number: string;
   received_by: string;
   receipt_number: string;
   notes: string;
   created_at: string;
+  lines: GoodsReceiptLine[];
+}
+
+export interface GoodsReceiptLineInput {
+  purchase_order_line_id: string;
+  quantity_received: number;
+}
+
+export interface GoodsReceiptCreatePayload {
+  store: string;
+  purchase_order: string;
+  receipt_number?: string;
+  notes?: string;
+  lines: GoodsReceiptLineInput[];
 }
 
 // ---------------------------------------------------------------------------

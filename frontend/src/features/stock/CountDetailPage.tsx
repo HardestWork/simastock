@@ -1,4 +1,4 @@
-/** Detail/edit page for an inventory count. */
+﻿/** Detail/edit page for an inventory count. */
 import { useState, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,7 +6,8 @@ import { format } from 'date-fns';
 import { ChevronLeft, ClipboardList, Search, Save, CheckSquare } from 'lucide-react';
 import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
-import { toast } from 'sonner';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import { toast } from '@/lib/toast';
 import type { CountStatus } from '@/api/types';
 
 const STATUS_LABELS: Record<CountStatus, string> = {
@@ -49,6 +50,7 @@ export default function CountDetailPage() {
   const [editedQtys, setEditedQtys] = useState<Record<string, number>>({});
   const [saveError, setSaveError] = useState('');
   const [completeError, setCompleteError] = useState('');
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
 
   const {
     data: count,
@@ -64,8 +66,8 @@ export default function CountDetailPage() {
   const { mutate: saveLines, isPending: isSaving } = useMutation({
     mutationFn: (lines: { id: string; counted_qty: number }[]) =>
       stockApi.updateCountLines(id!, { lines }),
-    onSuccess: () => {
-      toast.success('Inventaire mis a jour avec succes');
+    onSuccess: (_result, lines) => {
+      toast.info(`Inventaire enregistre: ${lines.length} ligne(s) mise(s) a jour.`);
       setSaveError('');
       setEditedQtys({});
       void queryClient.invalidateQueries({ queryKey: queryKeys.counts.detail(id!) });
@@ -79,8 +81,9 @@ export default function CountDetailPage() {
   const { mutate: completeCount, isPending: isCompleting } = useMutation({
     mutationFn: () => stockApi.completeCount(id!),
     onSuccess: () => {
-      toast.success('Inventaire termine avec succes');
+      toast.success(`Inventaire termine: ${countedLines}/${totalLines} ligne(s) comptee(s).`);
       setCompleteError('');
+      setShowCompleteConfirm(false);
       void queryClient.invalidateQueries({ queryKey: queryKeys.counts.detail(id!) });
     },
     onError: (err: unknown) => {
@@ -140,10 +143,11 @@ export default function CountDetailPage() {
 
   function handleComplete() {
     setCompleteError('');
-    const confirmed = window.confirm(
-      "Etes-vous sur de vouloir terminer cet inventaire ? Cette action est irreversible et appliquera les ajustements de stock."
-    );
-    if (!confirmed) return;
+    setShowCompleteConfirm(true);
+  }
+
+  function runCompleteConfirmed() {
+    setShowCompleteConfirm(false);
     completeCount();
   }
 
@@ -224,7 +228,7 @@ export default function CountDetailPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Main table — takes 3/4 width on large screens */}
+        {/* Main table â€” takes 3/4 width on large screens */}
         <div className="lg:col-span-3 space-y-4">
           {/* Search filter */}
           <div className="relative">
@@ -378,6 +382,18 @@ export default function CountDetailPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showCompleteConfirm}
+        title="Terminer cet inventaire ?"
+        message="Cette action est irreversible et appliquera les ajustements de stock sur les ecarts."
+        confirmLabel="Terminer"
+        tone="warning"
+        loading={isCompleting}
+        onClose={() => setShowCompleteConfirm(false)}
+        onConfirm={runCompleteConfirmed}
+      />
     </div>
   );
 }
+

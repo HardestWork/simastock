@@ -1,11 +1,11 @@
-/** Unified product create / edit page with image upload support. */
+﻿/** Unified product create / edit page with image upload support. */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productApi, categoryApi, brandApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { ArrowLeft, Save, Loader2, AlertCircle, Upload, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { AxiosError } from 'axios';
 
 export default function ProductFormPage() {
@@ -112,7 +112,7 @@ export default function ProductFormPage() {
   const createMut = useMutation({
     mutationFn: (data: FormData) => productApi.create(data),
     onSuccess: (response) => {
-      toast.success('Produit cree avec succes');
+      toast.success(`Produit cree: ${response.name}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       navigate(`/catalog/${response.id}`);
     },
@@ -127,7 +127,7 @@ export default function ProductFormPage() {
     mutationFn: (data: FormData | Partial<Record<string, unknown>>) =>
       productApi.update(id!, data as Partial<import('@/api/types').Product> | FormData),
     onSuccess: () => {
-      toast.success('Produit mis a jour avec succes');
+      toast.info(`Produit mis a jour: ${name.trim()}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id!) });
       navigate(`/catalog/${id}`);
@@ -142,7 +142,7 @@ export default function ProductFormPage() {
   const deleteImageMut = useMutation({
     mutationFn: (imageId: string) => productApi.deleteImage(id!, imageId),
     onSuccess: () => {
-      toast.success('Image supprimee');
+      toast.warning(`Image supprimee: ${name.trim() || 'produit'}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id!) });
     },
     onError: (err: unknown) => {
@@ -166,7 +166,7 @@ export default function ProductFormPage() {
     setSubmitError(null);
 
     if (isEdit && !imageFile) {
-      // Edit without image — send JSON
+      // Edit without image â€” send JSON
       const jsonData: Record<string, unknown> = {
         name: name.trim(),
         sku: sku.trim(),
@@ -179,7 +179,7 @@ export default function ProductFormPage() {
       };
       updateMut.mutate(jsonData);
     } else {
-      // Create, or edit with new image — send FormData
+      // Create, or edit with new image â€” send FormData
       const formData = new FormData();
       formData.append('name', name.trim());
       formData.append('sku', sku.trim());
@@ -485,3 +485,4 @@ export default function ProductFormPage() {
     </div>
   );
 }
+

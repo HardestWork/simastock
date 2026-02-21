@@ -1,10 +1,10 @@
-/** Profile page — view/edit user info and change password. */
+﻿/** Profile page â€” view/edit user info and change password. */
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { authApi } from '@/api/endpoints';
 import { useAuthStore } from '@/auth/auth-store';
 import { User as UserIcon, Lock, CheckCircle, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrateur',
@@ -34,9 +34,9 @@ export default function ProfilePage() {
     mutationFn: (data: { first_name: string; last_name: string; phone: string }) =>
       authApi.updateMe(data),
     onSuccess: (updatedUser) => {
-      toast.success('Profil mis a jour avec succes');
+      toast.success(`Profil mis a jour: ${updatedUser.first_name} ${updatedUser.last_name}`);
       useAuthStore.setState({ user: updatedUser });
-      setProfileMsg({ type: 'success', text: 'Profil mis a jour avec succes.' });
+      setProfileMsg({ type: 'success', text: 'Profil utilisateur mis a jour.' });
     },
     onError: (err: unknown) => {
       toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
@@ -49,8 +49,8 @@ export default function ProfilePage() {
     mutationFn: (data: { old_password: string; new_password: string }) =>
       authApi.changePassword(data),
     onSuccess: () => {
-      toast.success('Mot de passe modifie avec succes');
-      setPasswordMsg({ type: 'success', text: 'Mot de passe modifie avec succes.' });
+      toast.info('Mot de passe modifie avec succes.');
+      setPasswordMsg({ type: 'success', text: 'Mot de passe modifie.' });
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -223,3 +223,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

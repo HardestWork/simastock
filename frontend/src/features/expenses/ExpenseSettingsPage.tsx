@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { Pencil, RefreshCcw, Trash2, X } from 'lucide-react';
+import { toast } from '@/lib/toast';
+import { AlertTriangle, Pencil, RefreshCcw, Trash2, X } from 'lucide-react';
 import { expenseApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
@@ -40,6 +40,17 @@ function normalizeDecimalInput(value: string): string {
   return (value || '').replace(/\s+/g, '').replace(',', '.').trim();
 }
 
+type ConfirmDialogTone = 'danger' | 'warning';
+
+interface ConfirmDialogState {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  tone: ConfirmDialogTone;
+  onConfirm: (() => void) | null;
+}
+
 export default function ExpenseSettingsPage() {
   const currentStore = useStoreStore((s) => s.currentStore);
   const queryClient = useQueryClient();
@@ -72,6 +83,15 @@ export default function ExpenseSettingsPage() {
   const [recFrequency, setRecFrequency] = useState<'WEEKLY' | 'MONTHLY'>('MONTHLY');
   const [recNextDate, setRecNextDate] = useState(todayIsoDate());
   const [recIsActive, setRecIsActive] = useState(true);
+
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
+    open: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Confirmer',
+    tone: 'danger',
+    onConfirm: null,
+  });
 
   const categoryParams = useMemo(
     () => (currentStore ? { page_size: '300' } : undefined),
@@ -160,6 +180,23 @@ export default function ExpenseSettingsPage() {
     }
   };
 
+  const requestConfirmation = (config: Omit<ConfirmDialogState, 'open'>) => {
+    setConfirmDialog({
+      open: true,
+      ...config,
+    });
+  };
+
+  const closeConfirmation = () => {
+    setConfirmDialog((prev) => ({ ...prev, open: false, onConfirm: null }));
+  };
+
+  const runConfirmedAction = () => {
+    const action = confirmDialog.onConfirm;
+    closeConfirmation();
+    action?.();
+  };
+
   const saveCategoryMutation = useMutation({
     mutationFn: () =>
       editingCategoryId
@@ -174,7 +211,12 @@ export default function ExpenseSettingsPage() {
             type: categoryType,
           }),
     onSuccess: () => {
-      toast.success(editingCategoryId ? 'Categorie mise a jour' : 'Categorie creee');
+      const label = categoryName.trim();
+      toast.success(
+        editingCategoryId
+          ? `Categorie mise a jour: ${label}`
+          : `Categorie creee: ${label}`,
+      );
       resetCategoryForm();
       invalidateExpenseSettings();
     },
@@ -184,9 +226,9 @@ export default function ExpenseSettingsPage() {
   });
 
   const deleteCategoryMutation = useMutation({
-    mutationFn: (id: string) => expenseApi.deleteCategory(id),
-    onSuccess: () => {
-      toast.success('Categorie desactivee');
+    mutationFn: (payload: { id: string; name: string }) => expenseApi.deleteCategory(payload.id),
+    onSuccess: (_result, payload) => {
+      toast.warning(`Categorie desactivee: ${payload.name}`);
       if (editingCategoryId) resetCategoryForm();
       invalidateExpenseSettings();
     },
@@ -198,7 +240,8 @@ export default function ExpenseSettingsPage() {
   const toggleCategoryMutation = useMutation({
     mutationFn: (payload: { id: string; is_active: boolean }) =>
       expenseApi.updateCategory(payload.id, { is_active: payload.is_active }),
-    onSuccess: () => {
+    onSuccess: (_result, payload) => {
+      toast.info(`Categorie ${payload.is_active ? 'activee' : 'desactivee'}.`);
       void queryClient.invalidateQueries({ queryKey: queryKeys.expenseCategories.all });
     },
     onError: (err: unknown) => {
@@ -221,7 +264,12 @@ export default function ExpenseSettingsPage() {
             initial_balance: walletInitialBalance.trim() || '0',
           }),
     onSuccess: () => {
-      toast.success(editingWalletId ? 'Wallet mis a jour' : 'Wallet cree');
+      const label = walletName.trim();
+      toast.success(
+        editingWalletId
+          ? `Wallet mis a jour: ${label}`
+          : `Wallet cree: ${label}`,
+      );
       resetWalletForm();
       invalidateExpenseSettings();
     },
@@ -231,19 +279,19 @@ export default function ExpenseSettingsPage() {
   });
 
   const deleteWalletMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (payload: { id: string; name: string }) => {
       try {
-        return await expenseApi.deleteWallet(id);
+        return await expenseApi.deleteWallet(payload.id);
       } catch (err: any) {
         const statusCode = err?.response?.status;
         if (statusCode === 405 || statusCode === 409 || statusCode >= 500) {
-          return expenseApi.updateWallet(id, { is_active: false });
+          return expenseApi.updateWallet(payload.id, { is_active: false });
         }
         throw err;
       }
     },
-    onSuccess: () => {
-      toast.success('Wallet desactive');
+    onSuccess: (_result, payload) => {
+      toast.warning(`Wallet desactive: ${payload.name}`);
       if (editingWalletId) resetWalletForm();
       invalidateExpenseSettings();
     },
@@ -255,7 +303,8 @@ export default function ExpenseSettingsPage() {
   const toggleWalletMutation = useMutation({
     mutationFn: (payload: { id: string; is_active: boolean }) =>
       expenseApi.updateWallet(payload.id, { is_active: payload.is_active }),
-    onSuccess: () => {
+    onSuccess: (_result, payload) => {
+      toast.info(`Wallet ${payload.is_active ? 'active' : 'desactive'}.`);
       void queryClient.invalidateQueries({ queryKey: queryKeys.wallets.all });
     },
     onError: (err: unknown) => {
@@ -281,7 +330,11 @@ export default function ExpenseSettingsPage() {
       });
     },
     onSuccess: () => {
-      toast.success(editingBudgetId ? 'Budget mis a jour' : 'Budget cree');
+      toast.success(
+        editingBudgetId
+          ? `Budget mis a jour (${budgetPeriod})`
+          : `Budget cree (${budgetPeriod})`,
+      );
       resetBudgetForm();
       invalidateExpenseSettings();
     },
@@ -291,9 +344,9 @@ export default function ExpenseSettingsPage() {
   });
 
   const deleteBudgetMutation = useMutation({
-    mutationFn: (id: string) => expenseApi.deleteBudget(id),
-    onSuccess: () => {
-      toast.success('Budget supprime');
+    mutationFn: (payload: { id: string; period: string }) => expenseApi.deleteBudget(payload.id),
+    onSuccess: (_result, payload) => {
+      toast.warning(`Budget supprime: ${payload.period}`);
       if (editingBudgetId) resetBudgetForm();
       invalidateExpenseSettings();
     },
@@ -326,7 +379,12 @@ export default function ExpenseSettingsPage() {
             next_run_date: recNextDate,
           }),
     onSuccess: () => {
-      toast.success(editingRecurringId ? 'Depense recurrente mise a jour' : 'Depense recurrente creee');
+      const label = recDescription.trim();
+      toast.success(
+        editingRecurringId
+          ? `Depense recurrente mise a jour: ${label}`
+          : `Depense recurrente creee: ${label}`,
+      );
       resetRecurringForm();
       invalidateExpenseSettings();
     },
@@ -338,7 +396,8 @@ export default function ExpenseSettingsPage() {
   const toggleRecurringMutation = useMutation({
     mutationFn: (payload: { id: string; is_active: boolean }) =>
       expenseApi.updateRecurring(payload.id, { is_active: payload.is_active }),
-    onSuccess: () => {
+    onSuccess: (_result, payload) => {
+      toast.info(`Depense recurrente ${payload.is_active ? 'activee' : 'suspendue'}.`);
       void queryClient.invalidateQueries({ queryKey: queryKeys.recurringExpenses.all });
     },
     onError: (err: unknown) => {
@@ -347,9 +406,9 @@ export default function ExpenseSettingsPage() {
   });
 
   const deleteRecurringMutation = useMutation({
-    mutationFn: (id: string) => expenseApi.deleteRecurring(id),
-    onSuccess: () => {
-      toast.success('Depense recurrente supprimee');
+    mutationFn: (payload: { id: string; description: string }) => expenseApi.deleteRecurring(payload.id),
+    onSuccess: (_result, payload) => {
+      toast.warning(`Depense recurrente supprimee: ${payload.description}`);
       if (editingRecurringId) resetRecurringForm();
       invalidateExpenseSettings();
     },
@@ -361,7 +420,15 @@ export default function ExpenseSettingsPage() {
   const runRecurringMutation = useMutation({
     mutationFn: () => expenseApi.runRecurringDue({ store: currentStore?.id }),
     onSuccess: (res) => {
-      toast.success(`Execution terminee: ${res.generated_count} depense(s) generee(s)`);
+      if (res.generated_count > 0 && res.failed_count === 0) {
+        toast.success(`Execution terminee: ${res.generated_count} depense(s) generee(s).`);
+      } else if (res.generated_count === 0 && res.failed_count === 0) {
+        toast.info('Aucune depense recurrente due pour cette execution.');
+      } else {
+        toast.warning(
+          `Execution terminee: ${res.generated_count} generee(s), ${res.failed_count} en erreur.`,
+        );
+      }
       invalidateExpenseSettings();
     },
     onError: (err: unknown) => {
@@ -505,8 +572,13 @@ export default function ExpenseSettingsPage() {
                         </button>
                         <button
                           onClick={() => {
-                            if (!window.confirm(`Desactiver la categorie "${c.name}" ?`)) return;
-                            deleteCategoryMutation.mutate(c.id);
+                            requestConfirmation({
+                              title: 'Desactiver cette categorie ?',
+                              message: `La categorie "${c.name}" sera desactivee pour les nouvelles operations.`,
+                              confirmLabel: 'Desactiver',
+                              tone: 'warning',
+                              onConfirm: () => deleteCategoryMutation.mutate({ id: c.id, name: c.name }),
+                            });
                           }}
                           className="p-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50"
                           title="Supprimer"
@@ -636,8 +708,13 @@ export default function ExpenseSettingsPage() {
                         </button>
                         <button
                           onClick={() => {
-                            if (!window.confirm(`Desactiver le wallet "${w.name}" ?`)) return;
-                            deleteWalletMutation.mutate(w.id);
+                            requestConfirmation({
+                              title: 'Desactiver ce wallet ?',
+                              message: `Le wallet "${w.name}" sera desactive et ne pourra plus etre selectionne.`,
+                              confirmLabel: 'Desactiver',
+                              tone: 'warning',
+                              onConfirm: () => deleteWalletMutation.mutate({ id: w.id, name: w.name }),
+                            });
                           }}
                           className="p-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50"
                           title="Supprimer"
@@ -761,8 +838,13 @@ export default function ExpenseSettingsPage() {
                         </button>
                         <button
                           onClick={() => {
-                            if (!window.confirm(`Supprimer le budget ${b.period} ?`)) return;
-                            deleteBudgetMutation.mutate(b.id);
+                            requestConfirmation({
+                              title: 'Supprimer ce budget ?',
+                              message: `Le budget de la periode ${b.period} sera supprime.`,
+                              confirmLabel: 'Supprimer',
+                              tone: 'danger',
+                              onConfirm: () => deleteBudgetMutation.mutate({ id: b.id, period: b.period }),
+                            });
                           }}
                           className="p-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50"
                           title="Supprimer"
@@ -934,8 +1016,13 @@ export default function ExpenseSettingsPage() {
                         </button>
                         <button
                           onClick={() => {
-                            if (!window.confirm(`Supprimer la depense recurrente "${r.description}" ?`)) return;
-                            deleteRecurringMutation.mutate(r.id);
+                            requestConfirmation({
+                              title: 'Supprimer cette depense recurrente ?',
+                              message: `La depense recurrente "${r.description}" sera retiree definitivement.`,
+                              confirmLabel: 'Supprimer',
+                              tone: 'danger',
+                              onConfirm: () => deleteRecurringMutation.mutate({ id: r.id, description: r.description }),
+                            });
                           }}
                           className="p-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50"
                           title="Supprimer"
@@ -956,6 +1043,50 @@ export default function ExpenseSettingsPage() {
           </div>
         </div>
       )}
+
+      {confirmDialog.open && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/40" onClick={closeConfirmation} />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-start gap-3">
+                <span
+                  className={`mt-0.5 ${
+                    confirmDialog.tone === 'danger' ? 'text-red-600' : 'text-amber-600'
+                  }`}
+                >
+                  <AlertTriangle size={18} />
+                </span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{confirmDialog.title}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{confirmDialog.message}</p>
+                </div>
+              </div>
+              <div className="p-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeConfirmation}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={runConfirmedAction}
+                  className={`px-3 py-2 rounded-lg text-sm text-white ${
+                    confirmDialog.tone === 'danger'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
+                >
+                  {confirmDialog.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-/** Stock entry page — bulk IN movements for the current store. */
+﻿/** Stock entry page â€” bulk IN movements for the current store. */
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -6,7 +6,7 @@ import { ArrowLeft, Plus, Minus, X, PackagePlus, Search } from 'lucide-react';
 import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { ProductStock } from '@/api/types';
 
 // ---------------------------------------------------------------------------
@@ -74,7 +74,7 @@ export default function StockEntryPage() {
       reason?: string;
     }) => stockApi.bulkEntry(payload),
     onSuccess: (response) => {
-      toast.success('Entree de stock enregistree avec succes');
+      toast.success(`Entree de stock enregistree: ${lines.length} produit(s), ${totalQuantity} unite(s).`);
       queryClient.invalidateQueries({ queryKey: queryKeys.stockLevels.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all });
       navigate(`/stock/movements/${response.batch_id}`);
@@ -175,7 +175,7 @@ export default function StockEntryPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
 
         {/* ------------------------------------------------------------------ */}
-        {/* Left column — Product search                                        */}
+        {/* Left column â€” Product search                                        */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-3">
           <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">Rechercher un produit</h2>
@@ -243,7 +243,7 @@ export default function StockEntryPage() {
         </div>
 
         {/* ------------------------------------------------------------------ */}
-        {/* Middle column — Entry lines                                         */}
+        {/* Middle column â€” Entry lines                                         */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-3">
           <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">
@@ -323,7 +323,7 @@ export default function StockEntryPage() {
         </div>
 
         {/* ------------------------------------------------------------------ */}
-        {/* Right column — Summary & Submit                                     */}
+        {/* Right column â€” Summary & Submit                                     */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-4">
           <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">Recapitulatif</h2>
@@ -406,3 +406,4 @@ export default function StockEntryPage() {
     </div>
   );
 }
+

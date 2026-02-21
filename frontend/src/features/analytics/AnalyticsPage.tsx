@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import { BarChart3, RefreshCw, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 import { analyticsApi } from '@/api/endpoints';
 import CurrencyDisplay from '@/components/shared/CurrencyDisplay';
@@ -202,7 +202,7 @@ export default function AnalyticsPage() {
   const recalcMut = useMutation({
     mutationFn: () => analyticsApi.strategicKpis({ ...params, refresh: '1' }),
     onSuccess: () => {
-      toast.success('Indicateurs recalcules avec succes');
+      toast.info(`Indicateurs recalcules (${dateFrom} -> ${dateTo}).`);
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
     },
     onError: (err: unknown) => {
@@ -680,3 +680,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+

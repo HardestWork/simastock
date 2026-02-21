@@ -1,6 +1,6 @@
-/** Trigger a CSV download from an API endpoint. */
+﻿/** Trigger a CSV download from an API endpoint. */
 import apiClient from '@/api/client';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 export async function downloadCsv(endpoint: string, filename: string) {
   try {
@@ -13,8 +13,9 @@ export async function downloadCsv(endpoint: string, filename: string) {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
-    toast.success('Export CSV telecharge');
+    toast.success(`Export CSV telecharge: ${filename}.csv`);
   } catch {
-    toast.error("Erreur lors de l'export CSV");
+    toast.error(`Erreur export CSV: ${filename}.csv`);
   }
 }
+

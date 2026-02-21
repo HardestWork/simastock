@@ -1,4 +1,4 @@
-/** Per-store user capability management page (ADMIN / MANAGER). */
+﻿/** Per-store user capability management page (ADMIN / MANAGER). */
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -6,7 +6,7 @@ import { storeUserApi, storeApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
 import { ArrowLeft, Shield, Users, Check, X, Loader2, RotateCcw } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { Capability, StoreUserRecord, UserRole } from '@/api/types';
 
 // ---------------------------------------------------------------------------
@@ -145,7 +145,7 @@ export default function StoreUserCapabilitiesPage() {
     mutationFn: (args: { id: string; capabilities: Capability[] }) =>
       storeUserApi.update(args.id, { capabilities: args.capabilities }),
     onSuccess: (updated) => {
-      toast.success('Permissions enregistrees avec succes');
+      toast.success(`Permissions enregistrees: ${updated.user_name} (${selectedStoreName || 'magasin'})`);
       queryClient.invalidateQueries({ queryKey: ['store-users'] });
       setSaveSuccess(true);
       setSaveError('');
@@ -450,7 +450,7 @@ export default function StoreUserCapabilitiesPage() {
               )}
               {saveSuccess && (
                 <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-4 py-3 text-sm mb-4">
-                  Permissions enregistrees avec succes.
+                  Permissions enregistrees pour {editingUser.user_name}.
                 </div>
               )}
 
@@ -491,3 +491,4 @@ export default function StoreUserCapabilitiesPage() {
     </div>
   );
 }
+

@@ -1,11 +1,11 @@
-/** Alerts list page. */
+﻿/** Alerts list page. */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { alertApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { Bell, CheckCheck } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 export default function AlertListPage() {
   const queryClient = useQueryClient();
@@ -25,7 +25,7 @@ export default function AlertListPage() {
   const markAllMut = useMutation({
     mutationFn: () => alertApi.markAllRead(),
     onSuccess: () => {
-      toast.success('Toutes les alertes marquees comme lues');
+      toast.info('Toutes les alertes ont ete marquees comme lues.');
       queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all });
     },
     onError: (err: unknown) => {
@@ -36,7 +36,7 @@ export default function AlertListPage() {
   const markOneMut = useMutation({
     mutationFn: (id: string) => alertApi.markRead(id),
     onSuccess: () => {
-      toast.success('Alerte marquee comme lue');
+      toast.info('Alerte marquee comme lue.');
       queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all });
     },
     onError: (err: unknown) => {
@@ -100,3 +100,4 @@ export default function AlertListPage() {
     </div>
   );
 }
+

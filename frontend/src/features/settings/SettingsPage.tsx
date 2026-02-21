@@ -1,10 +1,10 @@
-/** Admin settings: stores, invoice (enterprise-level), enterprise flags. */
+﻿/** Admin settings: stores, invoice (enterprise-level), enterprise flags. */
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import { Save, RefreshCw, Plus, X, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 import { enterpriseApi, storeApi } from '@/api/endpoints';
 import type { Enterprise, FeatureFlags, Store } from '@/api/types';
@@ -127,7 +127,7 @@ export default function SettingsPage() {
       return storeApi.update(selectedStore.id, storeDraft);
     },
     onSuccess: () => {
-      toast.success('Magasin mis a jour avec succes');
+      toast.info(`Magasin mis a jour: ${selectedStore?.name ?? 'selection courante'}`);
       qc.invalidateQueries({ queryKey: ['settings', 'stores'] });
     },
     onError: (err: unknown) => {
@@ -141,7 +141,7 @@ export default function SettingsPage() {
       return enterpriseApi.update(enterprise.id, invoiceDraft);
     },
     onSuccess: () => {
-      toast.success('Parametres de facturation enregistres avec succes');
+      toast.success(`Parametres de facturation enregistres (${enterprise?.name ?? 'structure'}).`);
       qc.invalidateQueries({ queryKey: ['settings', 'enterprise'] });
     },
     onError: (err: unknown) => {
@@ -156,7 +156,7 @@ export default function SettingsPage() {
       return enterpriseApi.update(enterprise.id, payload);
     },
     onSuccess: () => {
-      toast.success('Parametres de structure enregistres avec succes');
+      toast.success(`Flags structure enregistres: ${enterprise?.name ?? 'structure'}`);
       qc.invalidateQueries({ queryKey: ['settings', 'enterprise'] });
       qc.invalidateQueries({ queryKey: ['settings', 'stores'] });
     },
@@ -173,8 +173,8 @@ export default function SettingsPage() {
 
   const createStoreMut = useMutation({
     mutationFn: () => storeApi.create(newStore),
-    onSuccess: () => {
-      toast.success('Magasin cree avec succes');
+    onSuccess: (createdStore) => {
+      toast.success(`Boutique creee: ${createdStore.name}`);
       qc.invalidateQueries({ queryKey: ['settings', 'stores'] });
       qc.invalidateQueries({ queryKey: ['my-stores'] });
       setShowCreateForm(false);
@@ -344,7 +344,7 @@ export default function SettingsPage() {
                   )}
                   {saveStoreMut.isSuccess && (
                     <div className="mb-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-800">
-                      Enregistre.
+                      Configuration magasin enregistree.
                     </div>
                   )}
 
@@ -469,7 +469,7 @@ export default function SettingsPage() {
             )}
             {saveInvoiceMut.isSuccess && (
               <div className="mb-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-800">
-                Enregistre.
+                Parametres de facturation enregistres.
               </div>
             )}
 
@@ -598,7 +598,7 @@ export default function SettingsPage() {
           )}
           {saveEnterpriseMut.isSuccess && (
             <div className="mb-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-800">
-              Enregistre.
+              Flags structure enregistres.
             </div>
           )}
 
@@ -633,3 +633,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

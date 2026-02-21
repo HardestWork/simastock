@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Plus, Search, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { expenseApi } from '@/api/endpoints';
 import { downloadCsv } from '@/lib/export';
 import { queryKeys } from '@/lib/query-keys';
@@ -104,8 +104,8 @@ export default function ExpenseListPage() {
         supplier_name: formSupplier.trim() || undefined,
         description: formDescription.trim(),
       }),
-    onSuccess: () => {
-      toast.success('Depense enregistree');
+    onSuccess: (created) => {
+      toast.success(`Depense enregistree: ${created.expense_number}`);
       setOpenCreate(false);
       setFormCategory('');
       setFormWallet('');
@@ -131,7 +131,7 @@ export default function ExpenseListPage() {
       return expenseApi.voidExpense(voidTarget.id, voidReason.trim() || undefined);
     },
     onSuccess: () => {
-      toast.success('Depense annulee');
+      toast.warning(`Depense annulee: ${voidTarget?.number ?? 'sans numero'}`);
       setVoidTarget(null);
       setVoidReason('');
       void queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
@@ -462,3 +462,4 @@ export default function ExpenseListPage() {
     </div>
   );
 }
+
