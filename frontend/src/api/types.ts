@@ -125,6 +125,44 @@ export interface Enterprise {
 
 export type InvoiceTemplate = 'CLASSIC' | 'MODERN' | 'SIMPLE';
 
+export type EnterpriseSubscriptionBillingCycle = 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM';
+export type EnterpriseSubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED';
+
+export interface EnterpriseSubscription {
+  id: string;
+  enterprise: string;
+  plan_code: string;
+  plan_name: string;
+  billing_cycle: EnterpriseSubscriptionBillingCycle;
+  amount: string;
+  currency: string;
+  starts_on: string;
+  ends_on: string | null;
+  status: EnterpriseSubscriptionStatus;
+  auto_renew: boolean;
+  external_subscription_id: string;
+  metadata: Record<string, unknown>;
+  is_current: boolean;
+  is_expired: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EnterpriseSubscriptionPayload {
+  enterprise?: string;
+  plan_code: string;
+  plan_name: string;
+  billing_cycle: EnterpriseSubscriptionBillingCycle;
+  amount: string;
+  currency: string;
+  starts_on: string;
+  ends_on?: string | null;
+  status: EnterpriseSubscriptionStatus;
+  auto_renew: boolean;
+  external_subscription_id?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface Store {
   id: string;
   enterprise: string;
@@ -215,6 +253,8 @@ export interface ProductSpec {
   value: string;
 }
 
+export type ProductType = 'PRODUCT' | 'SERVICE';
+
 export interface Product {
   id: string;
   enterprise: string;
@@ -226,6 +266,8 @@ export interface Product {
   category_name: string;
   brand: string | null;
   brand_name: string | null;
+  product_type: ProductType;
+  track_stock: boolean;
   cost_price: string;
   selling_price: string;
   is_active: boolean;
@@ -240,6 +282,8 @@ export interface PosProduct {
   sku: string;
   barcode: string;
   selling_price: string;
+  product_type: ProductType;
+  track_stock: boolean;
   is_active: boolean;
   available_qty: number;
   has_stock: boolean;
@@ -515,6 +559,7 @@ export interface CustomerAccount {
   balance: string;
   available_credit: string;
   is_active: boolean;
+  created_at: string;
 }
 
 export interface CreditLedgerEntry {

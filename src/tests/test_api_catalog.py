@@ -1,6 +1,7 @@
 """Tests for Catalog API endpoints (products, categories, brands)."""
 import pytest
 from catalog.models import Category, Brand, Product
+from stock.models import ProductStock
 
 
 class TestCategoryAPI:
@@ -79,3 +80,76 @@ class TestProductAPI:
         )
         resp = sales_client.get("/api/v1/products/")
         assert resp.status_code == 200
+
+    def test_create_service_forces_no_stock_tracking(self, admin_client):
+        resp = admin_client.post("/api/v1/products/", {
+            "name": "Installation reseau",
+            "sku": "SRV-001",
+            "selling_price": "30000",
+            "cost_price": "0",
+            "product_type": "SERVICE",
+            "track_stock": True,
+        })
+        assert resp.status_code == 201
+        assert resp.data["product_type"] == "SERVICE"
+        assert resp.data["track_stock"] is False
+
+    def test_service_can_be_added_to_sale_without_stock_row(self, admin_client, store, enterprise):
+        service = Product.objects.create(
+            enterprise=enterprise,
+            name="Maintenance PC",
+            sku="SRV-002",
+            product_type=Product.ProductType.SERVICE,
+            track_stock=False,
+            selling_price=15000,
+            cost_price=0,
+        )
+        sale_resp = admin_client.post("/api/v1/sales/", {"store_id": str(store.pk)})
+        assert sale_resp.status_code == 201
+        sale_id = sale_resp.data["id"]
+
+        add_item_resp = admin_client.post(
+            f"/api/v1/sales/{sale_id}/add-item/",
+            {"product_id": str(service.pk), "quantity": 1},
+        )
+        assert add_item_resp.status_code == 200
+        assert len(add_item_resp.data["items"]) == 1
+        assert ProductStock.objects.filter(store=store, product=service).exists() is False
+
+    def test_delete_product_with_only_stock_row(self, admin_client, store, enterprise):
+        product = Product.objects.create(
+            enterprise=enterprise,
+            name="Produit supprimable",
+            sku="DEL-001",
+            selling_price=12000,
+            cost_price=8000,
+        )
+        ProductStock.objects.create(store=store, product=product, quantity=0, reserved_qty=0)
+
+        resp = admin_client.delete(f"/api/v1/products/{product.pk}/")
+        assert resp.status_code == 204
+        assert Product.objects.filter(pk=product.pk).exists() is False
+        assert ProductStock.objects.filter(product=product).exists() is False
+
+    def test_delete_product_linked_to_sale_returns_business_error(self, admin_client, store, enterprise):
+        service = Product.objects.create(
+            enterprise=enterprise,
+            name="Service protege",
+            sku="DEL-002",
+            product_type=Product.ProductType.SERVICE,
+            track_stock=False,
+            selling_price=9000,
+            cost_price=0,
+        )
+        sale_resp = admin_client.post("/api/v1/sales/", {"store_id": str(store.pk)})
+        assert sale_resp.status_code == 201
+        sale_id = sale_resp.data["id"]
+        add_item_resp = admin_client.post(
+            f"/api/v1/sales/{sale_id}/add-item/",
+            {"product_id": str(service.pk), "quantity": 1},
+        )
+        assert add_item_resp.status_code == 200
+
+        delete_resp = admin_client.delete(f"/api/v1/products/{service.pk}/")
+        assert delete_resp.status_code == 400
+        assert "Impossible de supprimer ce produit" in str(delete_resp.data.get("detail", ""))

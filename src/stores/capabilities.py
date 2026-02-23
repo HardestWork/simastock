@@ -42,7 +42,12 @@ CAPABILITY_PRESETS = {
     },
     "vendeur_caissier": {
         "label": "Vendeur-Caissier",
-        "capabilities": ["CAN_SELL", "CAN_CASH"],
+        "capabilities": [
+            "CAN_SELL",
+            "CAN_CASH",
+            "CAN_CREATE_EXPENSE",
+            "CAN_VIEW_EXPENSE_REPORTS",
+        ],
     },
     "gestionnaire": {"label": "Gestionnaire", "capabilities": list(ALL_CAPABILITIES)},
     "magasinier": {"label": "Magasinier", "capabilities": ["CAN_STOCK"]},

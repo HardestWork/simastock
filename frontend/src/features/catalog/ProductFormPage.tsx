@@ -18,6 +18,7 @@ export default function ProductFormPage() {
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [barcode, setBarcode] = useState('');
+  const [productType, setProductType] = useState<'PRODUCT' | 'SERVICE'>('PRODUCT');
   const [category, setCategory] = useState('');
   const [brand, setBrand] = useState('');
   const [costPrice, setCostPrice] = useState('');
@@ -54,6 +55,7 @@ export default function ProductFormPage() {
       setName(product.name || '');
       setSku(product.sku || '');
       setBarcode(product.barcode || '');
+      setProductType(product.product_type || 'PRODUCT');
       setCategory(product.category || '');
       setBrand(product.brand || '');
       setCostPrice(product.cost_price || '');
@@ -171,6 +173,8 @@ export default function ProductFormPage() {
         name: name.trim(),
         sku: sku.trim(),
         barcode: barcode.trim(),
+        product_type: productType,
+        track_stock: productType === 'PRODUCT',
         category: category || null,
         brand: brand || null,
         cost_price: costPrice.trim(),
@@ -184,6 +188,8 @@ export default function ProductFormPage() {
       formData.append('name', name.trim());
       formData.append('sku', sku.trim());
       formData.append('barcode', barcode.trim());
+      formData.append('product_type', productType);
+      formData.append('track_stock', String(productType === 'PRODUCT'));
       if (category) formData.append('category', category);
       if (brand) formData.append('brand', brand);
       formData.append('cost_price', costPrice.trim());
@@ -273,6 +279,21 @@ export default function ProductFormPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 placeholder="Code-barres (optionnel)"
               />
+            </div>
+
+            {/* Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+                Type
+              </label>
+              <select
+                value={productType}
+                onChange={(e) => setProductType(e.target.value as 'PRODUCT' | 'SERVICE')}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
+              >
+                <option value="PRODUCT">Produit (stock gere)</option>
+                <option value="SERVICE">Service (pas de stock)</option>
+              </select>
             </div>
 
             {/* Categorie */}

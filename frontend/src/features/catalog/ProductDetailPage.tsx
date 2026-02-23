@@ -30,7 +30,7 @@ export default function ProductDetailPage() {
   const { data: stockData, isLoading: stockLoading } = useQuery({
     queryKey: queryKeys.stockLevels.list(stockParams),
     queryFn: () => stockApi.levels(stockParams),
-    enabled: !!id,
+    enabled: !!id && product?.track_stock === true,
   });
 
   // -------------------------------------------------------------------------
@@ -139,6 +139,15 @@ export default function ProductDetailPage() {
           </span>
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
             {product.sku}
+          </span>
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              product.product_type === 'SERVICE'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-sky-100 text-sky-700'
+            }`}
+          >
+            {product.product_type === 'SERVICE' ? 'Service' : 'Produit'}
           </span>
         </div>
 
@@ -304,7 +313,11 @@ export default function ProductDetailPage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Stock par magasin</h2>
 
-            {stockLoading ? (
+            {!product.track_stock ? (
+              <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-6">
+                Ce service ne suit pas de stock.
+              </p>
+            ) : stockLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
               </div>

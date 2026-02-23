@@ -6,7 +6,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from stores.models import Enterprise, Store, StoreUser, AuditLog
+from stores.models import Enterprise, EnterpriseSubscription, Store, StoreUser, AuditLog
 from catalog.models import Brand, Category, Product, ProductImage, ProductSpec
 from stock.models import (
     InventoryMovement, ProductStock,
@@ -23,6 +23,22 @@ from alerts.models import Alert
 from reports.models import KPISnapshot
 
 User = get_user_model()
+
+
+def _serializer_user_enterprise_id(user):
+    """Best-effort enterprise resolution for serializer-level validation."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return None
+    link = (
+        user.store_users
+        .filter(store__is_active=True, store__enterprise__is_active=True)
+        .order_by("-is_default", "store_id")
+        .select_related("store__enterprise")
+        .first()
+    )
+    if not link or not link.store:
+        return None
+    return link.store.enterprise_id
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +185,70 @@ class EnterpriseSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(f"Le flag '{key}' doit etre un booleen.")
             cleaned[key] = raw
         return cleaned
+
+
+class EnterpriseSubscriptionSerializer(serializers.ModelSerializer):
+    """Serializer for enterprise subscriptions (billing contracts)."""
+
+    is_current = serializers.SerializerMethodField()
+    is_expired = serializers.SerializerMethodField()
+    enterprise = serializers.PrimaryKeyRelatedField(
+        queryset=Enterprise.objects.all(),
+        required=False,
+    )
+
+    class Meta:
+        model = EnterpriseSubscription
+        fields = [
+            'id', 'enterprise',
+            'plan_code', 'plan_name',
+            'billing_cycle', 'amount', 'currency',
+            'starts_on', 'ends_on',
+            'status', 'auto_renew',
+            'external_subscription_id', 'metadata',
+            'is_current', 'is_expired',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'is_current', 'is_expired', 'created_at', 'updated_at']
+
+    def get_is_current(self, obj):
+        return obj.is_current
+
+    def get_is_expired(self, obj):
+        return obj.is_expired
+
+    def validate_amount(self, value):
+        if value < Decimal("0.00"):
+            raise serializers.ValidationError("Le montant ne peut pas etre negatif.")
+        return value
+
+    def validate(self, attrs):
+        instance = getattr(self, "instance", None)
+        starts_on = attrs.get("starts_on", getattr(instance, "starts_on", None))
+        ends_on = attrs.get("ends_on", getattr(instance, "ends_on", None))
+        if starts_on and ends_on and ends_on < starts_on:
+            raise serializers.ValidationError(
+                {"ends_on": "La date de fin doit etre superieure ou egale a la date de debut."}
+            )
+
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return attrs
+        if request.user.is_superuser:
+            return attrs
+
+        user_enterprise_id = _serializer_user_enterprise_id(request.user)
+        if user_enterprise_id is None:
+            raise serializers.ValidationError(
+                "Aucune entreprise active n'est associee a votre compte."
+            )
+
+        requested_enterprise = attrs.get("enterprise")
+        if requested_enterprise and requested_enterprise.pk != user_enterprise_id:
+            raise serializers.ValidationError(
+                {"enterprise": "Vous ne pouvez gerer que les abonnements de votre entreprise."}
+            )
+        return attrs
 
 
 class EnterpriseSetupSerializer(serializers.Serializer):
@@ -328,10 +408,26 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'enterprise', 'name', 'slug', 'sku', 'barcode',
             'category', 'category_name', 'brand', 'brand_name',
+            'product_type', 'track_stock',
             'cost_price', 'selling_price',
             'is_active', 'images', 'specs',
         ]
         read_only_fields = ['id', 'enterprise', 'slug', 'category_name', 'brand_name']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        instance = getattr(self, "instance", None)
+        product_type = attrs.get(
+            "product_type",
+            getattr(instance, "product_type", Product.ProductType.PRODUCT),
+        )
+        track_stock = attrs.get(
+            "track_stock",
+            getattr(instance, "track_stock", True),
+        )
+        if product_type == Product.ProductType.SERVICE and track_stock:
+            attrs["track_stock"] = False
+        return attrs
 
 
 class ProductPOSSerializer(serializers.ModelSerializer):
@@ -347,6 +443,7 @@ class ProductPOSSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'sku', 'barcode', 'selling_price',
+            'product_type', 'track_stock',
             'is_active', 'available_qty', 'has_stock',
         ]
         read_only_fields = fields
@@ -787,8 +884,9 @@ class CustomerAccountSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'store', 'customer', 'customer_name', 'customer_phone',
             'credit_limit', 'balance', 'available_credit', 'is_active',
+            'created_at',
         ]
-        read_only_fields = ['id', 'balance', 'available_credit']
+        read_only_fields = ['id', 'balance', 'available_credit', 'created_at']
 
     def get_customer_name(self, obj):
         if obj.customer:
@@ -834,6 +932,7 @@ class SupplierSerializer(serializers.ModelSerializer):
 
 
 class PurchaseOrderLineSerializer(serializers.ModelSerializer):
+    product = serializers.UUIDField(source='product_id', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_sku = serializers.CharField(source='product.sku', read_only=True)
     remaining_qty = serializers.SerializerMethodField()

@@ -41,7 +41,11 @@ const CustomerDetailPage = lazy(() => import('@/features/customers/CustomerDetai
 const CreditListPage = lazy(() => import('@/features/credits/CreditListPage'));
 const CreditDetailPage = lazy(() => import('@/features/credits/CreditDetailPage'));
 const PaymentReceiptPage = lazy(() => import('@/features/cashier/PaymentReceiptPage'));
+const SupplierListPage = lazy(() => import('@/features/purchases/SupplierListPage'));
 const PurchaseListPage = lazy(() => import('@/features/purchases/PurchaseListPage'));
+const PurchaseFormPage = lazy(() => import('@/features/purchases/PurchaseFormPage'));
+const PurchaseDetailPage = lazy(() => import('@/features/purchases/PurchaseDetailPage'));
+const GoodsReceiptCreatePage = lazy(() => import('@/features/purchases/GoodsReceiptCreatePage'));
 const ReportsPage = lazy(() => import('@/features/reports/ReportsPage'));
 const AlertListPage = lazy(() => import('@/features/alerts/AlertListPage'));
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'));
@@ -56,6 +60,7 @@ const AnalyticsPage = lazy(() => import('@/features/analytics/AnalyticsPage'));
 const StatisticsPage = lazy(() => import('@/features/statistics/StatisticsPage'));
 const EnterpriseSetupPage = lazy(() => import('@/features/settings/EnterpriseSetupPage'));
 const EnterpriseListPage = lazy(() => import('@/features/settings/EnterpriseListPage'));
+const EnterpriseSubscriptionPage = lazy(() => import('@/features/settings/EnterpriseSubscriptionPage'));
 const StoreUserCapabilitiesPage = lazy(() => import('@/features/settings/StoreUserCapabilitiesPage'));
 const ExpenseListPage = lazy(() => import('@/features/expenses/ExpenseListPage'));
 const ExpenseDashboardPage = lazy(() => import('@/features/expenses/ExpenseDashboardPage'));
@@ -98,13 +103,27 @@ export default function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
 
                 {/* POS */}
-                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN']} />}>
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['SALES', 'MANAGER', 'ADMIN']}
+                      allowedCapabilities={['CAN_SELL']}
+                    />
+                  }
+                >
                   <Route path="/pos" element={<Suspense fallback={<PageLoader />}><SaleListPage /></Suspense>} />
                   <Route path="/pos/new" element={<Suspense fallback={<PageLoader />}><PosPage /></Suspense>} />
                 </Route>
 
                 {/* Quotes (Devis) */}
-                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN']} />}>
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['SALES', 'MANAGER', 'ADMIN']}
+                      allowedCapabilities={['CAN_SELL']}
+                    />
+                  }
+                >
                   <Route path="/quotes" element={<Suspense fallback={<PageLoader />}><QuoteListPage /></Suspense>} />
                   <Route path="/quotes/new" element={<Suspense fallback={<PageLoader />}><QuoteFormPage /></Suspense>} />
                   <Route path="/quotes/:id" element={<Suspense fallback={<PageLoader />}><QuoteDetailPage /></Suspense>} />
@@ -112,7 +131,14 @@ export default function App() {
                 </Route>
 
                 {/* Cashier */}
-                <Route element={<ProtectedRoute allowedRoles={['CASHIER', 'MANAGER', 'ADMIN']} />}>
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['CASHIER', 'MANAGER', 'ADMIN']}
+                      allowedCapabilities={['CAN_CASH']}
+                    />
+                  }
+                >
                   <Route path="/cashier" element={<Suspense fallback={<PageLoader />}><CashierDashboard /></Suspense>} />
                   <Route path="/cashier/payment/:saleId" element={<Suspense fallback={<PageLoader />}><ProcessPaymentPage /></Suspense>} />
                   <Route path="/cashier/receipt/:saleId" element={<Suspense fallback={<PageLoader />}><PaymentReceiptPage /></Suspense>} />
@@ -168,7 +194,13 @@ export default function App() {
 
                 {/* Purchases */}
                 <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
-                  <Route path="/purchases" element={<Suspense fallback={<PageLoader />}><PurchaseListPage /></Suspense>} />
+                  <Route path="/purchases" element={<Navigate to="/purchases/orders" replace />} />
+                  <Route path="/purchases/suppliers" element={<Suspense fallback={<PageLoader />}><SupplierListPage /></Suspense>} />
+                  <Route path="/purchases/orders" element={<Suspense fallback={<PageLoader />}><PurchaseListPage /></Suspense>} />
+                  <Route path="/purchases/orders/new" element={<Suspense fallback={<PageLoader />}><PurchaseFormPage /></Suspense>} />
+                  <Route path="/purchases/orders/:id" element={<Suspense fallback={<PageLoader />}><PurchaseDetailPage /></Suspense>} />
+                  <Route path="/purchases/orders/:id/edit" element={<Suspense fallback={<PageLoader />}><PurchaseFormPage /></Suspense>} />
+                  <Route path="/purchases/orders/:id/receive" element={<Suspense fallback={<PageLoader />}><GoodsReceiptCreatePage /></Suspense>} />
                 </Route>
 
                 {/* Reports */}
@@ -203,6 +235,7 @@ export default function App() {
                   <Route path="/settings/users/:id/edit" element={<Suspense fallback={<PageLoader />}><UserFormPage /></Suspense>} />
                   <Route path="/settings/roles" element={<Suspense fallback={<PageLoader />}><RoleListPage /></Suspense>} />
                   <Route path="/settings/permissions" element={<Suspense fallback={<PageLoader />}><StoreUserCapabilitiesPage /></Suspense>} />
+                  <Route path="/settings/subscriptions" element={<Suspense fallback={<PageLoader />}><EnterpriseSubscriptionPage /></Suspense>} />
                   <Route path="/settings/enterprises" element={<Suspense fallback={<PageLoader />}><EnterpriseListPage /></Suspense>} />
                   <Route path="/settings/enterprise-setup" element={<Suspense fallback={<PageLoader />}><EnterpriseSetupPage /></Suspense>} />
                 </Route>
@@ -219,4 +252,3 @@ export default function App() {
     </ThemeProvider>
   );
 }
-

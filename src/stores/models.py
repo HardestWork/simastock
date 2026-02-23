@@ -4,6 +4,7 @@ import uuid
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import F
 from django.utils import timezone
@@ -198,6 +199,88 @@ class Enterprise(TimeStampedModel):
 
     def is_analytics_feature_enabled(self, key: str) -> bool:
         return self.is_feature_enabled(key)
+
+
+# ---------------------------------------------------------------------------
+# EnterpriseSubscription
+# ---------------------------------------------------------------------------
+
+class EnterpriseSubscription(TimeStampedModel):
+    """Subscription contract attached to an enterprise."""
+
+    class BillingCycle(models.TextChoices):
+        MONTHLY = "MONTHLY", "Mensuel"
+        QUARTERLY = "QUARTERLY", "Trimestriel"
+        YEARLY = "YEARLY", "Annuel"
+        CUSTOM = "CUSTOM", "Personnalise"
+
+    class Status(models.TextChoices):
+        TRIAL = "TRIAL", "Essai"
+        ACTIVE = "ACTIVE", "Actif"
+        PAST_DUE = "PAST_DUE", "Impayee"
+        CANCELED = "CANCELED", "Resilie"
+        EXPIRED = "EXPIRED", "Expire"
+
+    enterprise = models.ForeignKey(
+        Enterprise,
+        on_delete=models.CASCADE,
+        related_name="subscriptions",
+        verbose_name="entreprise",
+    )
+    plan_code = models.CharField("code plan", max_length=50, default="STANDARD")
+    plan_name = models.CharField("nom plan", max_length=100, default="Plan Standard")
+    billing_cycle = models.CharField(
+        "cycle de facturation",
+        max_length=20,
+        choices=BillingCycle.choices,
+        default=BillingCycle.MONTHLY,
+    )
+    amount = models.DecimalField("montant", max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    currency = models.CharField("devise", max_length=10, default="FCFA")
+    starts_on = models.DateField("debut")
+    ends_on = models.DateField("fin", null=True, blank=True)
+    status = models.CharField("statut", max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    auto_renew = models.BooleanField("renouvellement auto", default=True)
+    external_subscription_id = models.CharField(
+        "identifiant abonnement externe",
+        max_length=120,
+        blank=True,
+        default="",
+    )
+    metadata = models.JSONField("metadonnees", default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-starts_on", "-created_at"]
+        verbose_name = "Abonnement entreprise"
+        verbose_name_plural = "Abonnements entreprise"
+        indexes = [
+            models.Index(fields=["enterprise", "status"], name="sub_ent_status_idx"),
+            models.Index(fields=["ends_on"], name="sub_ends_on_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.enterprise.code} - {self.plan_name} ({self.status})"
+
+    def clean(self):
+        if self.ends_on and self.ends_on < self.starts_on:
+            raise ValidationError({"ends_on": "La date de fin doit etre superieure ou egale a la date de debut."})
+
+    @property
+    def is_expired(self) -> bool:
+        if not self.ends_on:
+            return False
+        return timezone.now().date() > self.ends_on
+
+    @property
+    def is_current(self) -> bool:
+        today = timezone.now().date()
+        if self.status in {self.Status.CANCELED, self.Status.EXPIRED}:
+            return False
+        if self.starts_on > today:
+            return False
+        if self.ends_on and self.ends_on < today:
+            return False
+        return True
 
 
 # ---------------------------------------------------------------------------

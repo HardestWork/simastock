@@ -16,6 +16,7 @@ from api.auth_views import (
 
 router = DefaultRouter()
 router.register(r'enterprises', v1_views.EnterpriseViewSet)
+router.register(r'enterprise-subscriptions', v1_views.EnterpriseSubscriptionViewSet)
 router.register(r'stores', v1_views.StoreViewSet)
 router.register(r'roles', v1_views.CustomRoleViewSet)
 router.register(r'users', v1_views.UserViewSet)

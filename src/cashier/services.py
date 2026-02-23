@@ -598,6 +598,8 @@ def _decrement_stock_for_sale(sale, actor):
     try:
         from stock.services import adjust_stock
         for item in sale.items.select_related("product"):
+            if not bool(getattr(item.product, "track_stock", True)):
+                continue
             adjust_stock(
                 store=sale.store,
                 product=item.product,
@@ -617,6 +619,8 @@ def _decrement_stock_for_sale(sale, actor):
         try:
             from stock.models import ProductStock, InventoryMovement
             for item in sale.items.select_related("product"):
+                if not bool(getattr(item.product, "track_stock", True)):
+                    continue
                 stock_record, _created = ProductStock.objects.select_for_update().get_or_create(
                     store=sale.store,
                     product=item.product,
@@ -657,7 +661,9 @@ def _sync_reserved_stock_for_sale_products(sale):
 
         SaleItem = apps.get_model("sales", "SaleItem")
         product_ids = list(
-            sale.items.values_list("product_id", flat=True).distinct()
+            sale.items.filter(product__track_stock=True)
+            .values_list("product_id", flat=True)
+            .distinct()
         )
 
         if not product_ids:

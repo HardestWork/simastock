@@ -61,6 +61,11 @@ def adjust_stock(
     Raises:
         ValueError: If an OUT-type movement would result in insufficient stock.
     """
+    if not bool(getattr(product, "track_stock", True)):
+        raise ValueError(
+            f"Le produit '{product}' est un service et ne suit pas le stock."
+        )
+
     stock, _created = ProductStock.objects.select_for_update().get_or_create(
         store=store,
         product=product,

@@ -459,6 +459,9 @@ def _check_stock_availability(store, product, qty: int) -> None:
     ValueError
         If stock is insufficient.
     """
+    if not bool(getattr(product, "track_stock", True)):
+        return
+
     try:
         from stock.models import ProductStock
     except ImportError as exc:
@@ -566,6 +569,8 @@ def create_refund(
         try:
             from stock.services import adjust_stock
             for item in sale.items.select_related("product"):
+                if not bool(getattr(item.product, "track_stock", True)):
+                    continue
                 adjust_stock(
                     store=sale.store,
                     product=item.product,

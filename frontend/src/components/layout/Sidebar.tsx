@@ -92,7 +92,13 @@ const navItems: NavItem[] = [
       { path: '/expenses/settings', label: 'Parametres', icon: <Settings size={16} />, roles: ['MANAGER', 'ADMIN'], capability: 'CAN_SET_BUDGETS' },
     ],
   },
-  { path: '/purchases', label: 'Achats', icon: <Truck size={20} />, roles: ['MANAGER', 'ADMIN'] },
+  {
+    path: '/purchases', label: 'Achats', icon: <Truck size={20} />, roles: ['MANAGER', 'ADMIN'],
+    children: [
+      { path: '/purchases/orders', label: 'Bons de commande', icon: <ClipboardList size={16} /> },
+      { path: '/purchases/suppliers', label: 'Fournisseurs', icon: <Building2 size={16} /> },
+    ],
+  },
   { path: '/reports', label: 'Rapports', icon: <BarChart3 size={20} />, roles: ['MANAGER', 'ADMIN'], capability: 'CAN_VIEW_REPORTS' },
   { path: '/statistics', label: 'Statistiques', icon: <PieChart size={20} />, roles: ['MANAGER', 'ADMIN'], capability: 'CAN_VIEW_REPORTS' },
   { path: '/analytics', label: 'Analytics AI', icon: <Brain size={20} />, roles: ['MANAGER', 'ADMIN'] },
@@ -103,6 +109,7 @@ const navItems: NavItem[] = [
       { path: '/settings/stores', label: 'Magasins', icon: <Wrench size={16} /> },
       { path: '/settings/invoice', label: 'Facturation', icon: <FileText size={16} /> },
       { path: '/settings/structure', label: 'Structure', icon: <Building2 size={16} /> },
+      { path: '/settings/subscriptions', label: 'Abonnements', icon: <CreditCard size={16} /> },
       { path: '/settings/permissions', label: 'Permissions', icon: <Shield size={16} /> },
       { path: '/settings/users', label: 'Utilisateurs', icon: <UserCog size={16} /> },
       { path: '/settings/enterprises', label: 'Entreprises', icon: <Building2 size={16} />, superuserOnly: true },
@@ -135,14 +142,14 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   const visibleItems = navItems.filter((item) => {
     if (!user) return false;
-    if (!item.roles.includes(user.role)) return false;
-    // Capability-based filtering: if item has a capability requirement,
-    // check that the user has it (capabilities list comes from backend
-    // and already handles the feature flag + role fallback).
-    if (item.capability && capabilities.length > 0 && !capabilities.includes(item.capability)) {
-      return false;
+    const hasRoleAccess = item.roles.includes(user.role);
+
+    // When capabilities are available, capability-gated items should be
+    // authorized by capability first (supports mixed profiles like vendeur-caissier).
+    if (item.capability && capabilities.length > 0) {
+      return capabilities.includes(item.capability);
     }
-    return true;
+    return hasRoleAccess;
   });
 
   const toggleSection = (path: string) => {
@@ -185,8 +192,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           const filteredChildren = item.children?.filter(
             (child) => {
               if (child.superuserOnly && !isSuperuser) return false;
+              if (child.capability && capabilities.length > 0) {
+                return capabilities.includes(child.capability);
+              }
               if (child.roles && user && !child.roles.includes(user.role)) return false;
-              if (child.capability && capabilities.length > 0 && !capabilities.includes(child.capability)) return false;
               return true;
             },
           );

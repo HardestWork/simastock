@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
+import { format } from 'date-fns';
 import { Search, ChevronRight, X, Download } from 'lucide-react';
 import { downloadCsv } from '@/lib/export';
 import { creditApi } from '@/api/endpoints';
@@ -41,6 +42,12 @@ const getHealthColor = (a: CustomerAccount) => {
   return 'bg-emerald-500';
 };
 
+const formatDateTime = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return format(date, 'dd/MM/yyyy HH:mm');
+};
+
 export default function CreditListPage() {
   const currentStore = useStoreStore((s) => s.currentStore);
   const navigate = useNavigate();
@@ -48,7 +55,7 @@ export default function CreditListPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
-  const { sortField, sortDirection, ordering, toggleSort } = useSort('balance', 'desc');
+  const { sortField, sortDirection, ordering, toggleSort } = useSort('created_at', 'desc');
 
   const [selected, setSelected] = useState<CustomerAccount | null>(null);
   const [amount, setAmount] = useState('');
@@ -142,6 +149,7 @@ export default function CreditListPage() {
             <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
               <tr>
                 <SortableHeader field="customer__last_name" label="Client" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
+                <SortableHeader field="created_at" label="Date / Heure" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                 <SortableHeader field="credit_limit" label="Limite" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
                 <SortableHeader field="balance" label="Solde" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
                 <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Disponible</th>
@@ -170,6 +178,9 @@ export default function CreditListPage() {
                       <div className="text-xs text-gray-500 dark:text-gray-400">{account.customer_phone}</div>
                     )}
                   </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                    {formatDateTime(account.created_at)}
+                  </td>
                   <td className="px-4 py-3 text-right">{formatCurrency(account.credit_limit)}</td>
                   <td className="px-4 py-3 text-right">{formatCurrency(account.balance)}</td>
                   <td className="px-4 py-3 text-right font-medium">{formatCurrency(account.available_credit)}</td>
@@ -193,7 +204,7 @@ export default function CreditListPage() {
               ))}
               {data?.results.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     Aucun compte credit.
                   </td>
                 </tr>

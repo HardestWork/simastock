@@ -1,7 +1,9 @@
 """Tests for Enterprise API endpoints."""
+from datetime import date, timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
-from stores.models import Enterprise, StoreUser
+from stores.models import Enterprise, EnterpriseSubscription, StoreUser
 
 User = get_user_model()
 
@@ -104,3 +106,92 @@ class TestEnterpriseDelete:
         super_client.delete(f"/api/v1/enterprises/{ent_id}/")
         # Superuser must survive
         assert User.objects.filter(pk=superuser.pk).exists()
+
+
+class TestEnterpriseSubscriptionAPI:
+    """Tests for /api/v1/enterprise-subscriptions/ endpoints."""
+
+    def test_admin_create_is_scoped_to_own_enterprise(self, admin_client, enterprise):
+        resp = admin_client.post(
+            "/api/v1/enterprise-subscriptions/",
+            {
+                "plan_code": "PRO",
+                "plan_name": "Plan Pro",
+                "billing_cycle": "MONTHLY",
+                "amount": "25000.00",
+                "currency": "FCFA",
+                "starts_on": date.today().isoformat(),
+                "status": "ACTIVE",
+                "auto_renew": True,
+            },
+            format="json",
+        )
+        assert resp.status_code == 201
+        assert resp.data["plan_code"] == "PRO"
+        assert str(resp.data["enterprise"]) == str(enterprise.pk)
+        assert EnterpriseSubscription.objects.filter(enterprise=enterprise, plan_code="PRO").exists()
+
+    def test_admin_cannot_create_for_other_enterprise(self, admin_client):
+        other = Enterprise.objects.create(name="Other Ent", code="ENT-OTHER")
+        resp = admin_client.post(
+            "/api/v1/enterprise-subscriptions/",
+            {
+                "enterprise": str(other.pk),
+                "plan_code": "HACK",
+                "plan_name": "Plan Hack",
+                "billing_cycle": "MONTHLY",
+                "amount": "1000.00",
+                "currency": "FCFA",
+                "starts_on": date.today().isoformat(),
+                "status": "ACTIVE",
+            },
+            format="json",
+        )
+        assert resp.status_code == 400
+        assert "enterprise" in resp.data
+
+    def test_admin_list_is_limited_to_own_enterprise(self, admin_client, enterprise):
+        EnterpriseSubscription.objects.create(
+            enterprise=enterprise,
+            plan_code="OWN",
+            plan_name="Own Plan",
+            billing_cycle=EnterpriseSubscription.BillingCycle.MONTHLY,
+            amount="10000.00",
+            starts_on=date.today() - timedelta(days=2),
+            status=EnterpriseSubscription.Status.ACTIVE,
+        )
+        other = Enterprise.objects.create(name="Other Ent 2", code="ENT-OTHER-2")
+        EnterpriseSubscription.objects.create(
+            enterprise=other,
+            plan_code="OTHER",
+            plan_name="Other Plan",
+            billing_cycle=EnterpriseSubscription.BillingCycle.MONTHLY,
+            amount="20000.00",
+            starts_on=date.today() - timedelta(days=2),
+            status=EnterpriseSubscription.Status.ACTIVE,
+        )
+
+        resp = admin_client.get("/api/v1/enterprise-subscriptions/")
+        assert resp.status_code == 200
+        assert resp.data["count"] == 1
+        assert resp.data["results"][0]["plan_code"] == "OWN"
+
+    def test_superuser_can_create_for_any_enterprise(self, super_client):
+        other = Enterprise.objects.create(name="Platform Customer", code="ENT-PLATFORM")
+        resp = super_client.post(
+            "/api/v1/enterprise-subscriptions/",
+            {
+                "enterprise": str(other.pk),
+                "plan_code": "ENTERPRISE",
+                "plan_name": "Plan Enterprise",
+                "billing_cycle": "YEARLY",
+                "amount": "300000.00",
+                "currency": "FCFA",
+                "starts_on": date.today().isoformat(),
+                "status": "ACTIVE",
+                "auto_renew": False,
+            },
+            format="json",
+        )
+        assert resp.status_code == 201
+        assert str(resp.data["enterprise"]) == str(other.pk)

@@ -56,6 +56,7 @@ def _build_stock_product_seed(store):
         .filter(
             enterprise=store.enterprise,
             is_active=True,
+            track_stock=True,
         )
         .annotate(
             stock_available=Coalesce(
@@ -97,6 +98,11 @@ class StockListView(LoginRequiredMixin, ListView):
         )
         missing_product_ids = list(
             Product.objects
+            .filter(
+                enterprise=store.enterprise,
+                is_active=True,
+                track_stock=True,
+            )
             .annotate(has_stock=Exists(stock_exists))
             .filter(has_stock=False)
             .values_list("pk", flat=True)
@@ -121,7 +127,7 @@ class StockListView(LoginRequiredMixin, ListView):
 
         qs = (
             ProductStock.objects
-            .filter(store=store)
+            .filter(store=store, product__track_stock=True)
             .select_related("product", "product__category", "store")
         )
         q = self.request.GET.get("q", "").strip()
@@ -242,6 +248,7 @@ class StockAdjustView(LoginRequiredMixin, FormView):
                     pk__in=product_ids,
                     enterprise=request.current_store.enterprise,
                     is_active=True,
+                    track_stock=True,
                 )
             }
             missing_products = [pid for pid in product_ids if pid not in products]
@@ -396,6 +403,7 @@ class StockEntryView(LoginRequiredMixin, FormView):
                     pk__in=product_ids,
                     enterprise=request.current_store.enterprise,
                     is_active=True,
+                    track_stock=True,
                 )
             }
             missing_products = [pid for pid in product_ids if pid not in products]
@@ -495,6 +503,7 @@ class StockEntryProductSearchView(LoginRequiredMixin, View):
             .filter(
                 enterprise=current_store.enterprise,
                 is_active=True,
+                track_stock=True,
             )
             .annotate(
                 stock_available=Coalesce(

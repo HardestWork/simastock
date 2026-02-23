@@ -10,7 +10,7 @@ DATABASES = {
         "NAME": ":memory:",
     }
 }
-DATABASES["default"]["ATOMIC_REQUESTS"] = True
+DATABASES["default"]["ATOMIC_REQUESTS"] = False
 
 # Faster password hashing in tests
 PASSWORD_HASHERS = [

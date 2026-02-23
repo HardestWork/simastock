@@ -424,30 +424,39 @@ export default function PosPage() {
                 </div>
               ) : products && products.results.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {products.results.map((p) => (
+                  {products.results.map((p) => {
+                    const isSelectable = !p.track_stock || (p.has_stock && p.available_qty > 0);
+                    const stockLabel = p.track_stock
+                      ? (p.has_stock ? `Stock: ${p.available_qty}` : 'Stock: --')
+                      : 'Service';
+                    const title = p.track_stock
+                      ? (p.has_stock ? `Disponible: ${p.available_qty}` : 'Stock non initialise')
+                      : 'Service (pas de stock)';
+                    return (
                     <button
                       key={p.id}
                       onClick={() => handleSelectProduct(p)}
-                      disabled={!p.has_stock || p.available_qty <= 0}
+                      disabled={!isSelectable}
                       className={`flex items-center gap-3 p-3 border rounded-lg text-left ${
-                        !p.has_stock || p.available_qty <= 0
+                        !isSelectable
                           ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 opacity-60 cursor-not-allowed'
                           : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                       }`}
-                      title={p.has_stock ? `Disponible: ${p.available_qty}` : 'Stock non initialise'}
+                      title={title}
                     >
                       <Plus size={18} className="text-primary shrink-0" />
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium truncate text-gray-900 dark:text-gray-100">{p.name}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between gap-3">
                           <span>{formatCurrency(p.selling_price)}</span>
-                          <span className={p.available_qty > 0 ? 'text-emerald-700' : 'text-gray-500 dark:text-gray-400'}>
-                            {p.has_stock ? `Stock: ${p.available_qty}` : 'Stock: --'}
+                          <span className={!p.track_stock || p.available_qty > 0 ? 'text-emerald-700' : 'text-gray-500 dark:text-gray-400'}>
+                            {stockLabel}
                           </span>
                         </div>
                       </div>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-sm text-gray-500 dark:text-gray-400 py-3">

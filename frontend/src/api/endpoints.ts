@@ -7,6 +7,8 @@ import type {
   CustomRole,
   MyStore,
   Enterprise,
+  EnterpriseSubscription,
+  EnterpriseSubscriptionPayload,
   EnterpriseSetupPayload,
   EnterpriseSetupResponse,
   Store,
@@ -191,6 +193,23 @@ export const enterpriseApi = {
 
   delete: (id: string) =>
     apiClient.delete(`enterprises/${id}/`).then((r) => r.data),
+};
+
+export const enterpriseSubscriptionApi = {
+  list: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<EnterpriseSubscription>>('enterprise-subscriptions/', { params }).then((r) => r.data),
+
+  get: (id: string) =>
+    apiClient.get<EnterpriseSubscription>(`enterprise-subscriptions/${id}/`).then((r) => r.data),
+
+  create: (data: EnterpriseSubscriptionPayload) =>
+    apiClient.post<EnterpriseSubscription>('enterprise-subscriptions/', data).then((r) => r.data),
+
+  update: (id: string, data: Partial<EnterpriseSubscriptionPayload>) =>
+    apiClient.patch<EnterpriseSubscription>(`enterprise-subscriptions/${id}/`, data).then((r) => r.data),
+
+  delete: (id: string) =>
+    apiClient.delete(`enterprise-subscriptions/${id}/`).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------

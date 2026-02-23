@@ -30,6 +30,11 @@ export const queryKeys = {
     all: ['enterprises'] as const,
     detail: (id: string) => ['enterprises', id] as const,
   },
+  enterpriseSubscriptions: {
+    all: ['enterprise-subscriptions'] as const,
+    list: (params?: Record<string, string>) => ['enterprise-subscriptions', 'list', params] as const,
+    detail: (id: string) => ['enterprise-subscriptions', id] as const,
+  },
 
   // Catalog
   categories: {

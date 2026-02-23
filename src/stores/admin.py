@@ -1,7 +1,14 @@
 """Django admin configuration for the stores app."""
 from django.contrib import admin
 
-from stores.models import AuditLog, Enterprise, Sequence, Store, StoreUser
+from stores.models import (
+    AuditLog,
+    Enterprise,
+    EnterpriseSubscription,
+    Sequence,
+    Store,
+    StoreUser,
+)
 
 
 @admin.register(Enterprise)
@@ -20,6 +27,26 @@ class StoreAdmin(admin.ModelAdmin):
     search_fields = ("name", "code", "enterprise__name", "email", "phone", "address")
     readonly_fields = ("id", "created_at", "updated_at")
     list_select_related = ("enterprise",)
+    list_per_page = 50
+
+
+@admin.register(EnterpriseSubscription)
+class EnterpriseSubscriptionAdmin(admin.ModelAdmin):
+    list_display = (
+        "enterprise",
+        "plan_name",
+        "billing_cycle",
+        "amount",
+        "currency",
+        "status",
+        "starts_on",
+        "ends_on",
+        "auto_renew",
+    )
+    list_filter = ("status", "billing_cycle", "auto_renew", "currency")
+    search_fields = ("enterprise__name", "enterprise__code", "plan_name", "plan_code")
+    list_select_related = ("enterprise",)
+    readonly_fields = ("id", "created_at", "updated_at")
     list_per_page = 50
 
 

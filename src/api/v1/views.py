@@ -14,6 +14,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from core.email import send_branded_email
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from django.db.models import (
     Sum, Avg, Count, F, Q, DecimalField, Exists, OuterRef,
     IntegerField, Subquery, Value,
@@ -32,7 +33,7 @@ from rest_framework.views import APIView
 
 from django_filters.rest_framework import DjangoFilterBackend
 
-from stores.models import Enterprise, Store, StoreUser, AuditLog
+from stores.models import Enterprise, EnterpriseSubscription, Store, StoreUser, AuditLog
 from catalog.models import Brand, Category, Product, ProductImage
 from stock.models import (
     InventoryMovement, ProductStock,
@@ -58,6 +59,7 @@ from api.v1.serializers import (
     UserSerializer,
     UserCreateSerializer,
     EnterpriseSerializer,
+    EnterpriseSubscriptionSerializer,
     EnterpriseSetupSerializer,
     StoreSerializer,
     CategorySerializer,
@@ -381,7 +383,7 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         # Tenant ADMIN can manage their own enterprise settings, but cannot
         # create/delete enterprises. Only Django superusers can do that.
-        if self.action in ('create', 'destroy', 'toggle_active'):
+        if self.action in ('create', 'destroy', 'toggle_active', 'setup'):
             return [IsSuperAdmin()]
         if self.action in ('update', 'partial_update'):
             # Superusers can update any enterprise; admins only their own.
@@ -520,6 +522,55 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
                 'login_url': login_url,
             },
         }, status=status.HTTP_201_CREATED)
+
+
+# ---------------------------------------------------------------------------
+# Enterprise Subscription ViewSet
+# ---------------------------------------------------------------------------
+
+class EnterpriseSubscriptionViewSet(viewsets.ModelViewSet):
+    """CRUD for enterprise subscriptions with strict tenant scoping."""
+
+    serializer_class = EnterpriseSubscriptionSerializer
+    queryset = EnterpriseSubscription.objects.select_related("enterprise")
+    filterset_fields = ["enterprise", "status", "billing_cycle", "auto_renew"]
+    search_fields = ["plan_code", "plan_name", "external_subscription_id", "enterprise__name", "enterprise__code"]
+    ordering_fields = ["starts_on", "ends_on", "created_at", "amount", "status"]
+    pagination_class = StandardResultsSetPagination
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            if getattr(self.request.user, "is_superuser", False):
+                return [IsSuperAdmin()]
+            return [IsAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            return qs
+        enterprise_id = _user_enterprise_id(user)
+        if enterprise_id is None:
+            return qs.none()
+        return qs.filter(enterprise_id=enterprise_id)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            enterprise = serializer.validated_data.get("enterprise")
+            if enterprise is None:
+                raise ValidationError({"enterprise": "Ce champ est requis pour un superadmin."})
+            serializer.save()
+            return
+        serializer.save(enterprise_id=_require_user_enterprise_id(user))
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            serializer.save()
+            return
+        serializer.save(enterprise_id=_require_user_enterprise_id(user))
 
 
 # ---------------------------------------------------------------------------
@@ -873,6 +924,37 @@ class ProductViewSet(viewsets.ModelViewSet):
         if image_file:
             ProductImage.objects.create(product=product, image=image_file, is_primary=True)
 
+    def perform_destroy(self, instance):
+        """Delete product after cleaning technical stock rows.
+
+        If the product is used in historical documents (sales/purchases/etc.),
+        keep data integrity and return a clear business error.
+        """
+        try:
+            with transaction.atomic():
+                ProductStock.objects.filter(product=instance).delete()
+                instance.delete()
+        except ProtectedError as exc:
+            blocked_models = sorted(
+                {
+                    obj._meta.verbose_name_plural
+                    for obj in getattr(exc, "protected_objects", [])
+                    if hasattr(obj, "_meta")
+                }
+            )
+            blocked_suffix = ""
+            if blocked_models:
+                blocked_suffix = f" References detectees: {', '.join(blocked_models[:3])}."
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Impossible de supprimer ce produit car il est deja utilise "
+                        "dans des documents existants. Desactivez-le a la place."
+                        f"{blocked_suffix}"
+                    )
+                }
+            )
+
     @action(detail=True, methods=['post'], url_path='upload-image')
     def upload_image(self, request, pk=None):
         """Upload an image for a product."""
@@ -1126,7 +1208,9 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         in_stock = request.query_params.get("in_stock", "0")
         if in_stock in ("1", "true", "True", "yes", "on"):
-            qs = qs.filter(available_qty__gt=0)
+            qs = qs.filter(
+                Q(track_stock=False) | Q(available_qty__gt=0)
+            )
 
         qs = self.filter_queryset(qs)
 
@@ -1159,7 +1243,7 @@ class ProductStockViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         store_ids = _user_store_ids(self.request.user)
-        return qs.filter(store_id__in=store_ids)
+        return qs.filter(store_id__in=store_ids, product__track_stock=True)
 
     def list(self, request, *args, **kwargs):
         """Sync missing ProductStock rows before listing."""
@@ -1177,7 +1261,7 @@ class ProductStockViewSet(viewsets.ReadOnlyModelViewSet):
                 )
                 missing = list(
                     Product.objects.filter(
-                        enterprise=store.enterprise, is_active=True,
+                        enterprise=store.enterprise, is_active=True, track_stock=True,
                     )
                     .exclude(pk__in=existing)
                     .values_list("pk", flat=True)
@@ -1224,6 +1308,10 @@ class InventoryMovementViewSet(
     def perform_create(self, serializer):
         """Create a movement **and** update the real stock level."""
         data = serializer.validated_data
+        if not bool(getattr(data["product"], "track_stock", True)):
+            raise ValidationError(
+                {"product": "Ce produit est un service et ne suit pas le stock."}
+            )
         from stock.services import adjust_stock
 
         adjust_stock(
@@ -1262,7 +1350,11 @@ class InventoryMovementViewSet(
         batch_id = _uuid.uuid4()
         movements = []
         for entry in d['entries']:
-            product = Product.objects.get(pk=entry['product_id'], enterprise_id=enterprise_id)
+            product = Product.objects.get(
+                pk=entry['product_id'],
+                enterprise_id=enterprise_id,
+                track_stock=True,
+            )
             mv = adjust_stock(
                 store=store, product=product,
                 qty_delta=entry['quantity'],
@@ -1302,7 +1394,11 @@ class InventoryMovementViewSet(
         batch_id = _uuid.uuid4()
         movements = []
         for adj in d['adjustments']:
-            product = Product.objects.get(pk=adj['product_id'], enterprise_id=enterprise_id)
+            product = Product.objects.get(
+                pk=adj['product_id'],
+                enterprise_id=enterprise_id,
+                track_stock=True,
+            )
             mv = adjust_stock(
                 store=store, product=product,
                 qty_delta=adj['quantity'],
@@ -1431,7 +1527,11 @@ class StockTransferViewSet(viewsets.ModelViewSet):
 
         lines_data = []
         for line in d['lines']:
-            product = Product.objects.get(pk=line['product_id'], enterprise_id=enterprise_id)
+            product = Product.objects.get(
+                pk=line['product_id'],
+                enterprise_id=enterprise_id,
+                track_stock=True,
+            )
             lines_data.append(StockTransferLine(
                 transfer=transfer,
                 product=product,
@@ -1529,7 +1629,10 @@ class StockCountViewSet(viewsets.ModelViewSet):
         )
 
         # Auto-populate lines from current ProductStock
-        stock_rows = ProductStock.objects.filter(store=store).select_related('product')
+        stock_rows = ProductStock.objects.filter(
+            store=store,
+            product__track_stock=True,
+        ).select_related('product')
         lines = [
             StockCountLine(
                 stock_count=count,

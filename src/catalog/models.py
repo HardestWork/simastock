@@ -97,6 +97,10 @@ class Brand(TimeStampedModel):
 class Product(TimeStampedModel):
     """Core product model for electronic equipment & network accessories."""
 
+    class ProductType(models.TextChoices):
+        PRODUCT = "PRODUCT", "Produit"
+        SERVICE = "SERVICE", "Service"
+
     enterprise = models.ForeignKey(
         "stores.Enterprise",
         on_delete=models.CASCADE,
@@ -134,6 +138,18 @@ class Product(TimeStampedModel):
         db_index=True,
     )
     description = models.TextField("description", blank=True, default="")
+    product_type = models.CharField(
+        "type",
+        max_length=20,
+        choices=ProductType.choices,
+        default=ProductType.PRODUCT,
+        db_index=True,
+    )
+    track_stock = models.BooleanField(
+        "suivi du stock",
+        default=True,
+        help_text="Desactive automatiquement pour les services.",
+    )
     cost_price = models.DecimalField(
         "prix d'achat",
         max_digits=12,
@@ -157,6 +173,8 @@ class Product(TimeStampedModel):
         return f"{self.name} ({self.sku})"
 
     def save(self, *args, **kwargs):
+        if self.product_type == self.ProductType.SERVICE:
+            self.track_stock = False
         if not self.slug:
             self.slug = slugify(self.name) or 'product'
         super().save(*args, **kwargs)

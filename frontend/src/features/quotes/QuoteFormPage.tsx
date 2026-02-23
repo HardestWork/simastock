@@ -582,15 +582,19 @@ export default function QuoteFormPage() {
                       key={p.id}
                       onClick={() => handleSelectProduct(p)}
                       className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg text-left hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                      title={p.has_stock ? `Disponible: ${p.available_qty}` : 'Stock non initialise'}
+                      title={
+                        p.track_stock
+                          ? (p.has_stock ? `Disponible: ${p.available_qty}` : 'Stock non initialise')
+                          : 'Service (pas de stock)'
+                      }
                     >
                       <Plus size={18} className="text-primary shrink-0" />
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium truncate">{p.name}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between gap-3">
                           <span>{formatCurrency(p.selling_price)}</span>
-                          <span className={p.available_qty > 0 ? 'text-emerald-700' : 'text-gray-500'}>
-                            {p.has_stock ? `Stock: ${p.available_qty}` : 'Stock: --'}
+                          <span className={!p.track_stock || p.available_qty > 0 ? 'text-emerald-700' : 'text-gray-500'}>
+                            {p.track_stock ? (p.has_stock ? `Stock: ${p.available_qty}` : 'Stock: --') : 'Service'}
                           </span>
                         </div>
                       </div>

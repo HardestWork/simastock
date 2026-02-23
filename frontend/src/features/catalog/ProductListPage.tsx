@@ -321,7 +321,18 @@ export default function ProductListPage() {
                 )}
               </div>
               <h3 className="text-sm font-medium truncate">{product.name}</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{product.sku}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400">{product.sku}</p>
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                    product.product_type === 'SERVICE'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-sky-100 text-sky-700'
+                  }`}
+                >
+                  {product.product_type === 'SERVICE' ? 'Service' : 'Produit'}
+                </span>
+              </div>
               {(product.category_name || product.brand_name) && (
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                   {[product.category_name, product.brand_name].filter(Boolean).join(' Â· ')}
@@ -364,6 +375,7 @@ export default function ProductListPage() {
                 <th className="px-4 py-3 font-medium w-12"></th>
                 <SortableHeader field="name" label="Produit" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                 <SortableHeader field="sku" label="SKU" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
+                <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Categorie</th>
                 <th className="px-4 py-3 font-medium">Marque</th>
                 <SortableHeader field="cost_price" label="Prix achat" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
@@ -399,6 +411,17 @@ export default function ProductListPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.sku}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        product.product_type === 'SERVICE'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-sky-100 text-sky-700'
+                      }`}
+                    >
+                      {product.product_type === 'SERVICE' ? 'Service' : 'Produit'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.category_name || 'â€”'}</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.brand_name || 'â€”'}</td>
                   <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">{formatCurrency(product.cost_price)}</td>
@@ -428,7 +451,7 @@ export default function ProductListPage() {
               ))}
               {data?.results.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                     Aucun produit trouve.
                   </td>
                 </tr>

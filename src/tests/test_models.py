@@ -3,7 +3,7 @@ import pytest
 from datetime import date, timedelta
 from django.contrib.auth import get_user_model
 
-from stores.models import Enterprise, Store, StoreUser, Sequence
+from stores.models import Enterprise, EnterpriseSubscription, Store, StoreUser, Sequence
 
 User = get_user_model()
 
@@ -60,6 +60,53 @@ class TestStore:
         enterprise.save()
         store.refresh_from_db()
         assert store.effective_vat_enabled is True
+
+
+# ---------------------------------------------------------------------------
+# EnterpriseSubscription
+# ---------------------------------------------------------------------------
+
+
+class TestEnterpriseSubscription:
+    def test_str(self, enterprise):
+        subscription = EnterpriseSubscription.objects.create(
+            enterprise=enterprise,
+            plan_code="PRO",
+            plan_name="Plan Pro",
+            billing_cycle=EnterpriseSubscription.BillingCycle.MONTHLY,
+            amount="25000.00",
+            starts_on=date.today(),
+            status=EnterpriseSubscription.Status.ACTIVE,
+        )
+        assert "Plan Pro" in str(subscription)
+        assert "TEST-ENT" in str(subscription)
+
+    def test_is_current_active_open_ended(self, enterprise):
+        subscription = EnterpriseSubscription.objects.create(
+            enterprise=enterprise,
+            plan_code="STARTER",
+            plan_name="Starter",
+            billing_cycle=EnterpriseSubscription.BillingCycle.MONTHLY,
+            amount="0.00",
+            starts_on=date.today() - timedelta(days=2),
+            status=EnterpriseSubscription.Status.ACTIVE,
+        )
+        assert subscription.is_current is True
+        assert subscription.is_expired is False
+
+    def test_is_expired(self, enterprise):
+        subscription = EnterpriseSubscription.objects.create(
+            enterprise=enterprise,
+            plan_code="PRO",
+            plan_name="Plan Pro",
+            billing_cycle=EnterpriseSubscription.BillingCycle.YEARLY,
+            amount="120000.00",
+            starts_on=date.today() - timedelta(days=40),
+            ends_on=date.today() - timedelta(days=1),
+            status=EnterpriseSubscription.Status.ACTIVE,
+        )
+        assert subscription.is_expired is True
+        assert subscription.is_current is False
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 {% extends "emails/base_email.txt" %}
 
-{% block content %}Bonjour {{ user.get_full_name|default:user.email }},
+{% block content %}Bonjour {% if user.get_full_name %}{{ user.get_full_name }}{% elif user.first_name %}{{ user.first_name }}{% elif user.email %}{{ user.email }}{% else %}Utilisateur{% endif %},
 
 Merci d'avoir cree un compte sur SimaStock.
 Veuillez confirmer votre adresse e-mail en cliquant sur ce lien :
