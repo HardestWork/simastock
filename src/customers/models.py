@@ -1,4 +1,5 @@
 """Models for the customers app."""
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
@@ -43,6 +44,14 @@ class Customer(TimeStampedModel):
     )
     is_active = models.BooleanField("actif", default=True)
     notes = models.TextField("notes", blank=True, default="")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="customers_created",
+        verbose_name="ajouté par",
+    )
 
     class Meta:
         verbose_name = "client"

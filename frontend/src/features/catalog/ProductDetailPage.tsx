@@ -4,11 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import { productApi, stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
+import { useAuthStore } from '@/auth/auth-store';
 import { ArrowLeft, Pencil, Package, Barcode, Tag, FolderTree, AlertCircle } from 'lucide-react';
 import type { AxiosError } from 'axios';
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const role = useAuthStore((s) => s.user?.role);
+  const canManageCatalog = role === 'ADMIN' || role === 'MANAGER';
 
   // -------------------------------------------------------------------------
   // Data fetching
@@ -159,13 +162,15 @@ export default function ProductDetailPage() {
             <ArrowLeft size={16} />
             Retour
           </Link>
-          <Link
-            to={`/catalog/${id}/edit`}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
-          >
-            <Pencil size={16} />
-            Modifier
-          </Link>
+          {canManageCatalog && (
+            <Link
+              to={`/catalog/${id}/edit`}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
+            >
+              <Pencil size={16} />
+              Modifier
+            </Link>
+          )}
         </div>
       </div>
 

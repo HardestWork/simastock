@@ -17,7 +17,11 @@ export const useStoreStore = create<StoreState>((set) => ({
   },
 
   initializeStore: (stores) => {
-    if (stores.length === 0) return;
+    if (stores.length === 0) {
+      set({ currentStore: null });
+      localStorage.removeItem('current_store_id');
+      return;
+    }
 
     // Check for a persisted store preference
     const savedStoreId = localStorage.getItem('current_store_id');
@@ -27,6 +31,8 @@ export const useStoreStore = create<StoreState>((set) => ({
 
     // Fall back to default store, then first store
     const defaultStore = stores.find((s) => s.is_default);
-    set({ currentStore: savedStore ?? defaultStore ?? stores[0] });
+    const selectedStore = savedStore ?? defaultStore ?? stores[0];
+    set({ currentStore: selectedStore });
+    localStorage.setItem('current_store_id', selectedStore.id);
   },
 }));

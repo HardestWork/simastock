@@ -35,6 +35,7 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: typeof Bankn
   { value: 'MOBILE_MONEY', label: 'Mobile Money', icon: Smartphone },
   { value: 'BANK_TRANSFER', label: 'Virement bancaire', icon: Building2 },
   { value: 'CREDIT', label: 'Credit', icon: CreditCard },
+  { value: 'CHEQUE', label: 'Cheque', icon: CreditCard },
 ];
 
 const METHOD_LABELS: Record<PaymentMethod | string, string> = {
@@ -110,7 +111,7 @@ export default function ProcessPaymentPage() {
     mutationFn: (payload: { sale_id: string; payments: Array<{ method: string; amount: string; reference?: string }> }) =>
       paymentApi.create(payload),
     onSuccess: () => {
-      toast.success(`Paiement encaisse: ${sale?.invoice_number ?? saleId ?? 'sans numero'}`);
+      toast.dismiss();
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.cashShifts.all });
@@ -247,6 +248,29 @@ export default function ProcessPaymentPage() {
         <p className="text-sm text-gray-500 mb-4">
           Impossible de charger les details de cette vente.
         </p>
+        <button
+          onClick={() => navigate('/cashier')}
+          className="text-sm text-primary hover:underline"
+        >
+          Retour a la caisse
+        </button>
+      </div>
+    );
+  }
+
+  // Guard: sale already settled — cannot process payment again
+  if (sale.status === 'PAID' || sale.status === 'CANCELLED' || sale.status === 'REFUNDED') {
+    const settled = {
+      PAID: { icon: CheckCircle2, color: 'text-green-400', title: 'Vente deja payee', msg: 'Cette vente a deja ete entierement reglée.' },
+      CANCELLED: { icon: AlertCircle, color: 'text-gray-400', title: 'Vente annulee', msg: 'Cette vente a ete annulee et ne peut plus etre encaissee.' },
+      REFUNDED: { icon: AlertCircle, color: 'text-gray-400', title: 'Vente remboursee', msg: 'Cette vente a ete remboursee et ne peut plus etre encaissee.' },
+    }[sale.status];
+    const Icon = settled.icon;
+    return (
+      <div className="max-w-md mx-auto mt-12 text-center">
+        <Icon size={48} className={`mx-auto mb-4 ${settled.color}`} />
+        <h2 className="text-lg font-semibold mb-2">{settled.title}</h2>
+        <p className="text-sm text-gray-500 mb-4">{settled.msg}</p>
         <button
           onClick={() => navigate('/cashier')}
           className="text-sm text-primary hover:underline"
@@ -593,4 +617,3 @@ export default function ProcessPaymentPage() {
     </div>
   );
 }
-

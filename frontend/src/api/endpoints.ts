@@ -7,11 +7,18 @@ import type {
   CustomRole,
   MyStore,
   Enterprise,
+  BillingModule,
+  BillingPlan,
+  EnterprisePlanAssignment,
+  EnterprisePlanCurrentResponse,
+  ModuleEntitlementState,
   EnterpriseSubscription,
   EnterpriseSubscriptionPayload,
   EnterpriseSetupPayload,
   EnterpriseSetupResponse,
   Store,
+  StoreModuleEntitlement,
+  StoreModuleMatrixResponse,
   Category,
   Brand,
   Product,
@@ -41,6 +48,8 @@ import type {
   SalesReport,
   StrategicKPIs,
   ForecastSummary,
+  MarginMoversResponse,
+  OrientationAdvice,
   StockValueTrend,
   DailyStatistics,
   CsvImportResult,
@@ -53,6 +62,32 @@ import type {
   StoreUserRecord,
   CapabilityPreset,
   PaginatedResponse,
+  ObjectiveRule,
+  SellerDashboard,
+  SellerHistoryMonth,
+  LeaderboardData,
+  LeaderboardSettings,
+  SellerMonthlyStats,
+  SellerPenaltyType,
+  SellerPenalty,
+  SellerBadge,
+  SellerSprint,
+  MultiPeriodRanking,
+  CreditQuality,
+  ProductMix,
+  CoachingData,
+  CashierDashboardData,
+  CashierTeamData,
+  StockDashboardData,
+  StockAlertsData,
+  DGDashboardData,
+  CustomerScoreResponse,
+  CustomerCreditRiskResponse,
+  CustomerCreditRiskListResponse,
+  CustomerRecommendationsResponse,
+  CustomerNextOrderResponse,
+  CustomerChurnRiskListResponse,
+  ModuleMatrixResponse,
 } from './types';
 import type { Capability } from './types';
 
@@ -76,6 +111,9 @@ export const authApi = {
     apiClient.post('auth/logout/').then((r) => r.data),
 
   me: () => apiClient.get<User>('auth/me/').then((r) => r.data),
+
+  moduleMatrix: (params?: { store?: string }) =>
+    apiClient.get<ModuleMatrixResponse>('auth/module-matrix/', { params }).then((r) => r.data),
 
   updateMe: (data: Partial<Pick<User, 'first_name' | 'last_name' | 'phone'>>) =>
     apiClient.patch<User>('auth/me/', data).then((r) => r.data),
@@ -212,6 +250,54 @@ export const enterpriseSubscriptionApi = {
     apiClient.delete(`enterprise-subscriptions/${id}/`).then((r) => r.data),
 };
 
+export const billingApi = {
+  modules: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<BillingModule>>('billing-modules/', { params }).then((r) => r.data),
+
+  plans: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<BillingPlan>>('billing-plans/', { params }).then((r) => r.data),
+
+  assignments: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<EnterprisePlanAssignment>>('enterprise-plan-assignments/', { params }).then((r) => r.data),
+
+  currentAssignment: (params?: { enterprise?: string }) =>
+    apiClient.get<EnterprisePlanCurrentResponse>('enterprise-plan-assignments/current/', { params }).then((r) => r.data),
+
+  createAssignment: (data: {
+    enterprise?: string;
+    plan: string;
+    status: 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED';
+    starts_on: string;
+    ends_on?: string | null;
+    auto_renew?: boolean;
+    source_subscription?: string | null;
+  }) => apiClient.post<EnterprisePlanAssignment>('enterprise-plan-assignments/', data).then((r) => r.data),
+
+  updateAssignment: (id: string, data: Partial<{
+    enterprise: string;
+    plan: string;
+    status: 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED';
+    starts_on: string;
+    ends_on: string | null;
+    auto_renew: boolean;
+    source_subscription: string | null;
+  }>) => apiClient.patch<EnterprisePlanAssignment>(`enterprise-plan-assignments/${id}/`, data).then((r) => r.data),
+
+  deleteAssignment: (id: string) =>
+    apiClient.delete(`enterprise-plan-assignments/${id}/`).then((r) => r.data),
+
+  storeMatrix: (params: { store: string }) =>
+    apiClient.get<StoreModuleMatrixResponse>('store-module-entitlements/matrix/', { params }).then((r) => r.data),
+
+  bulkUpsertStoreEntitlements: (data: {
+    store: string;
+    overrides: Array<{ module_code: string; state: ModuleEntitlementState; reason?: string }>;
+  }) => apiClient.post<StoreModuleMatrixResponse>('store-module-entitlements/bulk-upsert/', data).then((r) => r.data),
+
+  storeEntitlements: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<StoreModuleEntitlement>>('store-module-entitlements/', { params }).then((r) => r.data),
+};
+
 // ---------------------------------------------------------------------------
 // Analytics (Advanced / AI)
 // ---------------------------------------------------------------------------
@@ -237,6 +323,53 @@ export const analyticsApi = {
 
   forecastSummary: (params: { store: string; horizon_days?: string; refresh?: '0' | '1' }) =>
     apiClient.get<ForecastSummary>('analytics/forecast-summary/', { params }).then((r) => r.data),
+
+  marginMovers: (params: { store: string; date_from?: string; date_to?: string; limit?: string; min_qty?: string }) =>
+    apiClient.get<MarginMoversResponse>('analytics/margin-movers/', { params }).then((r) => r.data),
+
+  orientationAdvice: (params: { store: string; date_from?: string; date_to?: string; focus_limit?: string }) =>
+    apiClient.get<OrientationAdvice>('analytics/orientation/', { params }).then((r) => r.data),
+
+  customerScore: (customerId: string, params: { store: string; as_of?: string }) =>
+    apiClient.get<CustomerScoreResponse>(`analytics/customers/${customerId}/score/`, { params }).then((r) => r.data),
+
+  customerCreditRisk: (params: { store: string; as_of?: string; min_score?: string; limit?: string }) =>
+    apiClient.get<CustomerCreditRiskListResponse>('analytics/customers/credit-risk/', { params }).then((r) => r.data),
+
+  customerCreditRiskForCustomer: (customerId: string, params: { store: string; as_of?: string }) =>
+    apiClient
+      .get<CustomerCreditRiskResponse>('analytics/customers/credit-risk/', {
+        params: { ...params, customer_id: customerId },
+      })
+      .then((r) => r.data),
+
+  customerRecommendations: (
+    customerId: string,
+    params: {
+      store: string;
+      as_of?: string;
+      window_days?: string;
+      limit?: string;
+      include_only_in_stock?: '0' | '1';
+      refresh?: '0' | '1';
+    },
+  ) =>
+    apiClient
+      .get<CustomerRecommendationsResponse>(`analytics/customers/${customerId}/recommendations/`, { params })
+      .then((r) => r.data),
+
+  customerNextOrder: (customerId: string, params: { store: string; as_of?: string }) =>
+    apiClient.get<CustomerNextOrderResponse>(`analytics/customers/${customerId}/next-order/`, { params }).then((r) => r.data),
+
+  customerChurnRisk: (
+    params: {
+      store: string;
+      as_of?: string;
+      window_days?: string;
+      drop_threshold_pct?: string;
+      limit?: string;
+    },
+  ) => apiClient.get<CustomerChurnRiskListResponse>('analytics/customers/churn-risk/', { params }).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------
@@ -417,6 +550,12 @@ export const saleApi = {
 
   addItem: (saleId: string, data: { product_id: string; quantity: number; discount_amount?: string; unit_price_override?: string }) =>
     apiClient.post<Sale>(`sales/${saleId}/add-item/`, data).then((r) => r.data),
+
+  setItemQuantity: (saleId: string, data: { item_id: string; quantity: number }) =>
+    apiClient.post<Sale>(`sales/${saleId}/set-item-quantity/`, data).then((r) => r.data),
+
+  setItemUnitPrice: (saleId: string, data: { item_id: string; unit_price: string }) =>
+    apiClient.post<Sale>(`sales/${saleId}/set-item-unit-price/`, data).then((r) => r.data),
 
   removeItem: (saleId: string, itemId: string) =>
     apiClient.post<Sale>(`sales/${saleId}/remove-item/`, { item_id: itemId }).then((r) => r.data),
@@ -707,4 +846,133 @@ export const reportApi = {
 
   dailyStatistics: (params: { store: string; date_from?: string; date_to?: string }) =>
     apiClient.get<DailyStatistics>('reports/daily-statistics/', { params }).then((r) => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// Objectives
+// ---------------------------------------------------------------------------
+
+function normalizeListPayload<T>(payload: T[] | PaginatedResponse<T> | null | undefined): T[] {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.results)) return payload.results;
+  return [];
+}
+
+export const objectiveApi = {
+  // Rules
+  listRules: (params?: { store?: string }) =>
+    apiClient
+      .get<ObjectiveRule[] | PaginatedResponse<ObjectiveRule>>('objective-rules/', { params })
+      .then((r) => normalizeListPayload<ObjectiveRule>(r.data)),
+  getRule: (id: string) =>
+    apiClient.get<ObjectiveRule>(`objective-rules/${id}/`).then((r) => r.data),
+  createRule: (data: Partial<ObjectiveRule>, params?: { store?: string }) =>
+    apiClient.post<ObjectiveRule>('objective-rules/', data, { params }).then((r) => r.data),
+  updateRule: (id: string, data: Partial<ObjectiveRule>, params?: { store?: string }) =>
+    apiClient.put<ObjectiveRule>(`objective-rules/${id}/`, data, { params }).then((r) => r.data),
+  deleteRule: (id: string, params?: { store?: string }) =>
+    apiClient.delete(`objective-rules/${id}/`, { params }).then((r) => r.data),
+
+  // Seller dashboard
+  dashboard: (params?: { period?: string; store?: string }) =>
+    apiClient.get<SellerDashboard>('objectives/seller/dashboard/', { params }).then((r) => r.data),
+
+  // Seller history
+  history: (params?: { year?: string; store?: string }) =>
+    apiClient.get<SellerHistoryMonth[]>('objectives/seller/history/', { params }).then((r) => r.data),
+
+  // My badges
+  myBadges: (params?: { store?: string }) =>
+    apiClient.get<SellerBadge[]>('objectives/seller/badges/', { params }).then((r) => r.data),
+
+  // Leaderboard
+  leaderboard: (params?: { period?: string; store?: string }) =>
+    apiClient.get<LeaderboardData>('objectives/leaderboard/', { params }).then((r) => r.data),
+  leaderboardSettings: (params?: { store?: string }) =>
+    apiClient.get<LeaderboardSettings>('objectives/leaderboard/settings/', { params }).then((r) => r.data),
+  updateLeaderboardSettings: (
+    data: Partial<LeaderboardSettings>,
+    params?: { store?: string },
+  ) =>
+    apiClient.patch<LeaderboardSettings>('objectives/leaderboard/settings/', data, { params }).then((r) => r.data),
+
+  // Admin stats
+  adminStats: (params?: { period?: string; store?: string }) =>
+    apiClient
+      .get<SellerMonthlyStats[] | PaginatedResponse<SellerMonthlyStats>>('objectives/admin/stats/', { params })
+      .then((r) => normalizeListPayload<SellerMonthlyStats>(r.data)),
+
+  // Penalty types
+  listPenaltyTypes: (params?: { store?: string }) =>
+    apiClient
+      .get<SellerPenaltyType[] | PaginatedResponse<SellerPenaltyType>>('objective-penalty-types/', { params })
+      .then((r) => normalizeListPayload<SellerPenaltyType>(r.data)),
+  createPenaltyType: (data: Partial<SellerPenaltyType>, params?: { store?: string }) =>
+    apiClient.post<SellerPenaltyType>('objective-penalty-types/', data, { params }).then((r) => r.data),
+  updatePenaltyType: (id: string, data: Partial<SellerPenaltyType>, params?: { store?: string }) =>
+    apiClient.patch<SellerPenaltyType>(`objective-penalty-types/${id}/`, data, { params }).then((r) => r.data),
+
+  // Penalties
+  listPenalties: (params?: { period?: string; seller_id?: string; store?: string }) =>
+    apiClient
+      .get<SellerPenalty[] | PaginatedResponse<SellerPenalty>>('objective-penalties/', { params })
+      .then((r) => normalizeListPayload<SellerPenalty>(r.data)),
+  createPenalty: (data: Partial<SellerPenalty>, params?: { store?: string }) =>
+    apiClient.post<SellerPenalty>('objective-penalties/', data, { params }).then((r) => r.data),
+  voidPenalty: (id: string, params?: { store?: string }) =>
+    apiClient.post(`objective-penalties/${id}/void/`, {}, { params }).then((r) => r.data),
+
+  // Sprints
+  listSprints: (params?: { store?: string }) =>
+    apiClient
+      .get<SellerSprint[] | PaginatedResponse<SellerSprint>>('objective-sprints/', { params })
+      .then((r) => normalizeListPayload<SellerSprint>(r.data)),
+  createSprint: (data: Partial<SellerSprint>, params?: { store?: string }) =>
+    apiClient.post<SellerSprint>('objective-sprints/', data, { params }).then((r) => r.data),
+  currentSprint: (params?: { store?: string }) =>
+    apiClient.get<SellerSprint>('objective-sprints/current/', { params }).then((r) => r.data),
+
+  // Admin seller objectives list
+  listSellerObjectives: (params?: { period?: string; store?: string }) =>
+    apiClient
+      .get<PaginatedResponse<any> | any[]>('seller-objectives/', { params })
+      .then((r) => normalizeListPayload<any>(r.data)),
+
+  // Recompute
+  recompute: (data: { period?: string; seller_id?: string; store?: string }) =>
+    apiClient.post('objectives/recompute/', data).then((r) => r.data),
+
+  // Multi-period ranking
+  ranking: (params?: { period?: string; store?: string }) =>
+    apiClient.get<MultiPeriodRanking>('objectives/seller/ranking/', { params }).then((r) => r.data),
+
+  // Credit quality
+  creditQuality: (params?: { period?: string; store?: string }) =>
+    apiClient.get<CreditQuality>('objectives/seller/credit-quality/', { params }).then((r) => r.data),
+
+  // Product mix
+  productMix: (params?: { period?: string; store?: string }) =>
+    apiClient.get<ProductMix>('objectives/seller/product-mix/', { params }).then((r) => r.data),
+
+  // Coaching missions
+  coaching: (params?: { period?: string; store?: string }) =>
+    apiClient.get<CoachingData>('objectives/seller/coaching/', { params }).then((r) => r.data),
+};
+
+export const cashierAnalyticsApi = {
+  dashboard: (params?: Record<string, string>) =>
+    apiClient.get<CashierDashboardData>('cashier-analytics/dashboard/', { params }).then((r) => r.data),
+  team: (params?: Record<string, string>) =>
+    apiClient.get<CashierTeamData>('cashier-analytics/team/', { params }).then((r) => r.data),
+};
+export const stockAnalyticsApi = {
+  dashboard: (params?: { store?: string; period?: string }) =>
+    apiClient.get<StockDashboardData>('stock-analytics/dashboard/', { params }).then(r => r.data),
+  alerts: (params?: { store?: string }) =>
+    apiClient.get<StockAlertsData>('stock-analytics/alerts/', { params }).then(r => r.data),
+};
+
+export const dgApi = {
+  dashboard: (params?: { store?: string; period?: string }) =>
+    apiClient.get<DGDashboardData>('dg/dashboard/', { params }).then(r => r.data),
 };

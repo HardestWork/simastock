@@ -4,6 +4,13 @@ from datetime import date, timedelta
 from celery import shared_task
 
 from analytics import services
+from analytics.customer_intelligence import (
+    list_churn_risk_customers,
+    list_credit_risk_customers,
+    list_dormant_customers,
+    refresh_customer_intelligence_for_customer,
+    refresh_top_clients_month,
+)
 
 
 def _iter_stores(store_id=None):
@@ -77,3 +84,92 @@ def run_full_pipeline(store_id=None):
     detect_fraud(store_id=store_id)
     return "ok"
 
+
+@shared_task(name="analytics.tasks.refresh_customer_intelligence_store")
+def refresh_customer_intelligence_store(store_id=None, lookback_days=365):
+    """Daily full recompute for customer intelligence snapshots."""
+    from customers.models import Customer
+    from sales.models import Sale
+
+    as_of = date.today()
+    total_customers = 0
+    total_dormant = 0
+    total_credit_risk = 0
+    total_churn_risk = 0
+
+    for store in _iter_stores(store_id):
+        window_start = as_of - timedelta(days=max(30, int(lookback_days)))
+        customer_ids = list(
+            Sale.objects.filter(
+                store=store,
+                customer_id__isnull=False,
+                customer__is_default=False,
+                created_at__date__gte=window_start,
+                created_at__date__lte=as_of,
+            )
+            .values_list("customer_id", flat=True)
+            .distinct()
+        )
+        customers = Customer.objects.filter(id__in=customer_ids, is_default=False)
+
+        for customer in customers:
+            refresh_customer_intelligence_for_customer(
+                store=store,
+                customer=customer,
+                as_of=as_of,
+                actor=None,
+                force_recommendations_refresh=True,
+            )
+            total_customers += 1
+
+        refresh_top_clients_month(store=store, period_month=as_of.replace(day=1), limit=10, actor=None)
+        total_dormant += len(list_dormant_customers(store=store, as_of=as_of, actor=None))
+        total_credit_risk += len(
+            list_credit_risk_customers(
+                store=store,
+                as_of=as_of,
+                min_risk_score=45,
+                limit=200,
+                actor=None,
+            )
+        )
+        total_churn_risk += len(
+            list_churn_risk_customers(
+                store=store,
+                as_of=as_of,
+                window_days=30,
+                drop_threshold_pct=30,
+                limit=200,
+                actor=None,
+            )
+        )
+
+    return (
+        "customer intelligence refreshed "
+        f"customers={total_customers} dormant={total_dormant} "
+        f"credit_risk={total_credit_risk} churn={total_churn_risk}"
+    )
+
+
+@shared_task(name="analytics.tasks.refresh_customer_intelligence_customer")
+def refresh_customer_intelligence_customer(store_id, customer_id, as_of=None):
+    """Incremental recompute for one customer after payment/refund/credit events."""
+    from customers.models import Customer
+    from stores.models import Store
+
+    as_of_date = date.fromisoformat(as_of) if as_of else date.today()
+    store = Store.objects.filter(pk=store_id, is_active=True).first()
+    customer = Customer.objects.filter(pk=customer_id, is_default=False).first()
+    if not store or not customer:
+        return "skipped"
+
+    payload = refresh_customer_intelligence_for_customer(
+        store=store,
+        customer=customer,
+        as_of=as_of_date,
+        actor=None,
+        force_recommendations_refresh=True,
+    )
+    # Keep monthly top cache warm for the current month.
+    refresh_top_clients_month(store=store, period_month=as_of_date.replace(day=1), limit=10, actor=None)
+    return payload

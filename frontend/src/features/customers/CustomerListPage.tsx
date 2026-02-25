@@ -181,6 +181,7 @@ export default function CustomerListPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Telephone</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Email</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Structure</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Ajouté par</th>
               </tr>
             </thead>
             <tbody>
@@ -191,14 +192,17 @@ export default function CustomerListPage() {
                   className="border-b border-gray-50 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 >
                   <td className="px-4 py-3 font-medium">{customer.full_name}</td>
-                  <td className="px-4 py-3">{customer.phone || '\u2014'}</td>
-                  <td className="px-4 py-3">{customer.email || '\u2014'}</td>
-                  <td className="px-4 py-3">{customer.company || '\u2014'}</td>
+                  <td className="px-4 py-3">{customer.phone || '—'}</td>
+                  <td className="px-4 py-3">{customer.email || '—'}</td>
+                  <td className="px-4 py-3">{customer.company || '—'}</td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">
+                    {customer.created_by_name || '—'}
+                  </td>
                 </tr>
               ))}
               {data?.results.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     Aucun client trouve.
                   </td>
                 </tr>

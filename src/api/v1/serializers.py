@@ -6,7 +6,18 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from stores.models import Enterprise, EnterpriseSubscription, Store, StoreUser, AuditLog
+from stores.models import (
+    AuditLog,
+    BillingModule,
+    BillingPlan,
+    BillingPlanModule,
+    Enterprise,
+    EnterprisePlanAssignment,
+    EnterpriseSubscription,
+    Store,
+    StoreModuleEntitlement,
+    StoreUser,
+)
 from catalog.models import Brand, Category, Product, ProductImage, ProductSpec
 from stock.models import (
     InventoryMovement, ProductStock,
@@ -250,6 +261,194 @@ class EnterpriseSubscriptionSerializer(serializers.ModelSerializer):
             )
         return attrs
 
+
+class BillingModuleSerializer(serializers.ModelSerializer):
+    """Serializer for commercial billing modules."""
+
+    class Meta:
+        model = BillingModule
+        fields = [
+            "id",
+            "code",
+            "name",
+            "description",
+            "display_order",
+            "is_active",
+        ]
+        read_only_fields = fields
+
+
+class BillingPlanModuleSerializer(serializers.ModelSerializer):
+    """Serializer for modules included in a billing plan."""
+
+    module_id = serializers.UUIDField(read_only=True)
+    module_code = serializers.CharField(source="module.code", read_only=True)
+    module_name = serializers.CharField(source="module.name", read_only=True)
+    module_description = serializers.CharField(source="module.description", read_only=True)
+    module_display_order = serializers.IntegerField(source="module.display_order", read_only=True)
+
+    class Meta:
+        model = BillingPlanModule
+        fields = [
+            "module_id",
+            "module_code",
+            "module_name",
+            "module_description",
+            "module_display_order",
+            "included",
+        ]
+        read_only_fields = fields
+
+
+class BillingPlanSerializer(serializers.ModelSerializer):
+    """Serializer for commercial plans with module bundle details."""
+
+    modules = serializers.SerializerMethodField()
+    module_codes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BillingPlan
+        fields = [
+            "id",
+            "code",
+            "name",
+            "description",
+            "billing_cycle",
+            "base_price_fcfa",
+            "currency",
+            "is_active",
+            "module_codes",
+            "modules",
+        ]
+        read_only_fields = fields
+
+    def get_modules(self, obj):
+        rows = obj.plan_modules.select_related("module").filter(module__is_active=True).order_by("module__display_order", "module__name")
+        return BillingPlanModuleSerializer(rows, many=True).data
+
+    def get_module_codes(self, obj):
+        return list(
+            obj.plan_modules
+            .filter(included=True, module__is_active=True)
+            .values_list("module__code", flat=True)
+            .order_by("module__display_order", "module__name")
+        )
+
+
+class EnterprisePlanAssignmentSerializer(serializers.ModelSerializer):
+    """Serializer for assigning a billing plan to an enterprise."""
+
+    enterprise_name = serializers.CharField(source="enterprise.name", read_only=True)
+    plan_code = serializers.CharField(source="plan.code", read_only=True)
+    plan_name = serializers.CharField(source="plan.name", read_only=True)
+    is_active_on_date = serializers.BooleanField(read_only=True)
+
+    enterprise = serializers.PrimaryKeyRelatedField(
+        queryset=Enterprise.objects.filter(is_active=True),
+        required=False,
+    )
+    plan = serializers.PrimaryKeyRelatedField(
+        queryset=BillingPlan.objects.filter(is_active=True),
+    )
+    source_subscription = serializers.PrimaryKeyRelatedField(
+        queryset=EnterpriseSubscription.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = EnterprisePlanAssignment
+        fields = [
+            "id",
+            "enterprise",
+            "enterprise_name",
+            "plan",
+            "plan_code",
+            "plan_name",
+            "status",
+            "starts_on",
+            "ends_on",
+            "auto_renew",
+            "source_subscription",
+            "is_active_on_date",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "enterprise_name",
+            "plan_code",
+            "plan_name",
+            "is_active_on_date",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        instance = getattr(self, "instance", None)
+        starts_on = attrs.get("starts_on", getattr(instance, "starts_on", None))
+        ends_on = attrs.get("ends_on", getattr(instance, "ends_on", None))
+        if starts_on and ends_on and ends_on < starts_on:
+            raise serializers.ValidationError(
+                {"ends_on": "La date de fin doit etre superieure ou egale a la date de debut."}
+            )
+        return attrs
+
+
+class StoreModuleEntitlementSerializer(serializers.ModelSerializer):
+    """Serializer for per-store module overrides."""
+
+    store_name = serializers.CharField(source="store.name", read_only=True)
+    module_code = serializers.CharField(source="module.code", read_only=True)
+    module_name = serializers.CharField(source="module.name", read_only=True)
+    created_by_email = serializers.CharField(source="created_by.email", read_only=True, default=None)
+
+    class Meta:
+        model = StoreModuleEntitlement
+        fields = [
+            "id",
+            "store",
+            "store_name",
+            "module",
+            "module_code",
+            "module_name",
+            "state",
+            "reason",
+            "created_by",
+            "created_by_email",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "store_name",
+            "module_code",
+            "module_name",
+            "created_by",
+            "created_by_email",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class StoreModuleOverrideItemSerializer(serializers.Serializer):
+    """Input item for bulk module override updates."""
+
+    module_code = serializers.SlugRelatedField(
+        source="module",
+        slug_field="code",
+        queryset=BillingModule.objects.filter(is_active=True),
+    )
+    state = serializers.ChoiceField(choices=StoreModuleEntitlement.State.choices)
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class StoreModuleEntitlementBulkUpsertSerializer(serializers.Serializer):
+    """Bulk upsert payload for store module overrides."""
+
+    store = serializers.PrimaryKeyRelatedField(queryset=Store.objects.filter(is_active=True))
+    overrides = StoreModuleOverrideItemSerializer(many=True, allow_empty=False)
 
 class EnterpriseSetupSerializer(serializers.Serializer):
     """Flat serializer for one-step enterprise + store + admin user creation.
@@ -650,14 +849,22 @@ class CustomerSerializer(serializers.ModelSerializer):
     """
 
     full_name = serializers.CharField(read_only=True)
+    created_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Customer
         fields = [
             'id', 'enterprise', 'first_name', 'last_name', 'phone', 'email',
             'address', 'company', 'full_name', 'is_default',
+            'created_by', 'created_by_name', 'created_at',
         ]
-        read_only_fields = ['id', 'enterprise', 'full_name', 'is_default']
+        read_only_fields = ['id', 'enterprise', 'full_name', 'is_default', 'created_by', 'created_by_name', 'created_at']
+
+    def get_created_by_name(self, obj) -> str | None:
+        if obj.created_by_id is None:
+            return None
+        u = obj.created_by
+        return u.get_full_name() or u.email
 
 
 # ---------------------------------------------------------------------------
@@ -693,12 +900,12 @@ class SaleSerializer(serializers.ModelSerializer):
             'invoice_number', 'status', 'subtotal', 'discount_amount',
             'discount_percent', 'tax_amount', 'total', 'amount_paid',
             'amount_due', 'items', 'is_credit_sale', 'notes',
-            'source_quote', 'source_quote_number', 'created_at',
+            'source_quote', 'source_quote_number', 'submitted_at', 'created_at',
         ]
         read_only_fields = [
             'id', 'invoice_number', 'subtotal', 'tax_amount', 'total',
             'amount_paid', 'amount_due', 'source_quote', 'source_quote_number',
-            'created_at',
+            'submitted_at', 'created_at',
         ]
 
     def get_customer_name(self, obj):
@@ -756,6 +963,24 @@ class SaleAddItemSerializer(serializers.Serializer):
         if not Product.objects.filter(pk=value, is_active=True).exists():
             raise serializers.ValidationError('Produit introuvable ou inactif.')
         return value
+
+
+class SaleSetItemQuantitySerializer(serializers.Serializer):
+    """Serializer for setting an exact item quantity on a draft sale."""
+
+    item_id = serializers.UUIDField()
+    quantity = serializers.IntegerField(min_value=1, max_value=99999)
+
+
+class SaleSetItemUnitPriceSerializer(serializers.Serializer):
+    """Serializer for setting an exact unit price on a draft sale item."""
+
+    item_id = serializers.UUIDField()
+    unit_price = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+    )
 
 
 class SaleSubmitSerializer(serializers.Serializer):
@@ -1263,31 +1488,6 @@ class StoreUserSerializer(serializers.ModelSerializer):
             if "capabilities" in attrs and attrs.get("capabilities"):
                 raise serializers.ValidationError({
                     "capabilities": "Activez d'abord le flag 'Permissions avancees (capacites)' pour cette boutique.",
-                })
-
-        # Guardrails: never allow sensitive capabilities for non-manager/admin users.
-        # Low-risk capabilities (sell/cash/stock) can be mixed for flexibility.
-        high_risk = {
-            "CAN_REFUND",
-            "CAN_OVERRIDE_PRICE",
-            "CAN_APPROVE",
-            "CAN_VIEW_REPORTS",
-            "CAN_EDIT_EXPENSE",
-            "CAN_VOID_EXPENSE",
-            "CAN_MANAGE_CATEGORIES",
-            "CAN_MANAGE_WALLETS",
-            "CAN_SET_BUDGETS",
-        }
-        capabilities = attrs.get("capabilities")
-        user = getattr(instance, "user", None)
-        if capabilities is not None and user and getattr(user, "role", None) not in ("ADMIN", "MANAGER"):
-            forbidden = [c for c in capabilities if c in high_risk]
-            if forbidden:
-                raise serializers.ValidationError({
-                    "capabilities": (
-                        "Capacites reservees au MANAGER/ADMIN: "
-                        + ", ".join(sorted(forbidden))
-                    )
                 })
 
         return attrs

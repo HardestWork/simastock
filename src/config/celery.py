@@ -58,6 +58,10 @@ app.conf.beat_schedule = {
         "task": "analytics.tasks.detect_fraud",
         "schedule": crontab(minute="*/30"),  # Every 30 minutes
     },
+    "analytics-refresh-customer-intelligence": {
+        "task": "analytics.tasks.refresh_customer_intelligence_store",
+        "schedule": crontab(minute=10, hour=2),  # Daily at 02:10
+    },
     "expenses-generate-recurring": {
         "task": "expenses.tasks.generate_due_recurring_expenses",
         "schedule": crontab(minute=0, hour="*"),  # Every hour

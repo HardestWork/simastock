@@ -21,13 +21,14 @@ export default function AppLayout() {
 
   // Initialize store context when stores are loaded
   useEffect(() => {
-    if (stores.length > 0 && !currentStore) {
+    const hasCurrentStoreAccess = !!currentStore && stores.some((s) => s.id === currentStore.id);
+    if (stores.length > 0 && !hasCurrentStoreAccess) {
       initializeStore(stores);
     }
   }, [stores, currentStore, initializeStore]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-canvas dark:bg-gray-900">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}

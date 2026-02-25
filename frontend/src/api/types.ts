@@ -72,6 +72,35 @@ export type FeatureFlagKey =
 
 export type FeatureFlags = Partial<Record<FeatureFlagKey, boolean>>;
 
+export type ModuleCode =
+  | 'CORE'
+  | 'SELL'
+  | 'CASH'
+  | 'CUSTOMER'
+  | 'STOCK'
+  | 'PURCHASE'
+  | 'EXPENSE'
+  | 'SELLER_PERF'
+  | 'ANALYTICS_MANAGER'
+  | 'ANALYTICS_CASHIER'
+  | 'ANALYTICS_STOCK'
+  | 'ANALYTICS_DG'
+  | 'CLIENT_INTEL'
+  | 'ALERTS';
+
+export type ModuleMatrix = Record<ModuleCode, boolean>;
+
+export interface ModuleMatrixResponse {
+  store_id: string;
+  store_name: string;
+  as_of: string;
+  source: 'feature_flags' | 'plan' | string;
+  plan_code: string | null;
+  modules: Partial<ModuleMatrix>;
+  features: FeatureFlags;
+  capabilities: Capability[];
+}
+
 export interface TokenPair {
   access: string;
   refresh: string;
@@ -161,6 +190,86 @@ export interface EnterpriseSubscriptionPayload {
   auto_renew: boolean;
   external_subscription_id?: string;
   metadata?: Record<string, unknown>;
+}
+
+export interface BillingModule {
+  id: string;
+  code: ModuleCode;
+  name: string;
+  description: string;
+  display_order: number;
+  is_active: boolean;
+}
+
+export interface BillingPlanModuleEntry {
+  module_id: string;
+  module_code: ModuleCode;
+  module_name: string;
+  module_description: string;
+  module_display_order: number;
+  included: boolean;
+}
+
+export interface BillingPlan {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  billing_cycle: EnterpriseSubscriptionBillingCycle;
+  base_price_fcfa: number;
+  currency: string;
+  is_active: boolean;
+  module_codes: ModuleCode[];
+  modules: BillingPlanModuleEntry[];
+}
+
+export type ModuleEntitlementState = 'INHERIT' | 'ENABLED' | 'DISABLED';
+export type EnterprisePlanStatus = 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED';
+
+export interface EnterprisePlanAssignment {
+  id: string;
+  enterprise: string;
+  enterprise_name: string;
+  plan: string;
+  plan_code: string;
+  plan_name: string;
+  status: EnterprisePlanStatus;
+  starts_on: string;
+  ends_on: string | null;
+  auto_renew: boolean;
+  source_subscription: string | null;
+  is_active_on_date: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EnterprisePlanCurrentResponse {
+  enterprise: { id: string; name: string; code: string } | null;
+  assignment: EnterprisePlanAssignment | null;
+}
+
+export interface StoreModuleEntitlement {
+  id: string;
+  store: string;
+  store_name: string;
+  module: string;
+  module_code: ModuleCode;
+  module_name: string;
+  state: ModuleEntitlementState;
+  reason: string;
+  created_by: string | null;
+  created_by_email: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreModuleMatrixResponse {
+  store: { id: string; name: string; code: string };
+  entitlements: StoreModuleEntitlement[];
+  effective_modules: Partial<ModuleMatrix>;
+  source: string;
+  plan_code: string | null;
+  dependencies: Record<string, string[]>;
 }
 
 export interface Store {
@@ -410,6 +519,102 @@ export interface Customer {
   company: string;
   full_name: string;
   is_default?: boolean;
+  created_by: string | null;
+  created_by_name: string | null;
+  created_at: string;
+}
+
+
+// ---------------------------------------------------------------------------
+// Cashier Analytics
+// ---------------------------------------------------------------------------
+
+export interface CashierKPIs {
+  shift_count: number;
+  closed_shifts: number;
+  total_collected: string;
+  transaction_count: number;
+  avg_shift_duration_h: number;
+  variance_total: string;
+  variance_rate: number;
+  avg_delay_seconds: number;
+  avg_delay_minutes: number;
+  refund_count: number;
+}
+
+export type CashierSegment = 'FIABLE' | 'SOLIDE' | 'FRAGILE' | 'RISQUE';
+
+export interface CashierReliabilityScore {
+  total: number;
+  segment: CashierSegment;
+  precision: number;
+  speed: number;
+  volume: number;
+  reliability: number;
+  actions: string[];
+}
+
+export interface CashierAnomalyItem {
+  type: string;
+  label: string;
+  value: number;
+  threshold: number;
+  unit: string;
+}
+
+export interface CashierRiskAnalysis {
+  risk_score: number;
+  anomalies: CashierAnomalyItem[];
+}
+
+export interface CashierPaymentMethodEntry {
+  method: string;
+  label: string;
+  amount: string;
+  count: number;
+  percentage: number;
+}
+
+export interface CashierPaymentMethods {
+  total: string;
+  by_method: CashierPaymentMethodEntry[];
+}
+
+export interface CashierShiftSummary {
+  id: string;
+  opened_at: string;
+  closed_at: string | null;
+  duration_h: number | null;
+  status: string;
+  total_collected: string;
+  transaction_count: number;
+  expected_cash: string;
+  closing_cash: string | null;
+  variance: string | null;
+}
+
+export interface CashierDashboardData {
+  cashier: { id: string; name: string };
+  period: string;
+  kpis: CashierKPIs;
+  score: CashierReliabilityScore;
+  anomalies: CashierRiskAnalysis;
+  payment_methods: CashierPaymentMethods;
+  shifts: CashierShiftSummary[];
+}
+
+export interface CashierTeamMember {
+  cashier_id: string;
+  cashier_name: string;
+  kpis: CashierKPIs;
+  score: CashierReliabilityScore;
+  anomalies: CashierRiskAnalysis;
+  payment_methods: CashierPaymentMethods;
+}
+
+export interface CashierTeamData {
+  period: string;
+  team: CashierTeamMember[];
 }
 
 // ---------------------------------------------------------------------------
@@ -431,7 +636,8 @@ export type SaleStatus =
   | 'PENDING_PAYMENT'
   | 'PARTIALLY_PAID'
   | 'PAID'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'REFUNDED';
 
 export interface Sale {
   id: string;
@@ -455,6 +661,7 @@ export interface Sale {
   notes: string;
   source_quote: string | null;
   source_quote_number: string | null;
+  submitted_at: string | null;
   created_at: string;
 }
 
@@ -508,7 +715,7 @@ export interface Quote {
 // Payments & Cash Shifts
 // ---------------------------------------------------------------------------
 
-export type PaymentMethod = 'CASH' | 'MOBILE_MONEY' | 'BANK_TRANSFER' | 'CREDIT';
+export type PaymentMethod = 'CASH' | 'MOBILE_MONEY' | 'BANK_TRANSFER' | 'CREDIT' | 'CHEQUE';
 
 export interface Payment {
   id: string;
@@ -809,6 +1016,239 @@ export interface ForecastSummary {
 }
 
 // ---------------------------------------------------------------------------
+// Margin Movers + Orientation Advice (Analytics)
+// ---------------------------------------------------------------------------
+
+export type MarginMovementBucket = 'FAST' | 'MEDIUM' | 'SLOW';
+
+export interface MarginMoverItem {
+  product_id: string;
+  product_name: string;
+  product_sku: string;
+  quantity_sold: number;
+  revenue: string;
+  cost: string;
+  margin_total: string;
+  margin_rate_pct: string;
+  avg_daily_qty: string;
+  current_stock: number;
+  reserved_stock: number;
+  available_stock: number;
+  min_stock: number;
+  days_of_cover: string | null;
+  movement_bucket: MarginMovementBucket;
+  action_hint: string;
+}
+
+export interface MarginMoversSummary {
+  period_days: number;
+  sold_products: number;
+  units_sold: number;
+  revenue: string;
+  margin_total: string;
+  margin_rate_pct: string;
+  high_margin_fast_count: number;
+  low_margin_fast_count: number;
+  slow_with_stock_count: number;
+  at_risk_high_margin_count: number;
+}
+
+export interface MarginMoversResponse {
+  date_from: string;
+  date_to: string;
+  limit: number;
+  min_qty: string;
+  total_rows: number;
+  summary: MarginMoversSummary;
+  items: MarginMoverItem[];
+}
+
+export interface OrientationSignal {
+  code: string;
+  level: 'INFO' | 'WARNING' | 'CRITICAL' | string;
+  metric: string;
+  detail: string;
+}
+
+export interface OrientationRecommendation {
+  priority: number;
+  theme: string;
+  title: string;
+  action: string;
+  reason: string;
+  expected_impact: 'LOW' | 'MEDIUM' | 'HIGH' | string;
+}
+
+export interface OrientationAdvice {
+  date_from: string;
+  date_to: string;
+  summary: MarginMoversSummary;
+  signals: OrientationSignal[];
+  recommendations: OrientationRecommendation[];
+  focus_products: MarginMoverItem[];
+}
+
+// ---------------------------------------------------------------------------
+// Customer Intelligence
+// ---------------------------------------------------------------------------
+
+export type CustomerIntelligenceSegment =
+  | 'VIP'
+  | 'REGULAR'
+  | 'OCCASIONAL'
+  | 'DORMANT'
+  | 'RISK'
+  | string;
+
+export interface CustomerScoreSubscores {
+  recency: number;
+  frequency: number;
+  monetary: number;
+  credit: number;
+  discount_behavior: number;
+}
+
+export interface CustomerScoreFeatures {
+  recency_days: number;
+  paid_orders_90d: number;
+  monetary_90d: string;
+  discount_ratio_90d: string;
+  credit_overdue_amount: string;
+  credit_recovery_ratio: string;
+}
+
+export interface CustomerScoreExplainItem {
+  feature: string;
+  impact: string;
+}
+
+export interface CustomerScoreResponse {
+  customer_id: string;
+  customer_name: string;
+  store_id: string;
+  as_of: string;
+  ruleset_version: number;
+  score_total: number;
+  subscores: CustomerScoreSubscores;
+  segment: CustomerIntelligenceSegment;
+  features: CustomerScoreFeatures;
+  explain: CustomerScoreExplainItem[];
+}
+
+export interface CustomerCreditRiskFeatures {
+  overdue_amount: string;
+  overdue_count: number;
+  overdue_age_days: number;
+  recovery_ratio: string;
+  debt_growth_ratio_30d: string;
+  balance: string;
+  credit_limit: string;
+}
+
+export interface CustomerCreditRecommendation {
+  action: string;
+  label: string;
+  recommended_deposit_percent: number;
+  recommended_limit: string;
+  reason: string;
+}
+
+export interface CustomerCreditRiskExplainItem {
+  feature: string;
+  impact_points: string;
+}
+
+export interface CustomerCreditRiskResponse {
+  customer_id: string;
+  customer_name: string;
+  store_id: string;
+  as_of: string;
+  credit_risk_score: number;
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | string;
+  features: CustomerCreditRiskFeatures;
+  explain: CustomerCreditRiskExplainItem[];
+  recommendation: CustomerCreditRecommendation;
+}
+
+export interface CustomerCreditRiskListResponse {
+  store_id: string;
+  as_of: string;
+  min_score: number;
+  total: number;
+  items: CustomerCreditRiskResponse[];
+}
+
+export interface CustomerRecommendationItem {
+  product_id: string;
+  sku: string;
+  name: string;
+  category: string | null;
+  selling_price: string;
+  score: number;
+  source: 'FREQUENTLY_BOUGHT_TOGETHER' | 'NEXT_BEST_CATEGORY' | 'REFILL_RENEWAL' | string;
+  reasons: string[];
+  available_stock: number | null;
+}
+
+export interface CustomerRecommendationsResponse {
+  customer_id: string;
+  customer_name: string;
+  store_id: string;
+  as_of: string;
+  window_days: number;
+  limit: number;
+  include_only_in_stock: boolean;
+  items: CustomerRecommendationItem[];
+  explain: string[];
+}
+
+export interface CustomerNextOrderResponse {
+  customer_id: string;
+  customer_name: string;
+  store_id: string;
+  as_of: string;
+  predicted_next_purchase_date: string | null;
+  days_until_prediction: number | null;
+  probability: 'LOW' | 'MEDIUM' | 'HIGH' | string;
+  avg_interval_days: number | null;
+  interval_std_days: number | null;
+  purchase_count: number;
+  recommendation: string;
+}
+
+export interface CustomerChurnRiskPeriod {
+  start: string;
+  end: string;
+}
+
+export interface CustomerChurnRiskItem {
+  customer_id: string;
+  customer_name: string;
+  customer_phone: string;
+  store_id: string;
+  window_days: number;
+  current_period: CustomerChurnRiskPeriod;
+  previous_period: CustomerChurnRiskPeriod;
+  current_paid_amount: string;
+  previous_paid_amount: string;
+  current_orders: number;
+  previous_orders: number;
+  revenue_drop_pct: string;
+  frequency_drop_pct: string;
+  churn_risk_score: number;
+  actions: string[];
+}
+
+export interface CustomerChurnRiskListResponse {
+  store_id: string;
+  as_of: string;
+  window_days: number;
+  drop_threshold_pct: string;
+  total: number;
+  items: CustomerChurnRiskItem[];
+}
+
+// ---------------------------------------------------------------------------
 // Stock Value Trend
 // ---------------------------------------------------------------------------
 
@@ -1049,4 +1489,474 @@ export interface PaginatedResponse<T> {
   next: string | null;
   previous: string | null;
   results: T[];
+}
+
+// ---------------------------------------------------------------------------
+// Objectives
+// ---------------------------------------------------------------------------
+
+export interface ObjectiveTier {
+  id: string;
+  rank: number;
+  name: string;
+  threshold: string;
+  bonus_amount: string;
+  bonus_rate: string;
+  color: string;
+  icon: string;
+}
+
+export interface ObjectiveRule {
+  id: string;
+  store: string;
+  name: string;
+  is_active: boolean;
+  valid_from: string;
+  valid_until: string | null;
+  version: number;
+  notes: string;
+  tiers: ObjectiveTier[];
+  created_at: string;
+}
+
+export interface SellerDashboardProgress {
+  net_amount: string;
+  current_tier_rank: number;
+  current_tier_name: string;
+  progress_pct: number;
+  remaining_to_next: string;
+}
+
+export interface SellerDashboardProjection {
+  daily_rate: string;
+  projected_amount: string;
+  next_tier_name: string | null;
+  next_tier_threshold: string | null;
+  days_to_next_tier: number | null;
+  elapsed_days: number;
+  remaining_days: number;
+}
+
+export interface Score360 {
+  total: number;
+  encaissement: number;
+  credit: number;
+  discipline: number;
+  vitesse: number;
+  actions: string[];
+}
+
+export interface RiskAnomalyItem {
+  type: string;
+  label: string;
+  value: string;
+  threshold: string;
+}
+
+export interface RiskAnalysis {
+  risk_score: number;
+  anomalies: RiskAnomalyItem[];
+}
+
+export interface MultiPeriodRankingEntry {
+  rank: number;
+  seller_id: string;
+  seller_name: string;
+  total: string;
+  sale_count: number;
+  is_me: boolean;
+}
+
+export interface MultiPeriodRanking {
+  day: MultiPeriodRankingEntry[];
+  week: MultiPeriodRankingEntry[];
+  month: MultiPeriodRankingEntry[];
+  gap_messages: {
+    day: string | null;
+    week: string | null;
+    month: string | null;
+  };
+}
+
+export interface CreditQualityTopDebtor {
+  customer_name: string;
+  overdue: string;
+}
+
+export interface CreditQuality {
+  credit_issued: string;
+  credit_recovered: string;
+  recovery_rate: number;
+  overdue_count: number;
+  overdue_amount: string;
+  avg_days_overdue: number;
+  top_debtors: CreditQualityTopDebtor[];
+}
+
+export interface ProductMixCategory {
+  category: string;
+  revenue: string;
+  pct: number;
+  count: number;
+}
+
+export interface ProductMixProduct {
+  product_name: string;
+  revenue: string;
+  quantity: number;
+}
+
+export interface ProductMix {
+  by_category: ProductMixCategory[];
+  top_products: ProductMixProduct[];
+  total_items: number;
+  total_revenue: string;
+}
+
+export type CoachingCategory = 'credit' | 'discipline' | 'performance' | 'speed';
+
+export interface CoachingMission {
+  id: string;
+  category: CoachingCategory;
+  title: string;
+  detail: string;
+  priority: number;
+}
+
+export interface CoachingData {
+  period: string;
+  morning_missions: CoachingMission[];
+  evening_summary: {
+    net_today: string;
+    missions_done: number;
+    missions_total: number;
+  } | null;
+}
+
+export interface SellerDashboard {
+  seller: { id: string; name: string; email: string };
+  objective: { period: string; is_final: boolean };
+  progress: SellerDashboardProgress;
+  bonus: { earned: string };
+  tiers: ObjectiveTier[];
+  statistics: {
+    sale_count: number;
+    cancellation_count: number;
+    avg_basket: string;
+    credit_recovered: string;
+    gross_amount: string;
+    refund_amount: string;
+  };
+  penalties: {
+    items: SellerPenaltyItem[];
+    total_deduction: string;
+  };
+  projection: SellerDashboardProjection | null;
+  ranking: {
+    rank: number;
+    total_sellers: number;
+    rank_change: number;
+  } | null;
+  last_updated: string | null;
+  score_360: Score360 | null;
+  risk: RiskAnalysis | null;
+  profile: string | null;
+  has_active_rule: boolean;
+}
+
+export interface SellerPenaltyItem {
+  id: string;
+  type: string;
+  mode: 'DEDUCTION' | 'HARD_CAP';
+  amount: string;
+  reason: string;
+  created_at: string;
+}
+
+export interface SellerHistoryMonth {
+  period: string;
+  net_amount: string;
+  sale_count: number;
+  current_tier_rank: number;
+  current_tier_name: string;
+  bonus_earned: string;
+  rank: number | null;
+  is_final: boolean;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  seller_id: string;
+  seller_name: string;
+  net_amount?: string;
+  sale_count: number;
+  current_tier_rank?: number;
+  current_tier_name?: string;
+  bonus_earned?: string;
+  rank_change: number;
+  is_me: boolean;
+}
+
+export interface LeaderboardSettings {
+  id: string;
+  store: string;
+  visibility: 'FULL' | 'TIER_AND_RANK' | 'RANK_ONLY' | 'ANONYMOUS';
+  show_amounts: boolean;
+  show_tier: boolean;
+  refresh_interval_minutes: number;
+}
+
+export interface LeaderboardData {
+  period: string;
+  settings: LeaderboardSettings;
+  entries: LeaderboardEntry[];
+  computed_at: string;
+}
+
+export interface SellerMonthlyStats {
+  id: string;
+  store: string;
+  seller: string;
+  seller_name: string;
+  period: string;
+  gross_amount: string;
+  refund_amount: string;
+  net_amount: string;
+  sale_count: number;
+  cancellation_count: number;
+  avg_basket: string;
+  credit_recovered: string;
+  current_tier_rank: number;
+  current_tier_name: string;
+  bonus_earned: string;
+  tier_snapshot: ObjectiveTier[];
+  is_final: boolean;
+  last_trigger: string;
+  computed_at: string | null;
+}
+
+export interface SellerPenaltyType {
+  id: string;
+  store: string;
+  name: string;
+  mode: 'DEDUCTION' | 'HARD_CAP';
+  default_amount: string;
+  cap_tier_rank: number | null;
+  is_active: boolean;
+}
+
+export interface SellerPenalty {
+  id: string;
+  stats: string;
+  penalty_type: string;
+  penalty_type_name: string;
+  penalty_mode: string;
+  amount: string;
+  reason: string;
+  is_void: boolean;
+  applied_by: string | null;
+  created_at: string;
+}
+
+export interface SellerBadge {
+  id: string;
+  seller: string;
+  store: string;
+  badge_type: string;
+  period: string;
+  label: string;
+  icon: string;
+  created_at: string;
+}
+
+export interface SellerSprint {
+  id: string;
+  store: string;
+  name: string;
+  starts_at: string;
+  ends_at: string;
+  status: 'DRAFT' | 'ACTIVE' | 'FINISHED' | 'CANCELLED';
+  prize_description: string;
+  created_by: string | null;
+  results: SellerSprintResult[];
+  live_rankings?: SprintLiveEntry[];
+  created_at: string;
+}
+
+export interface SellerSprintResult {
+  id: string;
+  sprint: string;
+  seller: string;
+  seller_name: string;
+  rank: number;
+  amount: string;
+  is_winner: boolean;
+}
+
+export interface SprintLiveEntry {
+  rank: number;
+  seller_id: string;
+  seller_name: string;
+  total: string;
+  sale_count: number;
+  is_me: boolean;
+}
+
+// ─── Stock Analytics ────────────────────────────────────────────────────────
+
+export interface StockHealthScore {
+  total: number;
+  segment: 'SANTE' | 'CORRECT' | 'FRAGILE' | 'CRITIQUE';
+  coverage: number;
+  freshness: number;
+  availability: number;
+  reliability: number;
+  actions: string[];
+}
+
+export interface StockKPIs {
+  total_sku_count: number;
+  total_products: number;
+  total_stock_value: string;
+  total_retail_value: string;
+  potential_margin: string;
+  low_stock_count: number;
+  out_of_stock_count: number;
+  dead_stock_count: number;
+}
+
+export interface StockRotationItem {
+  product_id: string;
+  product_name: string;
+  sku: string;
+  category: string | null;
+  brand: string | null;
+  current_qty: number;
+  sale_qty: number;
+  rotation_rate: number;
+}
+
+export interface DeadStockItem {
+  product_id: string;
+  product_name: string;
+  sku: string;
+  category: string | null;
+  current_qty: number;
+  stock_value: string;
+  days_since_last_sale: number | null;
+  last_sale_date: string | null;
+}
+
+export interface RuptureRiskItem {
+  product_id: string;
+  product_name: string;
+  sku: string;
+  category: string | null;
+  current_qty: number;
+  avg_daily_sales: number;
+  days_to_rupture: number;
+  urgency: 'CRITICAL' | 'WARNING' | 'LOW';
+}
+
+export interface SuspiciousAdjustment {
+  movement_id: string;
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  type: string;
+  reason: string;
+  actor_name: string | null;
+  created_at: string;
+}
+
+export interface StockDashboardData {
+  store_id: string;
+  period: string;
+  kpis: StockKPIs;
+  score: StockHealthScore;
+  top_rotation: StockRotationItem[];
+  bottom_rotation: StockRotationItem[];
+  dead_stock: DeadStockItem[];
+  rupture_risk: RuptureRiskItem[];
+  suspicious_adjustments: SuspiciousAdjustment[];
+}
+
+export interface StockAlertsData {
+  store_id: string;
+  low_stock_count: number;
+  out_of_stock_count: number;
+  dead_stock_count: number;
+  critical_ruptures: RuptureRiskItem[];
+  warning_ruptures: RuptureRiskItem[];
+}
+
+// ─── DG Dashboard ───────────────────────────────────────────────────────────
+
+export interface DGScores {
+  sellers: number;
+  cashiers: number;
+  stock: number;
+}
+
+export interface DGRevenue {
+  total_sales: string;
+  total_collected: string;
+  collected_on_period_sales: string;
+  sale_count: number;
+  avg_basket: string;
+  cancellation_rate: number;
+  refund_amount: string;
+  collection_rate_cohort: number;
+  cash_in_rate: number;
+  collection_rate: number;
+}
+
+export interface DGTeam {
+  seller_count: number;
+  cashier_count: number;
+}
+
+export interface DGStockSummary {
+  health_score: number;
+  segment: string;
+  low_stock_count: number;
+  dead_stock_count: number;
+  critical_ruptures: number;
+  total_stock_value: string;
+}
+
+export interface DGTopSeller {
+  id: string;
+  name: string;
+  gross_amount: string;
+  score_360: number;
+  current_tier_name: string;
+}
+
+export interface DGTopCashier {
+  id: string;
+  name: string;
+  score: number;
+  segment: string;
+  total_collected: string;
+}
+
+export interface DGOrgAlert {
+  type: string;
+  severity: 'CRITICAL' | 'WARNING' | 'INFO';
+  title: string;
+  detail: string;
+}
+
+export interface DGDashboardData {
+  period: string;
+  store_id: string;
+  global_score: number;
+  scores: DGScores;
+  revenue: DGRevenue;
+  team: DGTeam;
+  stock_summary: DGStockSummary;
+  top_sellers: DGTopSeller[];
+  top_cashiers: DGTopCashier[];
+  org_alerts: DGOrgAlert[];
 }

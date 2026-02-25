@@ -1,5 +1,26 @@
 """Custom DRF permissions for the boutique management system."""
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.permissions import BasePermission
+
+
+FEATURE_FLAG_TO_MODULE_CODE = {
+    "sales_pos": "SELL",
+    "sales_refund": "SELL",
+    "cashier_operations": "CASH",
+    "stock_management": "STOCK",
+    "stock_entries": "STOCK",
+    "purchases_management": "PURCHASE",
+    "credit_management": "CUSTOMER",
+    "expenses_management": "EXPENSE",
+    "alerts_center": "ALERTS",
+    "reports_center": "ANALYTICS_MANAGER",
+    "dashboard_strategic": "ANALYTICS_DG",
+    "abc_analysis": "ANALYTICS_MANAGER",
+    "dynamic_reorder": "ANALYTICS_MANAGER",
+    "credit_scoring": "CLIENT_INTEL",
+    "sales_forecast": "ANALYTICS_MANAGER",
+    "fraud_detection": "ANALYTICS_MANAGER",
+    "enabled": "ANALYTICS_MANAGER",
+}
 
 
 def _resolve_store_from_request(
@@ -83,6 +104,203 @@ def _resolve_object_store(obj):
     return None
 
 
+def _resolve_user_enterprise_id(user):
+    """Best-effort enterprise resolution for tenant-scoped admin checks."""
+    store_link = (
+        user.store_users
+        .filter(store__is_active=True, store__enterprise__is_active=True)
+        .select_related("store__enterprise")
+        .order_by("-is_default", "store_id")
+        .first()
+    )
+    if store_link and store_link.store and store_link.store.enterprise_id:
+        return store_link.store.enterprise_id
+
+    custom_role = getattr(user, "custom_role", None)
+    custom_role_enterprise_id = getattr(custom_role, "enterprise_id", None)
+    if custom_role_enterprise_id:
+        return custom_role_enterprise_id
+
+    return None
+
+
+def _user_has_store_access(user, store_id: str) -> bool:
+    """Tenant-safe store access check used by IsStoreMember."""
+    if getattr(user, "is_superuser", False):
+        return True
+
+    if getattr(user, "role", None) == "ADMIN":
+        from stores.models import Store
+
+        enterprise_id = _resolve_user_enterprise_id(user)
+        if enterprise_id is not None:
+            return Store.objects.filter(
+                pk=store_id,
+                enterprise_id=enterprise_id,
+                is_active=True,
+            ).exists()
+
+    return user.store_users.filter(store_id=str(store_id), store__is_active=True).exists()
+
+
+def _is_store_module_enabled(store, module_code: str) -> bool:
+    if not module_code:
+        return True
+    from stores.services import resolve_store_module_matrix
+
+    matrix = resolve_store_module_matrix(store=store)
+    modules = matrix.get("modules", {}) or {}
+    return bool(modules.get(module_code, False))
+
+
+def _format_module_label(module_code: str) -> str:
+    from stores.models import MODULE_CODE_LABELS
+
+    return MODULE_CODE_LABELS.get(module_code, module_code)
+
+
+class RequireStoreModuleEnabled(BasePermission):
+    """Enforce commercial module entitlement at store scope."""
+
+    module_code = None
+    module_codes_any = ()
+    store_lookup_fields = ("store", "store_id", "from_store_id", "to_store_id")
+    message = "Module desactive pour cette boutique."
+
+    def _effective_module_codes(self, view):
+        exact = getattr(view, "required_module_code", None) or self.module_code
+        if exact:
+            return (exact,)
+        any_of = getattr(view, "required_module_any_of", None) or self.module_codes_any
+        if any_of:
+            return tuple(any_of)
+        return ()
+
+    def _is_enabled(self, store, module_codes):
+        return any(_is_store_module_enabled(store, module_code) for module_code in module_codes)
+
+    def _deny(self, module_codes):
+        if len(module_codes) == 1:
+            label = _format_module_label(module_codes[0])
+            self.message = f"Le module '{label}' n'est pas active pour cette boutique."
+        else:
+            labels = ", ".join(_format_module_label(code) for code in module_codes)
+            self.message = f"Aucun des modules requis n'est actif ({labels})."
+        return False
+
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        if getattr(request.user, "is_superuser", False):
+            return True
+
+        module_codes = self._effective_module_codes(view)
+        if not module_codes:
+            return True
+
+        store = _resolve_store_from_request(
+            request,
+            view,
+            store_lookup_fields=self.store_lookup_fields,
+        )
+        if store:
+            if self._is_enabled(store, module_codes):
+                return True
+            return self._deny(module_codes)
+
+        # For detail routes, defer to object-level checks.
+        if getattr(view, "kwargs", {}).get("pk"):
+            return True
+
+        links = (
+            request.user.store_users
+            .filter(store__is_active=True)
+            .select_related("store")
+            .order_by("-is_default", "store_id")
+        )
+        for link in links:
+            if self._is_enabled(link.store, module_codes):
+                return True
+        return self._deny(module_codes)
+
+    def has_object_permission(self, request, view, obj):
+        if not request.user.is_authenticated:
+            return False
+        if getattr(request.user, "is_superuser", False):
+            return True
+
+        module_codes = self._effective_module_codes(view)
+        if not module_codes:
+            return True
+
+        store = _resolve_object_store(obj)
+        if not store:
+            return False
+        if self._is_enabled(store, module_codes):
+            return True
+        return self._deny(module_codes)
+
+
+class ModuleCoreEnabled(RequireStoreModuleEnabled):
+    module_code = "CORE"
+
+
+class ModuleSellEnabled(RequireStoreModuleEnabled):
+    module_code = "SELL"
+
+
+class ModuleSellOrStockEnabled(RequireStoreModuleEnabled):
+    module_codes_any = ("SELL", "STOCK")
+
+
+class ModuleCashEnabled(RequireStoreModuleEnabled):
+    module_code = "CASH"
+
+
+class ModuleCustomerEnabled(RequireStoreModuleEnabled):
+    module_code = "CUSTOMER"
+
+
+class ModuleStockEnabled(RequireStoreModuleEnabled):
+    module_code = "STOCK"
+
+
+class ModulePurchaseEnabled(RequireStoreModuleEnabled):
+    module_code = "PURCHASE"
+
+
+class ModuleExpenseEnabled(RequireStoreModuleEnabled):
+    module_code = "EXPENSE"
+
+
+class ModuleSellerPerformanceEnabled(RequireStoreModuleEnabled):
+    module_code = "SELLER_PERF"
+
+
+class ModuleAnalyticsManagerEnabled(RequireStoreModuleEnabled):
+    module_code = "ANALYTICS_MANAGER"
+
+
+class ModuleAnalyticsCashierEnabled(RequireStoreModuleEnabled):
+    module_code = "ANALYTICS_CASHIER"
+
+
+class ModuleAnalyticsStockEnabled(RequireStoreModuleEnabled):
+    module_code = "ANALYTICS_STOCK"
+
+
+class ModuleAnalyticsDGEnabled(RequireStoreModuleEnabled):
+    module_code = "ANALYTICS_DG"
+
+
+class ModuleClientIntelEnabled(RequireStoreModuleEnabled):
+    module_code = "CLIENT_INTEL"
+
+
+class ModuleAlertsEnabled(RequireStoreModuleEnabled):
+    module_code = "ALERTS"
+
+
 class RequireStoreFeatureFlag(BasePermission):
     """Enforce a store feature flag on API endpoints."""
 
@@ -93,15 +311,26 @@ class RequireStoreFeatureFlag(BasePermission):
     def _effective_feature_key(self, view):
         return getattr(view, "required_feature_flag", None) or self.feature_key
 
-    def _is_enabled(self, store, feature_key):
+    def _effective_module_code(self, view, feature_key):
+        explicit_module = getattr(view, "required_module_code", None)
+        if explicit_module:
+            return explicit_module
+        return FEATURE_FLAG_TO_MODULE_CODE.get(feature_key)
+
+    def _is_feature_enabled(self, store, feature_key):
         checker = getattr(store, "is_feature_enabled", None)
         return bool(callable(checker) and checker(feature_key))
 
-    def _deny(self, feature_key):
+    def _deny_feature(self, feature_key):
         from stores.models import FEATURE_FLAG_LABELS
 
         label = FEATURE_FLAG_LABELS.get(feature_key, feature_key)
         self.message = f"Le module '{label}' est desactive pour cette boutique."
+        return False
+
+    def _deny_module(self, module_code):
+        label = _format_module_label(module_code)
+        self.message = f"Le module '{label}' n'est pas active pour cette boutique."
         return False
 
     def has_permission(self, request, view):
@@ -113,6 +342,7 @@ class RequireStoreFeatureFlag(BasePermission):
         feature_key = self._effective_feature_key(view)
         if not feature_key:
             return True
+        required_module_code = self._effective_module_code(view, feature_key)
 
         store = _resolve_store_from_request(
             request,
@@ -120,28 +350,33 @@ class RequireStoreFeatureFlag(BasePermission):
             store_lookup_fields=self.store_lookup_fields,
         )
         if store:
-            if self._is_enabled(store, feature_key):
-                return True
-            return self._deny(feature_key)
+            if not self._is_feature_enabled(store, feature_key):
+                return self._deny_feature(feature_key)
+            if required_module_code and not _is_store_module_enabled(store, required_module_code):
+                return self._deny_module(required_module_code)
+            return True
 
         # For detail routes, defer to object-level checks.
         if getattr(view, "kwargs", {}).get("pk"):
             return True
 
-        # For non-contextual read routes, allow if at least one store is enabled.
-        if request.method in SAFE_METHODS:
-            links = (
-                request.user.store_users
-                .filter(store__is_active=True)
-                .select_related("store")
-                .order_by("-is_default", "store_id")
-            )
-            for link in links:
-                if self._is_enabled(link.store, feature_key):
-                    return True
-            return self._deny(feature_key)
-
-        return False
+        links = (
+            request.user.store_users
+            .filter(store__is_active=True)
+            .select_related("store")
+            .order_by("-is_default", "store_id")
+        )
+        module_denied = False
+        for link in links:
+            if not self._is_feature_enabled(link.store, feature_key):
+                continue
+            if required_module_code and not _is_store_module_enabled(link.store, required_module_code):
+                module_denied = True
+                continue
+            return True
+        if required_module_code and module_denied:
+            return self._deny_module(required_module_code)
+        return self._deny_feature(feature_key)
 
     def has_object_permission(self, request, view, obj):
         if not request.user.is_authenticated:
@@ -152,13 +387,16 @@ class RequireStoreFeatureFlag(BasePermission):
         feature_key = self._effective_feature_key(view)
         if not feature_key:
             return True
+        required_module_code = self._effective_module_code(view, feature_key)
 
         store = _resolve_object_store(obj)
         if not store:
             return False
-        if self._is_enabled(store, feature_key):
-            return True
-        return self._deny(feature_key)
+        if not self._is_feature_enabled(store, feature_key):
+            return self._deny_feature(feature_key)
+        if required_module_code and not _is_store_module_enabled(store, required_module_code):
+            return self._deny_module(required_module_code)
+        return True
 
 
 class FeatureSalesPOSEnabled(RequireStoreFeatureFlag):
@@ -286,9 +524,10 @@ class IsSales(_CapabilityPermission):
 class IsStoreMember(BasePermission):
     """Check that the user has access to the requested store via StoreUser.
 
-    - ADMIN users always pass.
+    - Superusers always pass.
+    - ADMIN users are granted access to stores in their own enterprise.
     - If a ``store`` parameter is present (query or body), verify the user
-      has a StoreUser link to it.
+      has access to it.
     - If no ``store`` is given, read-only requests pass through (queryset
       filtering handles isolation), but mutating requests are denied to
       prevent writes without an explicit store context.
@@ -338,7 +577,7 @@ class IsStoreMember(BasePermission):
             if getattr(view, "kwargs", {}).get("pk"):
                 return True
             return False
-        return request.user.store_users.filter(store_id=str(store_id)).exists()
+        return _user_has_store_access(request.user, str(store_id))
 
     def has_object_permission(self, request, view, obj):
         if not request.user.is_authenticated:
@@ -349,7 +588,7 @@ class IsStoreMember(BasePermission):
         store_id = self._resolve_object_store_id(obj)
         if not store_id:
             return False
-        return request.user.store_users.filter(store_id=store_id).exists()
+        return _user_has_store_access(request.user, store_id)
 
 
 class CanProcessPayment(_CapabilityPermission):

@@ -62,9 +62,16 @@ const EnterpriseSetupPage = lazy(() => import('@/features/settings/EnterpriseSet
 const EnterpriseListPage = lazy(() => import('@/features/settings/EnterpriseListPage'));
 const EnterpriseSubscriptionPage = lazy(() => import('@/features/settings/EnterpriseSubscriptionPage'));
 const StoreUserCapabilitiesPage = lazy(() => import('@/features/settings/StoreUserCapabilitiesPage'));
+const ModuleEntitlementsPage = lazy(() => import('@/features/settings/ModuleEntitlementsPage'));
 const ExpenseListPage = lazy(() => import('@/features/expenses/ExpenseListPage'));
 const ExpenseDashboardPage = lazy(() => import('@/features/expenses/ExpenseDashboardPage'));
 const ExpenseSettingsPage = lazy(() => import('@/features/expenses/ExpenseSettingsPage'));
+const SellerObjectivePage = lazy(() => import('@/features/objectives/SellerObjectivePage'));
+const ObjectiveAdminPage = lazy(() => import('@/features/objectives/ObjectiveAdminPage'));
+const CashierAnalyticsPage = lazy(() => import('@/features/cashier/CashierAnalyticsPage'));
+const CashierTeamAnalyticsPage = lazy(() => import('@/features/cashier/CashierTeamAnalyticsPage'));
+const StockAnalyticsPage = lazy(() => import('@/features/stock/StockAnalyticsPage'));
+const DGDashboardPage = lazy(() => import('@/features/dg/DGDashboardPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -108,6 +115,7 @@ export default function App() {
                     <ProtectedRoute
                       allowedRoles={['SALES', 'MANAGER', 'ADMIN']}
                       allowedCapabilities={['CAN_SELL']}
+                      requiredModules={['SELL']}
                     />
                   }
                 >
@@ -121,6 +129,7 @@ export default function App() {
                     <ProtectedRoute
                       allowedRoles={['SALES', 'MANAGER', 'ADMIN']}
                       allowedCapabilities={['CAN_SELL']}
+                      requiredModules={['SELL']}
                     />
                   }
                 >
@@ -136,6 +145,7 @@ export default function App() {
                     <ProtectedRoute
                       allowedRoles={['CASHIER', 'MANAGER', 'ADMIN']}
                       allowedCapabilities={['CAN_CASH']}
+                      requiredModules={['CASH']}
                     />
                   }
                 >
@@ -143,19 +153,37 @@ export default function App() {
                   <Route path="/cashier/payment/:saleId" element={<Suspense fallback={<PageLoader />}><ProcessPaymentPage /></Suspense>} />
                   <Route path="/cashier/receipt/:saleId" element={<Suspense fallback={<PageLoader />}><PaymentReceiptPage /></Suspense>} />
                 </Route>
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['CASHIER', 'MANAGER', 'ADMIN']}
+                      allowedCapabilities={['CAN_CASH']}
+                      requiredModules={['ANALYTICS_CASHIER']}
+                    />
+                  }
+                >
+                  <Route path="/cashier/analytics" element={<Suspense fallback={<PageLoader />}><CashierAnalyticsPage /></Suspense>} />
+                </Route>
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['ANALYTICS_CASHIER']} />}>
+                  <Route path="/cashier/team-analytics" element={<Suspense fallback={<PageLoader />}><CashierTeamAnalyticsPage /></Suspense>} />
+                </Route>
 
-                {/* Catalog */}
-                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN', 'STOCKER']} />}>
+                {/* Catalog (read) */}
+                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN', 'STOCKER']} requiredModules={['SELL']} />}>
                   <Route path="/catalog" element={<Suspense fallback={<PageLoader />}><ProductListPage /></Suspense>} />
+                  <Route path="/catalog/:id" element={<Suspense fallback={<PageLoader />}><ProductDetailPage /></Suspense>} />
+                </Route>
+
+                {/* Catalog (manage) */}
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['STOCK']} />}>
                   <Route path="/catalog/new" element={<Suspense fallback={<PageLoader />}><ProductFormPage /></Suspense>} />
                   <Route path="/catalog/categories" element={<Suspense fallback={<PageLoader />}><CategoryListPage /></Suspense>} />
                   <Route path="/catalog/brands" element={<Suspense fallback={<PageLoader />}><BrandListPage /></Suspense>} />
-                  <Route path="/catalog/:id" element={<Suspense fallback={<PageLoader />}><ProductDetailPage /></Suspense>} />
                   <Route path="/catalog/:id/edit" element={<Suspense fallback={<PageLoader />}><ProductFormPage /></Suspense>} />
                 </Route>
 
                 {/* Stock */}
-                <Route element={<ProtectedRoute allowedRoles={['STOCKER', 'MANAGER', 'ADMIN']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['STOCKER', 'MANAGER', 'ADMIN']} requiredModules={['STOCK']} />}>
                   <Route path="/stock" element={<Suspense fallback={<PageLoader />}><StockLevelsPage /></Suspense>} />
                   <Route path="/stock/movements" element={<Suspense fallback={<PageLoader />}><MovementListPage /></Suspense>} />
                   <Route path="/stock/movements/:batchId" element={<Suspense fallback={<PageLoader />}><MovementDocumentPage /></Suspense>} />
@@ -168,9 +196,15 @@ export default function App() {
                   <Route path="/stock/counts/new" element={<Suspense fallback={<PageLoader />}><CountCreatePage /></Suspense>} />
                   <Route path="/stock/counts/:id" element={<Suspense fallback={<PageLoader />}><CountDetailPage /></Suspense>} />
                 </Route>
+                <Route element={<ProtectedRoute allowedRoles={['STOCKER', 'MANAGER', 'ADMIN']} requiredModules={['ANALYTICS_STOCK']} />}>
+                  <Route path="/stock/analytics" element={<Suspense fallback={<PageLoader />}><StockAnalyticsPage /></Suspense>} />
+                </Route>
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['ANALYTICS_DG']} />}>
+                  <Route path="/dg/dashboard" element={<Suspense fallback={<PageLoader />}><DGDashboardPage /></Suspense>} />
+                </Route>
 
                 {/* Customers */}
-                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN', 'CASHIER']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN', 'CASHIER']} requiredModules={['CUSTOMER']} />}>
                   <Route path="/customers" element={<Suspense fallback={<PageLoader />}><CustomerListPage /></Suspense>} />
                   <Route path="/customers/new" element={<Suspense fallback={<PageLoader />}><CustomerFormPage /></Suspense>} />
                   <Route path="/customers/:id" element={<Suspense fallback={<PageLoader />}><CustomerDetailPage /></Suspense>} />
@@ -178,22 +212,22 @@ export default function App() {
                 </Route>
 
                 {/* Credits */}
-                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN', 'CASHIER']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN', 'CASHIER']} requiredModules={['CUSTOMER']} />}>
                   <Route path="/credits" element={<Suspense fallback={<PageLoader />}><CreditListPage /></Suspense>} />
                   <Route path="/credits/:id" element={<Suspense fallback={<PageLoader />}><CreditDetailPage /></Suspense>} />
                 </Route>
 
                 {/* Expenses */}
-                <Route element={<ProtectedRoute allowedRoles={['CASHIER', 'MANAGER', 'ADMIN']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['CASHIER', 'MANAGER', 'ADMIN']} requiredModules={['EXPENSE']} />}>
                   <Route path="/expenses" element={<Suspense fallback={<PageLoader />}><ExpenseListPage /></Suspense>} />
                   <Route path="/expenses/dashboard" element={<Suspense fallback={<PageLoader />}><ExpenseDashboardPage /></Suspense>} />
                 </Route>
-                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['EXPENSE']} />}>
                   <Route path="/expenses/settings" element={<Suspense fallback={<PageLoader />}><ExpenseSettingsPage /></Suspense>} />
                 </Route>
 
                 {/* Purchases */}
-                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['PURCHASE']} />}>
                   <Route path="/purchases" element={<Navigate to="/purchases/orders" replace />} />
                   <Route path="/purchases/suppliers" element={<Suspense fallback={<PageLoader />}><SupplierListPage /></Suspense>} />
                   <Route path="/purchases/orders" element={<Suspense fallback={<PageLoader />}><PurchaseListPage /></Suspense>} />
@@ -203,18 +237,28 @@ export default function App() {
                   <Route path="/purchases/orders/:id/receive" element={<Suspense fallback={<PageLoader />}><GoodsReceiptCreatePage /></Suspense>} />
                 </Route>
 
+                {/* Objectives — seller view */}
+                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN']} requiredModules={['SELLER_PERF']} />}>
+                  <Route path="/objectives/my-goal" element={<Suspense fallback={<PageLoader />}><SellerObjectivePage /></Suspense>} />
+                </Route>
+
+                {/* Objectives — admin */}
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['SELLER_PERF']} />}>
+                  <Route path="/objectives/admin" element={<Suspense fallback={<PageLoader />}><ObjectiveAdminPage /></Suspense>} />
+                </Route>
+
                 {/* Reports */}
-                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['ANALYTICS_MANAGER']} />}>
                   <Route path="/reports" element={<Suspense fallback={<PageLoader />}><ReportsPage /></Suspense>} />
                 </Route>
 
                 {/* Statistics */}
-                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['ANALYTICS_MANAGER']} />}>
                   <Route path="/statistics" element={<Suspense fallback={<PageLoader />}><StatisticsPage /></Suspense>} />
                 </Route>
 
                 {/* Analytics / AI */}
-                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['ANALYTICS_MANAGER']} />}>
                   <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsPage /></Suspense>} />
                 </Route>
 
@@ -222,10 +266,12 @@ export default function App() {
                 <Route path="/profile" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
 
                 {/* Alerts */}
-                <Route path="/alerts" element={<Suspense fallback={<PageLoader />}><AlertListPage /></Suspense>} />
+                <Route element={<ProtectedRoute requiredModules={['ALERTS']} />}>
+                  <Route path="/alerts" element={<Suspense fallback={<PageLoader />}><AlertListPage /></Suspense>} />
+                </Route>
 
                 {/* Settings */}
-                <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['ADMIN']} requiredModules={['CORE']} />}>
                   <Route path="/settings" element={<Navigate to="/settings/stores" replace />} />
                   <Route path="/settings/stores" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
                   <Route path="/settings/invoice" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
@@ -235,6 +281,7 @@ export default function App() {
                   <Route path="/settings/users/:id/edit" element={<Suspense fallback={<PageLoader />}><UserFormPage /></Suspense>} />
                   <Route path="/settings/roles" element={<Suspense fallback={<PageLoader />}><RoleListPage /></Suspense>} />
                   <Route path="/settings/permissions" element={<Suspense fallback={<PageLoader />}><StoreUserCapabilitiesPage /></Suspense>} />
+                  <Route path="/settings/modules" element={<Suspense fallback={<PageLoader />}><ModuleEntitlementsPage /></Suspense>} />
                   <Route path="/settings/subscriptions" element={<Suspense fallback={<PageLoader />}><EnterpriseSubscriptionPage /></Suspense>} />
                   <Route path="/settings/enterprises" element={<Suspense fallback={<PageLoader />}><EnterpriseListPage /></Suspense>} />
                   <Route path="/settings/enterprise-setup" element={<Suspense fallback={<PageLoader />}><EnterpriseSetupPage /></Suspense>} />

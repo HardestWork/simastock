@@ -6,3 +6,6 @@ class AnalyticsConfig(AppConfig):
     name = "analytics"
     verbose_name = "Analytics"
 
+    def ready(self):
+        # Register incremental recomputation signals.
+        from analytics import signals  # noqa: F401

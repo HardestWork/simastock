@@ -47,6 +47,7 @@ export default function ProductListPage() {
   const debouncedSearch = useDebounce(search, 300);
   const { sortField, sortDirection, ordering, toggleSort } = useSort('name', 'asc');
   const role = useAuthStore((s) => s.user?.role);
+  const canManageCatalog = role === 'ADMIN' || role === 'MANAGER';
   const canImportCsv = role === 'ADMIN' || role === 'MANAGER';
 
   useEffect(() => { setPage(1); }, [ordering]);
@@ -166,27 +167,31 @@ export default function ProductListPage() {
               </button>
             </>
           )}
-          <Link
-            to="/catalog/categories"
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
-          >
-            <FolderTree size={16} />
-            Categories
-          </Link>
-          <Link
-            to="/catalog/brands"
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
-          >
-            <Tags size={16} />
-            Marques
-          </Link>
-          <Link
-            to="/catalog/new"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
-          >
-            <Plus size={18} />
-            Nouveau produit
-          </Link>
+          {canManageCatalog && (
+            <>
+              <Link
+                to="/catalog/categories"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              >
+                <FolderTree size={16} />
+                Categories
+              </Link>
+              <Link
+                to="/catalog/brands"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              >
+                <Tags size={16} />
+                Marques
+              </Link>
+              <Link
+                to="/catalog/new"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
+              >
+                <Plus size={18} />
+                Nouveau produit
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -342,22 +347,24 @@ export default function ProductListPage() {
                 {formatCurrency(product.selling_price)}
               </p>
               {/* Actions overlay */}
-              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={(e) => { e.stopPropagation(); navigate(`/catalog/${product.id}/edit`); }}
-                  className="p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                  title="Modifier"
-                >
-                  <Pencil size={14} className="text-gray-600" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(product); }}
-                  className="p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-red-50 dark:hover:bg-red-900/20"
-                  title="Supprimer"
-                >
-                  <Trash2 size={14} className="text-red-500" />
-                </button>
-              </div>
+              {canManageCatalog && (
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate(`/catalog/${product.id}/edit`); }}
+                    className="p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                    title="Modifier"
+                  >
+                    <Pencil size={14} className="text-gray-600" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(product); }}
+                    className="p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-red-50 dark:hover:bg-red-900/20"
+                    title="Supprimer"
+                  >
+                    <Trash2 size={14} className="text-red-500" />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           {data?.results.length === 0 && (
@@ -381,7 +388,7 @@ export default function ProductListPage() {
                 <SortableHeader field="cost_price" label="Prix achat" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
                 <SortableHeader field="selling_price" label="Prix vente" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
                 <SortableHeader field="is_active" label="Actif" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="center" />
-                <th className="px-4 py-3 font-medium text-right">Actions</th>
+                {canManageCatalog && <th className="px-4 py-3 font-medium text-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -429,29 +436,31 @@ export default function ProductListPage() {
                   <td className="px-4 py-3 text-center">
                     <span className={`inline-block w-2.5 h-2.5 rounded-full ${product.is_active ? 'bg-emerald-500' : 'bg-gray-300'}`} />
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigate(`/catalog/${product.id}/edit`); }}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                        title="Modifier"
-                      >
-                        <Pencil size={15} className="text-gray-500" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(product); }}
-                        className="p-1.5 rounded-lg hover:bg-red-50"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={15} className="text-red-500" />
-                      </button>
-                    </div>
-                  </td>
+                  {canManageCatalog && (
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/catalog/${product.id}/edit`); }}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                          title="Modifier"
+                        >
+                          <Pencil size={15} className="text-gray-500" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(product); }}
+                          className="p-1.5 rounded-lg hover:bg-red-50"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={15} className="text-red-500" />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {data?.results.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={canManageCatalog ? 10 : 9} className="px-4 py-8 text-center text-gray-500">
                     Aucun produit trouve.
                   </td>
                 </tr>
@@ -463,23 +472,25 @@ export default function ProductListPage() {
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
-      <ConfirmDialog
-        open={!!productToDelete}
-        title="Supprimer ce produit ?"
-        message={
-          productToDelete
-            ? `Le produit "${productToDelete.name}" sera supprime definitivement.`
-            : ''
-        }
-        confirmLabel="Supprimer"
-        tone="danger"
-        loading={deleteMutation.isPending}
-        onClose={() => setProductToDelete(null)}
-        onConfirm={() => {
-          if (!productToDelete) return;
-          deleteMutation.mutate({ id: productToDelete.id, name: productToDelete.name });
-        }}
-      />
+      {canManageCatalog && (
+        <ConfirmDialog
+          open={!!productToDelete}
+          title="Supprimer ce produit ?"
+          message={
+            productToDelete
+              ? `Le produit "${productToDelete.name}" sera supprime definitivement.`
+              : ''
+          }
+          confirmLabel="Supprimer"
+          tone="danger"
+          loading={deleteMutation.isPending}
+          onClose={() => setProductToDelete(null)}
+          onConfirm={() => {
+            if (!productToDelete) return;
+            deleteMutation.mutate({ id: productToDelete.id, name: productToDelete.name });
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { ChevronLeft, Printer } from 'lucide-react';
 import type { PaymentMethod } from '@/api/types';
+import { toast } from '@/lib/toast';
 
 const METHOD_LABELS: Record<PaymentMethod | string, string> = {
   CASH: 'Especes',
@@ -50,6 +51,10 @@ export default function PaymentReceiptPage() {
     : null;
 
   useEffect(() => {
+    toast.dismiss();
+  }, []);
+
+  useEffect(() => {
     if (!saleId) return undefined;
     const previousTitle = document.title;
     const reference = sale?.invoice_number ?? saleId.toUpperCase();
@@ -58,6 +63,13 @@ export default function PaymentReceiptPage() {
       document.title = previousTitle;
     };
   }, [sale?.invoice_number, saleId]);
+
+  const handlePrint = () => {
+    toast.dismiss();
+    window.requestAnimationFrame(() => {
+      window.print();
+    });
+  };
 
   if (isLoading) {
     return (
@@ -94,7 +106,7 @@ export default function PaymentReceiptPage() {
           Retour
         </Link>
         <button
-          onClick={() => window.print()}
+          onClick={handlePrint}
           className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           <Printer size={15} />

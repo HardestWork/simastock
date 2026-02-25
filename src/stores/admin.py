@@ -3,10 +3,16 @@ from django.contrib import admin
 
 from stores.models import (
     AuditLog,
+    BillingModule,
+    BillingModuleDependency,
+    BillingPlan,
+    BillingPlanModule,
     Enterprise,
+    EnterprisePlanAssignment,
     EnterpriseSubscription,
     Sequence,
     Store,
+    StoreModuleEntitlement,
     StoreUser,
 )
 
@@ -106,3 +112,49 @@ class SequenceAdmin(admin.ModelAdmin):
     list_filter = ("store", "prefix")
     search_fields = ("store__name", "store__code", "prefix")
     list_select_related = ("store",)
+
+
+@admin.register(BillingModule)
+class BillingModuleAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "display_order", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("code", "name")
+    ordering = ("display_order", "name")
+
+
+@admin.register(BillingModuleDependency)
+class BillingModuleDependencyAdmin(admin.ModelAdmin):
+    list_display = ("module", "depends_on_module")
+    search_fields = ("module__code", "depends_on_module__code")
+    list_select_related = ("module", "depends_on_module")
+
+
+@admin.register(BillingPlan)
+class BillingPlanAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "billing_cycle", "base_price_fcfa", "currency", "is_active")
+    list_filter = ("is_active", "billing_cycle")
+    search_fields = ("code", "name")
+
+
+@admin.register(BillingPlanModule)
+class BillingPlanModuleAdmin(admin.ModelAdmin):
+    list_display = ("plan", "module", "included")
+    list_filter = ("included", "plan")
+    search_fields = ("plan__code", "module__code")
+    list_select_related = ("plan", "module")
+
+
+@admin.register(EnterprisePlanAssignment)
+class EnterprisePlanAssignmentAdmin(admin.ModelAdmin):
+    list_display = ("enterprise", "plan", "status", "starts_on", "ends_on", "auto_renew")
+    list_filter = ("status", "plan", "auto_renew")
+    search_fields = ("enterprise__name", "enterprise__code", "plan__code")
+    list_select_related = ("enterprise", "plan", "source_subscription")
+
+
+@admin.register(StoreModuleEntitlement)
+class StoreModuleEntitlementAdmin(admin.ModelAdmin):
+    list_display = ("store", "module", "state", "reason", "created_by")
+    list_filter = ("state", "module")
+    search_fields = ("store__code", "store__name", "module__code", "reason")
+    list_select_related = ("store", "module", "created_by")

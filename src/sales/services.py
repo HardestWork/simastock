@@ -225,6 +225,38 @@ def update_item_quantity(sale: Sale, item_id, new_qty: int, actor=None) -> SaleI
     return item
 
 
+@transaction.atomic
+def update_item_unit_price(
+    sale: Sale,
+    item_id,
+    new_unit_price: Decimal | int | float,
+    actor=None,
+) -> SaleItem:
+    """Update the unit price of an item on a DRAFT sale."""
+    sale = Sale.objects.select_for_update().get(pk=sale.pk)
+
+    if sale.status != Sale.Status.DRAFT:
+        raise ValueError("Impossible de modifier le prix: la vente n'est pas en brouillon.")
+
+    try:
+        item = sale.items.select_for_update().get(pk=item_id)
+    except SaleItem.DoesNotExist:
+        raise ValueError("Article introuvable dans cette vente.")
+
+    unit_price = Decimal(str(new_unit_price))
+    if unit_price <= Decimal("0.00"):
+        raise ValueError("Le prix doit etre strictement positif.")
+
+    item.unit_price = unit_price
+    item.save()
+    recalculate_sale(sale)
+    logger.info(
+        "Updated unit price for item %s on sale %s to %s",
+        item_id, sale.pk, unit_price,
+    )
+    return item
+
+
 # ---------------------------------------------------------------------------
 # submit_sale_to_cashier
 # ---------------------------------------------------------------------------

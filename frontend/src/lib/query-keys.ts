@@ -35,6 +35,13 @@ export const queryKeys = {
     list: (params?: Record<string, string>) => ['enterprise-subscriptions', 'list', params] as const,
     detail: (id: string) => ['enterprise-subscriptions', id] as const,
   },
+  billing: {
+    modules: (params?: Record<string, string>) => ['billing', 'modules', params] as const,
+    plans: (params?: Record<string, string>) => ['billing', 'plans', params] as const,
+    assignments: (params?: Record<string, string>) => ['billing', 'assignments', params] as const,
+    currentAssignment: (enterpriseId?: string) => ['billing', 'current-assignment', enterpriseId] as const,
+    storeMatrix: (storeId?: string) => ['billing', 'store-matrix', storeId] as const,
+  },
 
   // Catalog
   categories: {
@@ -191,5 +198,16 @@ export const queryKeys = {
     forecast: (params: unknown) => ['analytics', 'forecast', params] as const,
     forecastSummary: (params: unknown) => ['analytics', 'forecast-summary', params] as const,
     fraud: (params: unknown) => ['analytics', 'fraud', params] as const,
+    margin: (params: unknown) => ['analytics', 'margin-movers', params] as const,
+    orientation: (params: unknown) => ['analytics', 'orientation', params] as const,
+    customerScore: (customerId: string, params: unknown) => ['analytics', 'customers', customerId, 'score', params] as const,
+    customerCreditRisk: (params: unknown) => ['analytics', 'customers', 'credit-risk', params] as const,
+    customerCreditRiskForCustomer: (customerId: string, params: unknown) =>
+      ['analytics', 'customers', customerId, 'credit-risk', params] as const,
+    customerRecommendations: (customerId: string, params: unknown) =>
+      ['analytics', 'customers', customerId, 'recommendations', params] as const,
+    customerNextOrder: (customerId: string, params: unknown) =>
+      ['analytics', 'customers', customerId, 'next-order', params] as const,
+    customerChurnRisk: (params: unknown) => ['analytics', 'customers', 'churn-risk', params] as const,
   },
 } as const;

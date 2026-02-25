@@ -17,6 +17,7 @@ const saleStatusMap: Record<SaleStatus, { label: string; variant: BadgeVariant }
   PARTIALLY_PAID: { label: 'Paiement partiel', variant: 'info' },
   PAID: { label: 'Payee', variant: 'success' },
   CANCELLED: { label: 'Annulee', variant: 'danger' },
+  REFUNDED: { label: 'Remboursee', variant: 'secondary' },
 };
 
 const shiftStatusMap: Record<ShiftStatus, { label: string; variant: BadgeVariant }> = {

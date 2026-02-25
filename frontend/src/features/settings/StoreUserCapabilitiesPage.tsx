@@ -63,6 +63,24 @@ const CAPABILITY_LABELS_FALLBACK: Record<Capability, string> = {
   CAN_SET_BUDGETS: 'Configurer budgets depenses',
 };
 
+function canAssignCapability(_userRole: UserRole, _capability: Capability): boolean {
+  return true;
+}
+
+function extractApiErrorMessage(err: any): string {
+  const data = err?.response?.data;
+  if (!data) return err?.message ?? 'Erreur inconnue';
+  if (typeof data?.detail === 'string' && data.detail.trim()) return data.detail;
+  if (Array.isArray(data?.non_field_errors) && data.non_field_errors.length > 0) {
+    return String(data.non_field_errors[0]);
+  }
+  if (Array.isArray(data?.capabilities) && data.capabilities.length > 0) {
+    return String(data.capabilities[0]);
+  }
+  if (typeof data === 'string' && data.trim()) return data;
+  return err?.message ?? 'Erreur inconnue';
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -154,9 +172,9 @@ export default function StoreUserCapabilitiesPage() {
       setDraftCapabilities(updated.capabilities);
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.detail || err?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
-      const detail = err?.response?.data?.detail ?? err?.message ?? 'Erreur inconnue';
-      setSaveError(typeof detail === 'string' ? detail : 'Erreur lors de la sauvegarde.');
+      const message = extractApiErrorMessage(err);
+      toast.error(message || 'Une erreur est survenue');
+      setSaveError(message || 'Erreur lors de la sauvegarde.');
       setSaveSuccess(false);
     },
   });
@@ -187,7 +205,12 @@ export default function StoreUserCapabilitiesPage() {
 
   function applyPreset(presetCaps: Capability[]) {
     setSaveSuccess(false);
-    setDraftCapabilities([...presetCaps]);
+    if (!editingUser) return;
+    const allowed = presetCaps.filter((cap) => canAssignCapability(editingUser.user_role, cap));
+    if (allowed.length < presetCaps.length) {
+      toast.error('Certaines permissions du preset ne sont pas autorisees pour ce role.');
+    }
+    setDraftCapabilities([...allowed]);
   }
 
   function resetCapabilities() {
@@ -198,7 +221,12 @@ export default function StoreUserCapabilitiesPage() {
   function handleSave() {
     if (!editingUser) return;
     if (!advancedPermissionsEnabled) return;
-    saveMutation.mutate({ id: editingUser.id, capabilities: draftCapabilities });
+    const sanitized = draftCapabilities.filter((cap) => canAssignCapability(editingUser.user_role, cap));
+    if (sanitized.length < draftCapabilities.length) {
+      toast.error('Certaines permissions ne sont pas autorisees pour ce role.');
+      setDraftCapabilities(sanitized);
+    }
+    saveMutation.mutate({ id: editingUser.id, capabilities: sanitized });
   }
 
   // ---- Selected store label ----
@@ -413,19 +441,26 @@ export default function StoreUserCapabilitiesPage() {
                 <div className="space-y-1.5">
                   {capabilityCodes.map((cap) => {
                     const checked = draftCapabilities.includes(cap);
+                    const disabledForRole = !canAssignCapability(editingUser.user_role, cap);
                     return (
                       <label
                         key={cap}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
-                          checked
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors ${
+                          disabledForRole
+                            ? 'border-gray-100 dark:border-gray-700 opacity-60 cursor-not-allowed'
+                            : checked
                             ? 'border-primary/30 bg-primary/5'
-                            : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                            : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer'
                         }`}
+                        title={disabledForRole ? 'Permission reservee aux roles Administrateur/Gestionnaire' : undefined}
                       >
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={() => toggleCapability(cap)}
+                          disabled={disabledForRole}
+                          onChange={() => {
+                            if (!disabledForRole) toggleCapability(cap);
+                          }}
                           className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/20"
                         />
                         <span className="text-sm text-gray-800 dark:text-gray-200">

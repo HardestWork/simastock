@@ -33,7 +33,19 @@ from rest_framework.views import APIView
 
 from django_filters.rest_framework import DjangoFilterBackend
 
-from stores.models import Enterprise, EnterpriseSubscription, Store, StoreUser, AuditLog
+from stores.models import (
+    AuditLog,
+    BillingModule,
+    BillingModuleDependency,
+    BillingPlan,
+    Enterprise,
+    EnterprisePlanAssignment,
+    EnterpriseSubscription,
+    Store,
+    StoreModuleEntitlement,
+    StoreUser,
+)
+from stores.services import resolve_store_module_matrix
 from catalog.models import Brand, Category, Product, ProductImage
 from stock.models import (
     InventoryMovement, ProductStock,
@@ -55,13 +67,18 @@ from core.pdf import (
 
 from accounts.models import CustomRole
 from api.v1.serializers import (
+    BillingModuleSerializer,
+    BillingPlanSerializer,
     CustomRoleSerializer,
     UserSerializer,
     UserCreateSerializer,
     EnterpriseSerializer,
+    EnterprisePlanAssignmentSerializer,
     EnterpriseSubscriptionSerializer,
     EnterpriseSetupSerializer,
     StoreSerializer,
+    StoreModuleEntitlementBulkUpsertSerializer,
+    StoreModuleEntitlementSerializer,
     CategorySerializer,
     BrandSerializer,
     ProductSerializer,
@@ -72,6 +89,8 @@ from api.v1.serializers import (
     SaleSerializer,
     SaleCreateSerializer,
     SaleAddItemSerializer,
+    SaleSetItemQuantitySerializer,
+    SaleSetItemUnitPriceSerializer,
     SaleSubmitSerializer,
     SaleItemSerializer,
     PaymentSerializer,
@@ -121,7 +140,9 @@ from api.v1.permissions import (
     IsStoreMember,
     CanProcessPayment,
     CanApproveRefund,
-    CanOverridePrice,
+    ModuleCustomerEnabled,
+    ModuleSellOrStockEnabled,
+    ModuleStockEnabled,
     FeatureSalesPOSEnabled,
     FeatureSalesRefundEnabled,
     FeatureCashierOperationsEnabled,
@@ -308,7 +329,17 @@ def _user_store_ids(user):
     # Platform-level admins (Django superusers) can access all stores.
     if getattr(user, "is_superuser", False):
         return Store.objects.filter(is_active=True).values_list('id', flat=True)
-    return StoreUser.objects.filter(user=user).values_list('store_id', flat=True)
+
+    # Tenant admins can access all stores within their enterprise.
+    if getattr(user, "role", None) == "ADMIN":
+        enterprise_id = _user_enterprise_id(user)
+        if enterprise_id is not None:
+            return Store.objects.filter(
+                enterprise_id=enterprise_id,
+                is_active=True,
+            ).values_list('id', flat=True)
+
+    return StoreUser.objects.filter(user=user, store__is_active=True).values_list('store_id', flat=True)
 
 
 def _user_enterprise_id(user):
@@ -331,6 +362,12 @@ def _user_enterprise_id(user):
     if store_user and store_user.store and store_user.store.enterprise_id:
         return store_user.store.enterprise_id
 
+    # Fallback for users linked to a custom role scoped to an enterprise.
+    custom_role = getattr(user, "custom_role", None)
+    custom_role_enterprise_id = getattr(custom_role, "enterprise_id", None)
+    if custom_role_enterprise_id:
+        return custom_role_enterprise_id
+
     # Fallback for Django superusers who have no StoreUser records
     if getattr(user, "is_superuser", False):
         first_enterprise = Enterprise.objects.filter(is_active=True).first()
@@ -338,6 +375,22 @@ def _user_enterprise_id(user):
             return first_enterprise.id
 
     return None
+
+
+def _can_override_price_for_store(user, store) -> bool:
+    """Return True if user can override prices in the given store context."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    if user.role in ("ADMIN", "MANAGER"):
+        return True
+    if not store:
+        return False
+    if not store.is_feature_enabled("advanced_permissions"):
+        return False
+    membership = user.store_users.filter(store=store).first()
+    return bool(membership and membership.has_capability("CAN_OVERRIDE_PRICE"))
 
 
 def _filter_queryset_by_enterprise(qs, user, *, field_name: str = "enterprise_id"):
@@ -574,6 +627,288 @@ class EnterpriseSubscriptionViewSet(viewsets.ModelViewSet):
 
 
 # ---------------------------------------------------------------------------
+# Billing Module / Plan ViewSets
+# ---------------------------------------------------------------------------
+
+class BillingModuleViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only module catalog for subscription configuration UI."""
+
+    serializer_class = BillingModuleSerializer
+    queryset = BillingModule.objects.all().order_by("display_order", "name")
+    filterset_fields = ["is_active"]
+    search_fields = ["code", "name"]
+    ordering_fields = ["display_order", "name", "code"]
+    pagination_class = StandardResultsSetPagination
+    permission_classes = [IsAuthenticated]
+
+
+class BillingPlanViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only commercial plan catalog with included modules."""
+
+    serializer_class = BillingPlanSerializer
+    queryset = BillingPlan.objects.prefetch_related("plan_modules__module").order_by("name")
+    filterset_fields = ["is_active", "billing_cycle"]
+    search_fields = ["code", "name"]
+    ordering_fields = ["name", "base_price_fcfa", "billing_cycle"]
+    pagination_class = StandardResultsSetPagination
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if getattr(self.request.user, "is_superuser", False):
+            return qs
+        return qs.filter(is_active=True)
+
+
+class EnterprisePlanAssignmentViewSet(viewsets.ModelViewSet):
+    """Plan assignments per enterprise (tenant scoped)."""
+
+    serializer_class = EnterprisePlanAssignmentSerializer
+    queryset = EnterprisePlanAssignment.objects.select_related(
+        "enterprise",
+        "plan",
+        "source_subscription",
+    )
+    filterset_fields = ["enterprise", "plan", "status", "auto_renew"]
+    ordering_fields = ["starts_on", "ends_on", "created_at", "status"]
+    pagination_class = StandardResultsSetPagination
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            if getattr(self.request.user, "is_superuser", False):
+                return [IsSuperAdmin()]
+            return [IsAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            return qs
+        enterprise_id = _user_enterprise_id(user)
+        if enterprise_id is None:
+            return qs.none()
+        return qs.filter(enterprise_id=enterprise_id)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            enterprise = serializer.validated_data.get("enterprise")
+            if enterprise is None:
+                raise ValidationError({"enterprise": "Ce champ est requis pour un superadmin."})
+            serializer.save()
+            return
+        serializer.save(enterprise_id=_require_user_enterprise_id(user))
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            serializer.save()
+            return
+        serializer.save(enterprise_id=_require_user_enterprise_id(user))
+
+    @action(detail=False, methods=["get"], url_path="current")
+    def current_assignment(self, request):
+        """Return active assignment for one enterprise (today)."""
+        today = timezone.localdate()
+        enterprise_id = request.query_params.get("enterprise")
+        user = request.user
+
+        if getattr(user, "is_superuser", False):
+            if enterprise_id:
+                enterprise = Enterprise.objects.filter(pk=enterprise_id, is_active=True).first()
+            else:
+                enterprise = Enterprise.objects.filter(is_active=True).order_by("name").first()
+        else:
+            user_enterprise_id = _require_user_enterprise_id(user)
+            if enterprise_id and str(enterprise_id) != str(user_enterprise_id):
+                raise PermissionDenied("Vous ne pouvez consulter que votre entreprise.")
+            enterprise = Enterprise.objects.filter(pk=user_enterprise_id, is_active=True).first()
+
+        if enterprise is None:
+            return Response({"enterprise": None, "assignment": None})
+
+        assignment = (
+            EnterprisePlanAssignment.objects
+            .filter(
+                enterprise=enterprise,
+                status__in=[EnterprisePlanAssignment.Status.TRIAL, EnterprisePlanAssignment.Status.ACTIVE],
+                starts_on__lte=today,
+            )
+            .filter(Q(ends_on__isnull=True) | Q(ends_on__gte=today))
+            .select_related("enterprise", "plan")
+            .order_by("-starts_on", "-created_at")
+            .first()
+        )
+        return Response(
+            {
+                "enterprise": {
+                    "id": str(enterprise.id),
+                    "name": enterprise.name,
+                    "code": enterprise.code,
+                },
+                "assignment": EnterprisePlanAssignmentSerializer(assignment).data if assignment else None,
+            }
+        )
+
+
+class StoreModuleEntitlementViewSet(viewsets.ModelViewSet):
+    """Store-level module overrides with bulk upsert support."""
+
+    serializer_class = StoreModuleEntitlementSerializer
+    queryset = StoreModuleEntitlement.objects.select_related("store", "module", "created_by")
+    filterset_fields = ["store", "module", "state"]
+    ordering_fields = ["store__name", "module__display_order", "module__name", "updated_at"]
+    pagination_class = StandardResultsSetPagination
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy", "bulk_upsert"):
+            if getattr(self.request.user, "is_superuser", False):
+                return [IsSuperAdmin()]
+            return [IsAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            return qs
+        store_ids = _user_store_ids(user)
+        return qs.filter(store_id__in=store_ids)
+
+    def _assert_store_scope(self, store: Store):
+        user = self.request.user
+        if getattr(user, "is_superuser", False):
+            return
+        store_ids = {str(sid) for sid in _user_store_ids(user)}
+        if str(store.id) not in store_ids:
+            raise PermissionDenied("Vous n'avez pas acces a cette boutique.")
+        enterprise_id = _require_user_enterprise_id(user)
+        if str(store.enterprise_id) != str(enterprise_id):
+            raise PermissionDenied("La boutique cible n'appartient pas a votre entreprise.")
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        store = serializer.validated_data["store"]
+        module = serializer.validated_data["module"]
+        state = serializer.validated_data["state"]
+        reason = serializer.validated_data.get("reason", "")
+
+        self._assert_store_scope(store)
+
+        if state == StoreModuleEntitlement.State.INHERIT:
+            StoreModuleEntitlement.objects.filter(store=store, module=module).delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        instance, created = StoreModuleEntitlement.objects.update_or_create(
+            store=store,
+            module=module,
+            defaults={
+                "state": state,
+                "reason": reason,
+                "created_by": request.user,
+            },
+        )
+        out = self.get_serializer(instance)
+        return Response(out.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"], url_path="bulk-upsert")
+    def bulk_upsert(self, request):
+        """Upsert multiple module overrides for one store in one call."""
+        serializer = StoreModuleEntitlementBulkUpsertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        store = serializer.validated_data["store"]
+        self._assert_store_scope(store)
+
+        overrides = serializer.validated_data["overrides"]
+        touched_codes = []
+        for item in overrides:
+            module = item["module"]
+            state = item["state"]
+            reason = item.get("reason", "")
+            touched_codes.append(module.code)
+
+            if state == StoreModuleEntitlement.State.INHERIT:
+                StoreModuleEntitlement.objects.filter(store=store, module=module).delete()
+                continue
+
+            StoreModuleEntitlement.objects.update_or_create(
+                store=store,
+                module=module,
+                defaults={
+                    "state": state,
+                    "reason": reason,
+                    "created_by": request.user,
+                },
+            )
+
+        entitlements = (
+            StoreModuleEntitlement.objects
+            .filter(store=store)
+            .select_related("store", "module", "created_by")
+            .order_by("module__display_order", "module__name")
+        )
+        matrix = resolve_store_module_matrix(store=store)
+        dependencies = {}
+        for row in BillingModuleDependency.objects.select_related("module", "depends_on_module"):
+            dependencies.setdefault(row.module.code, []).append(row.depends_on_module.code)
+
+        return Response(
+            {
+                "store": {
+                    "id": str(store.id),
+                    "name": store.name,
+                    "code": store.code,
+                },
+                "touched_modules": touched_codes,
+                "entitlements": StoreModuleEntitlementSerializer(entitlements, many=True).data,
+                "effective_modules": matrix.get("modules", {}),
+                "source": matrix.get("source"),
+                "plan_code": matrix.get("plan_code"),
+                "dependencies": dependencies,
+            }
+        )
+
+    @action(detail=False, methods=["get"], url_path="matrix")
+    def matrix(self, request):
+        """Return full module matrix + current store overrides for one store."""
+        store_id = request.query_params.get("store")
+        if not store_id:
+            raise ValidationError({"store": "Le parametre store est requis."})
+        store = Store.objects.filter(pk=store_id, is_active=True).first()
+        if not store:
+            raise ValidationError({"store": "Boutique introuvable."})
+        self._assert_store_scope(store)
+
+        matrix = resolve_store_module_matrix(store=store)
+        entitlements = (
+            StoreModuleEntitlement.objects
+            .filter(store=store)
+            .select_related("module", "created_by")
+            .order_by("module__display_order", "module__name")
+        )
+        dependencies = {}
+        for row in BillingModuleDependency.objects.select_related("module", "depends_on_module"):
+            dependencies.setdefault(row.module.code, []).append(row.depends_on_module.code)
+
+        return Response(
+            {
+                "store": {
+                    "id": str(store.id),
+                    "name": store.name,
+                    "code": store.code,
+                },
+                "entitlements": StoreModuleEntitlementSerializer(entitlements, many=True).data,
+                "effective_modules": matrix.get("modules", {}),
+                "source": matrix.get("source"),
+                "plan_code": matrix.get("plan_code"),
+                "dependencies": dependencies,
+            }
+        )
+
+
+# ---------------------------------------------------------------------------
 # Store ViewSet
 # ---------------------------------------------------------------------------
 
@@ -599,11 +934,11 @@ class StoreViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user
-        # Tenant admins/managers/users are scoped to their StoreUser links.
-        # Only Django superusers can see all stores.
-        if not getattr(user, "is_superuser", False):
-            qs = qs.filter(store_users__user=user)
-        return qs.distinct()
+        # Only Django superusers can see all stores globally.
+        if getattr(user, "is_superuser", False):
+            return qs
+
+        return qs.filter(id__in=_user_store_ids(user)).distinct()
     
     def perform_create(self, serializer):
         # Force enterprise scoping from the creator context to prevent
@@ -692,7 +1027,7 @@ class StoreViewSet(viewsets.ModelViewSet):
                 .annotate(is_default_for_user=Exists(default_link))
             )
         else:
-            store_ids = StoreUser.objects.filter(user=user).values_list('store_id', flat=True)
+            store_ids = _user_store_ids(user)
             stores = (
                 Store.objects
                 .filter(pk__in=store_ids, is_active=True)
@@ -834,8 +1169,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):
-            return [IsManagerOrAdmin()]
-        return [IsAuthenticated()]
+            return [IsManagerOrAdmin(), ModuleStockEnabled()]
+        return [IsAuthenticated(), ModuleStockEnabled()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -866,8 +1201,8 @@ class BrandViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):
-            return [IsManagerOrAdmin()]
-        return [IsAuthenticated()]
+            return [IsManagerOrAdmin(), ModuleStockEnabled()]
+        return [IsAuthenticated(), ModuleStockEnabled()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -902,8 +1237,8 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy', 'import_csv'):
-            return [IsManagerOrAdmin()]
-        return [IsAuthenticated()]
+            return [IsManagerOrAdmin(), ModuleStockEnabled()]
+        return [IsAuthenticated(), ModuleSellOrStockEnabled()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -1701,17 +2036,17 @@ class CustomerViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == 'import_csv':
-            return [IsManagerOrAdmin()]
-        return [IsAuthenticated()]
+            return [IsManagerOrAdmin(), ModuleCustomerEnabled()]
+        return [IsAuthenticated(), ModuleCustomerEnabled()]
 
     def get_queryset(self):
         qs = super().get_queryset()
         return _filter_queryset_by_enterprise(qs, self.request.user)
 
     def perform_create(self, serializer):
-        """Inject enterprise from user's stores."""
+        """Inject enterprise from user's stores and track who created the customer."""
         enterprise_id = _require_user_enterprise_id(self.request.user)
-        serializer.save(enterprise_id=enterprise_id)
+        serializer.save(enterprise_id=enterprise_id, created_by=self.request.user)
 
     @action(detail=False, methods=['get'], url_path='export-csv')
     def export_csv(self, request):
@@ -1886,7 +2221,7 @@ class SaleViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
-        if self.action in ('create', 'add_item', 'remove_item', 'submit'):
+        if self.action in ('create', 'add_item', 'set_item_quantity', 'set_item_unit_price', 'remove_item', 'submit'):
             return [IsSales(), FeatureSalesPOSEnabled()]
         if self.action == 'cancel':
             return [IsManagerOrAdmin(), FeatureSalesPOSEnabled()]
@@ -1896,6 +2231,22 @@ class SaleViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset()
         store_ids = _user_store_ids(self.request.user)
         qs = qs.filter(store_id__in=store_ids)
+
+        # Optional multi-status filter used by cashier queues.
+        status_in = self.request.query_params.get("status_in")
+        if status_in:
+            allowed_statuses = {choice[0] for choice in Sale.Status.choices}
+            requested_statuses = [
+                raw_status.strip()
+                for raw_status in status_in.split(",")
+                if raw_status.strip()
+            ]
+            statuses = [
+                sale_status
+                for sale_status in requested_statuses
+                if sale_status in allowed_statuses
+            ]
+            qs = qs.filter(status__in=statuses) if statuses else qs.none()
 
         # Date range filtering
         date_from = self.request.query_params.get('date_from')
@@ -2025,8 +2376,8 @@ class SaleViewSet(viewsets.ModelViewSet):
         Delegates to ``sales.services.add_item_to_sale`` so that stock
         availability is checked and the sale totals are recalculated.
 
-        If ``unit_price_override`` is provided, only MANAGER/ADMIN can
-        use it (checked via CanOverridePrice).
+        If ``unit_price_override`` is provided, user must have permission
+        to override prices in the sale store.
         """
         sale = self.get_object()
 
@@ -2056,9 +2407,9 @@ class SaleViewSet(viewsets.ModelViewSet):
 
         # Check override permission and bounds
         if unit_price_override is not None:
-            if not CanOverridePrice().has_permission(request, self):
+            if not _can_override_price_for_store(request.user, sale.store):
                 return Response(
-                    {'detail': 'Seuls les managers et admins peuvent modifier le prix de vente.'},
+                    {'detail': "Vous n'avez pas la permission de modifier le prix de vente."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
             if unit_price_override <= Decimal('0'):
@@ -2125,6 +2476,80 @@ class SaleViewSet(viewsets.ModelViewSet):
         recalculate_sale(sale)
 
         # Reload through the viewset queryset so response contains up-to-date items.
+        sale = self.get_queryset().get(pk=sale.pk)
+        return Response(SaleSerializer(sale).data)
+
+    @action(detail=True, methods=['post'], url_path='set-item-quantity')
+    def set_item_quantity(self, request, pk=None):
+        """Set an exact quantity for one item in a draft sale."""
+        sale = self.get_object()
+
+        if sale.status != Sale.Status.DRAFT:
+            return Response(
+                {'detail': 'La quantite ne peut etre modifiee que sur des ventes en brouillon.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = SaleSetItemQuantitySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        item_id = serializer.validated_data['item_id']
+        quantity = serializer.validated_data['quantity']
+
+        try:
+            from sales.services import update_item_quantity
+            update_item_quantity(
+                sale=sale,
+                item_id=item_id,
+                new_qty=quantity,
+                actor=request.user,
+            )
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        sale = self.get_queryset().get(pk=sale.pk)
+        return Response(SaleSerializer(sale).data)
+
+    @action(detail=True, methods=['post'], url_path='set-item-unit-price')
+    def set_item_unit_price(self, request, pk=None):
+        """Set an exact unit price for one item in a draft sale."""
+        sale = self.get_object()
+
+        if sale.status != Sale.Status.DRAFT:
+            return Response(
+                {'detail': 'Le prix ne peut etre modifie que sur des ventes en brouillon.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not _can_override_price_for_store(request.user, sale.store):
+            return Response(
+                {'detail': "Vous n'avez pas la permission de modifier le prix de vente."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = SaleSetItemUnitPriceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        item_id = serializer.validated_data['item_id']
+        unit_price = serializer.validated_data['unit_price']
+
+        try:
+            from sales.services import update_item_unit_price
+            update_item_unit_price(
+                sale=sale,
+                item_id=item_id,
+                new_unit_price=unit_price,
+                actor=request.user,
+            )
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         sale = self.get_queryset().get(pk=sale.pk)
         return Response(SaleSerializer(sale).data)
 
@@ -2873,7 +3298,7 @@ class KPIView(APIView):
         - date_to (optional): end date (YYYY-MM-DD)
     """
 
-    permission_classes = [IsAuthenticated, IsManagerOrAdmin, FeatureReportsCenterEnabled]
+    permission_classes = [IsAuthenticated, FeatureReportsCenterEnabled]
 
     def get(self, request):
         store_id = request.query_params.get('store')
@@ -2901,12 +3326,17 @@ class KPIView(APIView):
         if not date_to:
             date_to = today
 
+        user_role = getattr(request.user, "role", None)
+        is_sales_user = user_role == "SALES"
+
         # Try to get a KPI snapshot first
-        snapshot = KPISnapshot.objects.filter(
-            store_id=store_id,
-            date__gte=date_from,
-            date__lte=date_to,
-        ).order_by('-date').first()
+        snapshot = None
+        if not is_sales_user:
+            snapshot = KPISnapshot.objects.filter(
+                store_id=store_id,
+                date__gte=date_from,
+                date__lte=date_to,
+            ).order_by('-date').first()
 
         if snapshot:
             data = {
@@ -2928,6 +3358,8 @@ class KPIView(APIView):
                 created_at__date__gte=date_from,
                 created_at__date__lte=date_to,
             )
+            if is_sales_user:
+                sales_qs = sales_qs.filter(seller_id=request.user.id)
 
             aggregates = sales_qs.aggregate(
                 total_sales=Coalesce(Sum('total'), Decimal('0.00'), output_field=DecimalField()),
@@ -2943,6 +3375,8 @@ class KPIView(APIView):
                 sale__created_at__date__gte=date_from,
                 sale__created_at__date__lte=date_to,
             )
+            if is_sales_user:
+                items_qs = items_qs.filter(sale__seller_id=request.user.id)
             margin_data = items_qs.aggregate(
                 gross_margin=Coalesce(
                     Sum(F('line_total') - F('cost_price') * F('quantity')),
@@ -2961,6 +3395,16 @@ class KPIView(APIView):
                     output_field=DecimalField(),
                 ),
             )['value']
+            credit_outstanding = CustomerAccount.objects.filter(
+                store_id=store_id,
+                balance__gt=0,
+            ).aggregate(
+                total=Coalesce(
+                    Sum('balance'),
+                    Decimal('0.00'),
+                    output_field=DecimalField(),
+                ),
+            )['total']
 
             data = {
                 'total_sales': aggregates['total_sales'],
@@ -2970,18 +3414,21 @@ class KPIView(APIView):
                 'total_discounts': aggregates['total_discounts'],
                 'total_refunds': Decimal('0.00'),
                 'net_sales': aggregates['total_sales'] - aggregates['total_discounts'],
-                'credit_outstanding': Decimal('0.00'),
+                'credit_outstanding': credit_outstanding,
                 'stock_value': stock_value,
             }
 
         # Top products
+        top_products_qs = SaleItem.objects.filter(
+            sale__store_id=store_id,
+            sale__status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
+            sale__created_at__date__gte=date_from,
+            sale__created_at__date__lte=date_to,
+        )
+        if is_sales_user:
+            top_products_qs = top_products_qs.filter(sale__seller_id=request.user.id)
         top_products = (
-            SaleItem.objects.filter(
-                sale__store_id=store_id,
-                sale__status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
-                sale__created_at__date__gte=date_from,
-                sale__created_at__date__lte=date_to,
-            )
+            top_products_qs
             .values('product__name')
             .annotate(
                 total_quantity=Sum('quantity'),
@@ -2992,13 +3439,16 @@ class KPIView(APIView):
         data['top_products'] = list(top_products)
 
         # Sales trend (daily aggregation)
+        sales_trend_qs = Sale.objects.filter(
+            store_id=store_id,
+            status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
+            created_at__date__gte=date_from,
+            created_at__date__lte=date_to,
+        )
+        if is_sales_user:
+            sales_trend_qs = sales_trend_qs.filter(seller_id=request.user.id)
         sales_trend = (
-            Sale.objects.filter(
-                store_id=store_id,
-                status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
-                created_at__date__gte=date_from,
-                created_at__date__lte=date_to,
-            )
+            sales_trend_qs
             .annotate(date=TruncDate('created_at'))
             .values('date')
             .annotate(
@@ -3308,6 +3758,68 @@ class MeView(APIView):
 
 
 # ---------------------------------------------------------------------------
+# Module Matrix View (Store-scoped entitlements)
+# ---------------------------------------------------------------------------
+
+
+class ModuleMatrixView(APIView):
+    """GET /api/v1/auth/module-matrix/ - module + feature + capability matrix."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        requested_store_id = request.query_params.get("store")
+        accessible_store_ids = [str(sid) for sid in _user_store_ids(request.user)]
+
+        store = None
+        if requested_store_id:
+            if not getattr(request.user, "is_superuser", False) and requested_store_id not in accessible_store_ids:
+                return Response(
+                    {"detail": "Acces refuse a cette boutique."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            store = Store.objects.filter(pk=requested_store_id, is_active=True).first()
+        else:
+            current_store = getattr(request, "current_store", None)
+            if current_store and (
+                getattr(request.user, "is_superuser", False) or str(current_store.id) in accessible_store_ids
+            ):
+                store = current_store
+            elif accessible_store_ids:
+                store = Store.objects.filter(id__in=accessible_store_ids, is_active=True).order_by("name").first()
+
+        if store is None:
+            return Response(
+                {"detail": "Aucune boutique active disponible."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        matrix = resolve_store_module_matrix(store=store)
+
+        store_user = StoreUser.objects.filter(store=store, user=request.user).first()
+        if store_user:
+            capabilities = store_user.get_effective_capabilities()
+        elif request.user.role in ("ADMIN", "MANAGER") or getattr(request.user, "is_superuser", False):
+            from stores.capabilities import ALL_CAPABILITIES
+            capabilities = list(ALL_CAPABILITIES)
+        else:
+            capabilities = []
+
+        return Response(
+            {
+                "store_id": str(store.id),
+                "store_name": store.name,
+                "as_of": matrix.get("as_of"),
+                "source": matrix.get("source"),
+                "plan_code": matrix.get("plan_code"),
+                "modules": matrix.get("modules", {}),
+                "features": store.effective_feature_flags,
+                "capabilities": capabilities,
+            }
+        )
+
+
+# ---------------------------------------------------------------------------
 # Change Password View
 # ---------------------------------------------------------------------------
 
@@ -3472,8 +3984,8 @@ class QuoteViewSet(viewsets.ModelViewSet):
         Delegates to ``sales.services.add_item_to_quote`` so that
         the quote totals are recalculated.
 
-        If ``unit_price_override`` is provided, only MANAGER/ADMIN can
-        use it (checked via CanOverridePrice).
+        If ``unit_price_override`` is provided, user must have permission
+        to override prices in the quote store.
         """
         quote = self.get_object()
 
@@ -3503,9 +4015,9 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
         # Check override permission and bounds
         if unit_price_override is not None:
-            if not CanOverridePrice().has_permission(request, self):
+            if not _can_override_price_for_store(request.user, quote.store):
                 return Response(
-                    {'detail': 'Seuls les managers et admins peuvent modifier le prix de vente.'},
+                    {'detail': "Vous n'avez pas la permission de modifier le prix de vente."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
             if unit_price_override <= Decimal('0'):

@@ -6,6 +6,12 @@ import { BarChart3, RefreshCw, AlertTriangle } from 'lucide-react';
 import { toast } from '@/lib/toast';
 
 import { analyticsApi } from '@/api/endpoints';
+import type {
+  CustomerChurnRiskListResponse,
+  CustomerCreditRiskListResponse,
+  MarginMoversResponse,
+  OrientationAdvice,
+} from '@/api/types';
 import CurrencyDisplay from '@/components/shared/CurrencyDisplay';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
@@ -15,7 +21,7 @@ function errDetail(err: unknown): string {
   return ax?.response?.data?.detail ?? (err as Error)?.message ?? 'Erreur.';
 }
 
-type Tab = 'dashboard' | 'abc' | 'reorder' | 'credit' | 'forecast' | 'fraud';
+type Tab = 'dashboard' | 'abc' | 'reorder' | 'credit' | 'forecast' | 'fraud' | 'margin' | 'customers';
 
 type FeatureFlags = Record<string, boolean | undefined>;
 
@@ -23,6 +29,15 @@ type DateParams = { store: string; date_from: string; date_to: string };
 type AsOfParams = { store: string; as_of: string };
 type ForecastParams = { store: string; horizon_days: string };
 type FraudParams = { store: string; date_from: string; date_to: string; status?: 'open' | 'resolved' };
+type MarginParams = { store: string; date_from: string; date_to: string; limit: string; min_qty?: string };
+type CustomerRiskParams = { store: string; as_of: string; min_score: string; limit: string };
+type CustomerChurnParams = {
+  store: string;
+  as_of: string;
+  window_days: string;
+  drop_threshold_pct: string;
+  limit: string;
+};
 
 type StrategicKpis = {
   feature_flags: FeatureFlags;
@@ -141,6 +156,49 @@ function FraudSeverityBadge({ value }: { value: string }) {
   return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variant}`}>{label}</span>;
 }
 
+function MovementBadge({ value }: { value: string }) {
+  const variant =
+    value === 'FAST'
+      ? 'bg-emerald-100 text-emerald-800'
+      : value === 'MEDIUM'
+        ? 'bg-amber-100 text-amber-800'
+        : 'bg-gray-100 text-gray-700';
+  const label = value === 'FAST' ? 'Rapide' : value === 'MEDIUM' ? 'Moyenne' : 'Lente';
+  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variant}`}>{label}</span>;
+}
+
+function SignalLevelBadge({ value }: { value: string }) {
+  const variant =
+    value === 'CRITICAL'
+      ? 'bg-red-100 text-red-800'
+      : value === 'WARNING'
+        ? 'bg-amber-100 text-amber-800'
+        : 'bg-blue-100 text-blue-800';
+  const label = value === 'CRITICAL' ? 'Critique' : value === 'WARNING' ? 'Alerte' : 'Info';
+  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variant}`}>{label}</span>;
+}
+
+function CreditRiskBadge({ value }: { value: string }) {
+  const variant =
+    value === 'CRITICAL'
+      ? 'bg-red-100 text-red-800'
+      : value === 'HIGH'
+        ? 'bg-orange-100 text-orange-800'
+        : value === 'MEDIUM'
+          ? 'bg-amber-100 text-amber-800'
+          : 'bg-emerald-100 text-emerald-800';
+  const label =
+    value === 'CRITICAL'
+      ? 'Critique'
+      : value === 'HIGH'
+        ? 'Eleve'
+        : value === 'MEDIUM'
+          ? 'Moyen'
+          : 'Faible';
+  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variant}`}>{label}</span>;
+}
+
+
 export default function AnalyticsPage() {
   const queryClient = useQueryClient();
   const store = useStoreStore((s) => s.currentStore);
@@ -148,6 +206,8 @@ export default function AnalyticsPage() {
 
   const [tab, setTab] = useState<Tab>('dashboard');
   const [fraudStatus, setFraudStatus] = useState<'all' | 'open' | 'resolved'>('all');
+  const [creditRiskMinScore, setCreditRiskMinScore] = useState<string>('45');
+  const [churnDropThreshold, setChurnDropThreshold] = useState<string>('30');
   const [dateFrom, setDateFrom] = useState<string>(() => {
     const today = new Date();
     return toISODateLocal(addDays(today, -29));
@@ -157,6 +217,21 @@ export default function AnalyticsPage() {
   const params = useMemo<DateParams>(() => ({ store: storeId, date_from: dateFrom, date_to: dateTo }), [storeId, dateFrom, dateTo]);
   const asOfParams = useMemo<AsOfParams>(() => ({ store: storeId, as_of: dateTo }), [storeId, dateTo]);
   const forecastParams = useMemo<ForecastParams>(() => ({ store: storeId, horizon_days: '14' }), [storeId]);
+  const marginParams = useMemo<MarginParams>(() => ({ store: storeId, date_from: dateFrom, date_to: dateTo, limit: '25' }), [storeId, dateFrom, dateTo]);
+  const customerRiskParams = useMemo<CustomerRiskParams>(
+    () => ({ store: storeId, as_of: dateTo, min_score: creditRiskMinScore, limit: '100' }),
+    [storeId, dateTo, creditRiskMinScore],
+  );
+  const customerChurnParams = useMemo<CustomerChurnParams>(
+    () => ({
+      store: storeId,
+      as_of: dateTo,
+      window_days: '30',
+      drop_threshold_pct: churnDropThreshold,
+      limit: '100',
+    }),
+    [storeId, dateTo, churnDropThreshold],
+  );
   const fraudParams = useMemo<FraudParams>(() => {
     const base: FraudParams = { store: storeId, date_from: dateFrom, date_to: dateTo };
     if (fraudStatus !== 'all') base.status = fraudStatus;
@@ -199,6 +274,30 @@ export default function AnalyticsPage() {
     enabled: !!storeId && tab === 'fraud',
   });
 
+  const marginQ = useQuery<MarginMoversResponse>({
+    queryKey: queryKeys.analytics.margin(marginParams),
+    queryFn: () => analyticsApi.marginMovers(marginParams),
+    enabled: !!storeId && tab === 'margin',
+  });
+
+  const orientationQ = useQuery<OrientationAdvice>({
+    queryKey: queryKeys.analytics.orientation(params),
+    queryFn: () => analyticsApi.orientationAdvice(params),
+    enabled: !!storeId && tab === 'margin',
+  });
+
+  const customerCreditRiskQ = useQuery<CustomerCreditRiskListResponse>({
+    queryKey: queryKeys.analytics.customerCreditRisk(customerRiskParams),
+    queryFn: () => analyticsApi.customerCreditRisk(customerRiskParams),
+    enabled: !!storeId && tab === 'customers',
+  });
+
+  const customerChurnQ = useQuery<CustomerChurnRiskListResponse>({
+    queryKey: queryKeys.analytics.customerChurnRisk(customerChurnParams),
+    queryFn: () => analyticsApi.customerChurnRisk(customerChurnParams),
+    enabled: !!storeId && tab === 'customers',
+  });
+
   const recalcMut = useMutation({
     mutationFn: () => analyticsApi.strategicKpis({ ...params, refresh: '1' }),
     onSuccess: () => {
@@ -216,7 +315,11 @@ export default function AnalyticsPage() {
     (reorderQ.isError ? errDetail(reorderQ.error) : null) ??
     (creditQ.isError ? errDetail(creditQ.error) : null) ??
     (forecastQ.isError ? errDetail(forecastQ.error) : null) ??
-    (fraudQ.isError ? errDetail(fraudQ.error) : null);
+    (fraudQ.isError ? errDetail(fraudQ.error) : null) ??
+    (marginQ.isError ? errDetail(marginQ.error) : null) ??
+    (orientationQ.isError ? errDetail(orientationQ.error) : null) ??
+    (customerCreditRiskQ.isError ? errDetail(customerCreditRiskQ.error) : null) ??
+    (customerChurnQ.isError ? errDetail(customerChurnQ.error) : null);
 
   const forecastAgg = useMemo(() => {
     const byDate = new Map<string, number>();
@@ -241,6 +344,11 @@ export default function AnalyticsPage() {
     return { dates, topProducts };
   }, [forecastQ.data]);
 
+  const customerCreditRiskItems = customerCreditRiskQ.data?.items ?? [];
+  const customerChurnItems = customerChurnQ.data?.items ?? [];
+  const highCreditRiskCount = customerCreditRiskItems.filter((row) => row.credit_risk_score >= 65).length;
+  const highChurnCount = customerChurnItems.filter((row) => row.churn_risk_score >= 55).length;
+
   if (!storeId) {
     return <div className="text-center py-12 text-gray-500 dark:text-gray-400">Aucun magasin selectionne.</div>;
   }
@@ -253,6 +361,8 @@ export default function AnalyticsPage() {
     credit: !!flags.credit_scoring || strategicQ.isLoading || strategicQ.isError,
     forecast: !!flags.sales_forecast || strategicQ.isLoading || strategicQ.isError,
     fraud: !!flags.fraud_detection || strategicQ.isLoading || strategicQ.isError,
+    margin: !!flags.dashboard_strategic || strategicQ.isLoading || strategicQ.isError,
+    customers: !!flags.dashboard_strategic || strategicQ.isLoading || strategicQ.isError,
   };
 
   return (
@@ -319,6 +429,8 @@ export default function AnalyticsPage() {
           ['credit', 'Credit score'],
           ['forecast', 'Forecast'],
           ['fraud', 'Fraud'],
+          ['margin', 'Marge & orientation'],
+          ['customers', 'Client intelligence'],
         ] as Array<[Tab, string]>).map(([k, label]) => (
           <button
             key={k}
@@ -675,6 +787,333 @@ export default function AnalyticsPage() {
               </table>
             )}
           </div>
+        </div>
+      )}
+
+      {tab === 'margin' && (
+        <div className="space-y-4">
+          {marginQ.isLoading || orientationQ.isLoading ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 flex justify-center">
+              <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 border-t-gray-500 animate-spin" />
+            </div>
+          ) : !marginQ.data ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center text-sm text-gray-400 dark:text-gray-500">
+              Aucune donnee de marge sur cette periode. Cliquez Recalculer.
+            </div>
+          ) : (
+            <>
+              {/* KPI tiles */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Marge totale</div>
+                  <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">
+                    <CurrencyDisplay value={marginQ.data.summary.margin_total} />
+                  </div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">{marginQ.data.summary.sold_products} produits vendus</div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Taux de marge</div>
+                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-2">{fmtPct(marginQ.data.summary.margin_rate_pct)}</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    CA&nbsp;<CurrencyDisplay value={marginQ.data.summary.revenue} />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Etoiles (marge + rotation)</div>
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">{marginQ.data.summary.high_margin_fast_count}</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">Rupture imminente: {marginQ.data.summary.at_risk_high_margin_count}</div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Signaux detectes</div>
+                  <div className={`text-2xl font-bold mt-2 ${(orientationQ.data?.signals?.length ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                    {orientationQ.data?.signals?.length ?? 0}
+                  </div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">Marge faible rapide: {marginQ.data.summary.low_margin_fast_count}</div>
+                </div>
+              </div>
+
+              {/* Liste produits */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Produits analyses</h3>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">{marginQ.data.items?.length ?? 0} produits</span>
+                </div>
+                {(marginQ.data.items?.length ?? 0) === 0 ? (
+                  <div className="px-5 py-8 text-sm text-gray-400 dark:text-gray-500 text-center">Aucun produit a analyser sur cette periode.</div>
+                ) : (
+                  <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                    {marginQ.data.items.map((row) => {
+                      const rate = toNum(row.margin_rate_pct);
+                      const rateCls = rate >= 30
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        : rate >= 15
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+                      return (
+                        <div key={row.product_id} className="flex items-center gap-4 px-5 py-4">
+                          <div className={`w-14 text-center py-1.5 rounded-lg text-xs font-bold flex-shrink-0 ${rateCls}`}>
+                            {fmtPct(row.margin_rate_pct)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">{row.product_name}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs text-gray-400 dark:text-gray-500">{row.product_sku}</span>
+                              <MovementBadge value={row.movement_bucket} />
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0 hidden sm:block">
+                            <p className="text-xs text-gray-400 dark:text-gray-500">Marge</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5">
+                              <CurrencyDisplay value={row.margin_total} />
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0 hidden md:block">
+                            <p className="text-xs text-gray-400 dark:text-gray-500">CA</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5">
+                              <CurrencyDisplay value={row.revenue} />
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0 hidden lg:block">
+                            <p className="text-xs text-gray-400 dark:text-gray-500">Couverture</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5">
+                              {row.days_of_cover === null ? '—' : `${toNum(row.days_of_cover).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} j`}
+                            </p>
+                          </div>
+                          <div className="max-w-[140px] text-right flex-shrink-0">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{row.action_hint}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Recommandations */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Recommandations d'orientation</h3>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">{orientationQ.data?.recommendations?.length ?? 0} actions</span>
+                </div>
+                {(orientationQ.data?.recommendations?.length ?? 0) === 0 ? (
+                  <div className="px-5 py-8 text-sm text-gray-400 dark:text-gray-500 text-center">Aucune recommandation disponible.</div>
+                ) : (
+                  <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                    {orientationQ.data?.recommendations?.map((row) => (
+                      <div key={`${row.priority}-${row.theme}`} className="flex items-start gap-4 px-5 py-5">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                          row.expected_impact === 'HIGH'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : row.expected_impact === 'MEDIUM'
+                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                              : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        }`}>
+                          {row.priority}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{row.title}</p>
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
+                              row.expected_impact === 'HIGH'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                : row.expected_impact === 'MEDIUM'
+                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            }`}>
+                              Impact {row.expected_impact === 'HIGH' ? 'Fort' : row.expected_impact === 'MEDIUM' ? 'Moyen' : 'Faible'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{row.action}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{row.reason}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Signaux */}
+              {(orientationQ.data?.signals?.length ?? 0) > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Signaux detectes</h3>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{orientationQ.data?.signals?.length} signal{(orientationQ.data?.signals?.length ?? 0) !== 1 ? 'x' : ''}</span>
+                  </div>
+                  <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                    {orientationQ.data?.signals?.map((row) => (
+                      <div key={`${row.code}-${row.metric}`} className="flex items-start gap-4 px-5 py-4">
+                        <SignalLevelBadge value={row.level} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-800 dark:text-gray-200">{row.detail}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-mono">{row.code}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === 'customers' && (
+        <div className="space-y-4">
+          {/* Barre de filtres */}
+          <div className="flex flex-wrap items-center gap-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-5 py-3.5">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Score risque credit min.</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={creditRiskMinScore}
+                onChange={(e) => setCreditRiskMinScore(e.target.value)}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-sm w-20 dark:text-gray-100 text-center"
+              />
+            </div>
+            <div className="w-px h-4 bg-gray-200 dark:bg-gray-700" />
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Seuil churn</span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={churnDropThreshold}
+                  onChange={(e) => setChurnDropThreshold(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-sm w-20 dark:text-gray-100 text-center"
+                />
+                <span className="text-xs text-gray-400 dark:text-gray-500">%</span>
+              </div>
+            </div>
+            <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">Au {dateTo}</span>
+          </div>
+
+          {customerCreditRiskQ.isLoading || customerChurnQ.isLoading ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 flex justify-center">
+              <div className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 border-t-gray-500 animate-spin" />
+            </div>
+          ) : (
+            <>
+              {/* KPI tiles */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Risque credit detectes</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{customerCreditRiskQ.data?.total ?? 0}</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">Score ≥ {creditRiskMinScore}</div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Risque eleve ou critique</div>
+                  <div className="text-2xl font-bold text-red-600 dark:text-red-400 mt-2">{highCreditRiskCount}</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">Score ≥ 65</div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Risque churn detectes</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{customerChurnQ.data?.total ?? 0}</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">Baisse ≥ {churnDropThreshold}%</div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Churn a surveiller</div>
+                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-2">{highChurnCount}</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">Score ≥ 55</div>
+                </div>
+              </div>
+
+              {/* Liste risque credit */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Risque credit</h3>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                    {customerCreditRiskItems.length} client{customerCreditRiskItems.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {customerCreditRiskItems.length === 0 ? (
+                  <div className="px-5 py-8 text-sm text-gray-400 dark:text-gray-500 text-center">
+                    Aucun client dans ce filtre.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                    {customerCreditRiskItems.map((row) => (
+                      <div key={row.customer_id} className="flex items-center gap-4 px-5 py-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0 ${
+                          row.credit_risk_score >= 75 ? 'bg-red-500' :
+                          row.credit_risk_score >= 55 ? 'bg-orange-500' :
+                          row.credit_risk_score >= 35 ? 'bg-amber-500' : 'bg-emerald-500'
+                        }`}>
+                          {row.credit_risk_score}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">{row.customer_name}</p>
+                          <div className="mt-1"><CreditRiskBadge value={row.risk_level} /></div>
+                        </div>
+                        <div className="text-right flex-shrink-0 hidden sm:block">
+                          <p className="text-xs text-gray-400 dark:text-gray-500">Impayes</p>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5">
+                            <CurrencyDisplay value={row.features.overdue_amount} />
+                          </p>
+                        </div>
+                        <div className="text-right flex-shrink-0 hidden md:block">
+                          <p className="text-xs text-gray-400 dark:text-gray-500">Recouvrement</p>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5">{fmtPct01(row.features.recovery_ratio)}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{row.recommendation.label}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Acompte {row.recommendation.recommended_deposit_percent}%</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Liste risque churn */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Risque churn</h3>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                    {customerChurnItems.length} client{customerChurnItems.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {customerChurnItems.length === 0 ? (
+                  <div className="px-5 py-8 text-sm text-gray-400 dark:text-gray-500 text-center">
+                    Aucun client detecte en baisse d'activite.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                    {customerChurnItems.map((row) => (
+                      <div key={row.customer_id} className="flex items-center gap-4 px-5 py-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0 ${
+                          row.churn_risk_score >= 75 ? 'bg-red-500' :
+                          row.churn_risk_score >= 55 ? 'bg-amber-500' : 'bg-blue-500'
+                        }`}>
+                          {row.churn_risk_score}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">{row.customer_name}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{row.customer_phone || '—'}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0 hidden sm:block">
+                          <p className="text-xs text-gray-400 dark:text-gray-500">Baisse CA</p>
+                          <p className="text-sm font-semibold text-red-600 dark:text-red-400 mt-0.5">−{fmtPct(row.revenue_drop_pct)}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0 hidden md:block">
+                          <p className="text-xs text-gray-400 dark:text-gray-500">Baisse frequence</p>
+                          <p className="text-sm font-semibold text-orange-600 dark:text-orange-400 mt-0.5">−{fmtPct(row.frequency_drop_pct)}</p>
+                        </div>
+                        <div className="max-w-[160px] text-right flex-shrink-0">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{row.actions[0] ?? '—'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

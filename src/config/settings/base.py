@@ -81,6 +81,7 @@ LOCAL_APPS = [
     "alerts",
     "analytics",
     "expenses",
+    "objectives",
     "api",
 ]
 
@@ -256,6 +257,18 @@ CELERY_BEAT_SCHEDULE = {
         "task": "expenses.tasks.generate_due_recurring_expenses",
         "schedule": 3600,  # every hour
     },
+    "objectives-refresh-leaderboards": {
+        "task": "objectives.tasks.refresh_all_leaderboards",
+        "schedule": 3600,  # every hour
+    },
+    "objectives-close-month": {
+        "task": "objectives.tasks.close_month_objectives",
+        "schedule": 86400,  # every 24 h â€” task guards on day_of_month == 1
+    },
+    "analytics-refresh-customer-intelligence": {
+        "task": "analytics.tasks.refresh_customer_intelligence_store",
+        "schedule": 86400,
+    },
 }
 
 # DRF
@@ -376,3 +389,4 @@ if SENTRY_DSN:
         environment=env("SENTRY_ENVIRONMENT", default="production"),
         send_default_pii=False,
     )
+

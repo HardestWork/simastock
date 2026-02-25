@@ -5,6 +5,7 @@ import { Search, ArrowRight, LayoutDashboard, ShoppingCart, Package, Users, Cred
 import { useQuery } from '@tanstack/react-query';
 import { productApi, customerApi } from '@/api/endpoints';
 import { useStoreStore } from '@/store-context/store-store';
+import { useAuthStore } from '@/auth/auth-store';
 
 interface SearchResult {
   id: string;
@@ -53,6 +54,16 @@ export default function SearchPalette() {
   const navigate = useNavigate();
   const currentStore = useStoreStore((s) => s.currentStore);
   const storeId = currentStore?.id ?? '';
+  const role = useAuthStore((s) => s.user?.role);
+  const canManageCatalog = role === 'ADMIN' || role === 'MANAGER';
+  const visiblePageItems = useMemo(
+    () =>
+      PAGE_ITEMS.filter((item) => {
+        if (canManageCatalog) return true;
+        return !['p-catalog-new', 'p-categories', 'p-brands'].includes(item.id);
+      }),
+    [canManageCatalog],
+  );
 
   // Keyboard shortcut to open
   useEffect(() => {
@@ -99,8 +110,8 @@ export default function SearchPalette() {
 
     // Filter pages
     const filteredPages = q
-      ? PAGE_ITEMS.filter((p) => p.label.toLowerCase().includes(q))
-      : PAGE_ITEMS.slice(0, 6);
+      ? visiblePageItems.filter((p) => p.label.toLowerCase().includes(q))
+      : visiblePageItems.slice(0, 6);
     items.push(...filteredPages);
 
     // Products
@@ -132,7 +143,7 @@ export default function SearchPalette() {
     }
 
     return items;
-  }, [query, productsData, customersData]);
+  }, [query, productsData, customersData, visiblePageItems]);
 
   // Group results
   const grouped = useMemo(() => {

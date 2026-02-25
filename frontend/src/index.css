@@ -1,8 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  /* ── Brand ── */
   --color-primary: #0F4C9A;
   --color-primary-light: #1A6FD4;
   --color-primary-dark: #0A3570;
@@ -10,19 +13,28 @@
   --color-accent-light: #FF8A33;
   --color-accent-dark: #CC5500;
   --color-secondary: #6B7280;
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-danger: #EF4444;
-  --color-info: #3B82F6;
-  --color-sidebar: #1E293B;
-  --color-sidebar-hover: #334155;
-  --color-sidebar-active: #0F4C9A;
+
+  /* ── Semantic ── */
+  --color-success: #059669;
+  --color-warning: #D97706;
+  --color-danger: #DC2626;
+  --color-info: #2563EB;
+
+  /* ── Sidebar — deep near-black, more refined than slate ── */
+  --color-sidebar: #0D1117;
+  --color-sidebar-hover: #161d2b;
+  --color-sidebar-active: #1a2436;
+
+  /* ── Canvas — warm off-white instead of cold gray ── */
+  --color-canvas: #F5F4F2;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .dark body, body:where(.dark *) {
@@ -31,4 +43,13 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+@media print {
+  [data-sonner-toaster],
+  [data-sonner-toast],
+  .sonner-toaster {
+    display: none !important;
+    visibility: hidden !important;
+  }
 }

@@ -101,6 +101,18 @@
                             </div>
                             <div class="flex items-center gap-1">
                                 <button type="button" @click="updateQty(item, Number(item.quantity) - 1)" :disabled="isItemBusy(item.id)" class="w-7 h-7 border rounded">-</button>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="99999"
+                                    step="1"
+                                    inputmode="numeric"
+                                    :value="item.quantity"
+                                    @change="updateQty(item, $event.target.value)"
+                                    @keyup.enter="$event.target.blur()"
+                                    :disabled="isItemBusy(item.id)"
+                                    class="w-20 h-7 border rounded text-center text-sm"
+                                >
                                 <button type="button" @click="updateQty(item, Number(item.quantity) + 1)" :disabled="isItemBusy(item.id)" class="w-7 h-7 border rounded">+</button>
                             </div>
                             <span class="text-sm font-bold w-24 text-right" x-text="formatCurrency(item.line_total)"></span>
@@ -381,11 +393,14 @@ function salePosApp() {
             }
         },
         async updateQty(item, qty) {
-            const newQty = Number(qty || 1);
-            if (newQty < 1) {
+            const parsedQty = Number(qty || 1);
+            if (Number.isFinite(parsedQty) && parsedQty < 1) {
                 await this.removeItem(item);
                 return;
             }
+            const fallbackQty = Number(item.quantity || 1);
+            const safeParsedQty = Number.isFinite(parsedQty) ? parsedQty : fallbackQty;
+            const newQty = Math.max(1, Math.min(99999, Math.trunc(safeParsedQty)));
             this.itemBusy = Object.assign({}, this.itemBusy, { [item.id]: true });
             try {
                 const data = await this.requestJson(

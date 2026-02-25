@@ -1,5 +1,5 @@
 ﻿/** POS (Point of Sale) page â€” create a new sale with product search and cart. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productApi, saleApi, customerApi } from '@/api/endpoints';
@@ -8,12 +8,13 @@ import { formatCurrency } from '@/lib/currency';
 import { useStoreStore } from '@/store-context/store-store';
 import { useCapabilities } from '@/lib/capabilities';
 import { useDebounce } from '@/hooks/use-debounce';
-import type { Sale, PosProduct } from '@/api/types';
+import type { Sale, PosProduct, SaleItem } from '@/api/types';
 import { Search, Plus, Minus, Trash2, Send, Banknote, UserPlus, Percent, X, AlertCircle } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import type { AxiosError } from 'axios';
 
 type DiscountMode = 'none' | 'percent' | 'fixed';
+const MAX_MANUAL_ITEM_QUANTITY = 99999;
 
 function extractErrorMessage(err: unknown): string {
   const axErr = err as AxiosError<{ detail?: string; non_field_errors?: string[] }>;
@@ -31,8 +32,11 @@ export default function PosPage() {
   const currentStore = useStoreStore((s) => s.currentStore);
   const capabilities = useCapabilities();
   const canCash = capabilities.includes('CAN_CASH');
+  const canOverridePrice = capabilities.includes('CAN_OVERRIDE_PRICE');
 
   const [sale, setSale] = useState<Sale | null>(null);
+  const [itemQuantityInputs, setItemQuantityInputs] = useState<Record<string, string>>({});
+  const [itemUnitPriceInputs, setItemUnitPriceInputs] = useState<Record<string, string>>({});
   const [search, setSearch] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
@@ -94,6 +98,22 @@ export default function PosPage() {
   // Remove item mutation
   const removeItemMut = useMutation({
     mutationFn: (itemId: string) => saleApi.removeItem(sale!.id, itemId),
+    onSuccess: (data) => { setActionError(null); setSale(data); },
+    onError: (err) => { toast.error(extractErrorMessage(err)); setActionError(extractErrorMessage(err)); },
+  });
+
+  // Set exact item quantity (manual input)
+  const setItemQuantityMut = useMutation({
+    mutationFn: ({ itemId, quantity }: { itemId: string; quantity: number }) =>
+      saleApi.setItemQuantity(sale!.id, { item_id: itemId, quantity }),
+    onSuccess: (data) => { setActionError(null); setSale(data); },
+    onError: (err) => { toast.error(extractErrorMessage(err)); setActionError(extractErrorMessage(err)); },
+  });
+
+  // Set exact item unit price (manual input)
+  const setItemUnitPriceMut = useMutation({
+    mutationFn: ({ itemId, unitPrice }: { itemId: string; unitPrice: string }) =>
+      saleApi.setItemUnitPrice(sale!.id, { item_id: itemId, unit_price: unitPrice }),
     onSuccess: (data) => { setActionError(null); setSale(data); },
     onError: (err) => { toast.error(extractErrorMessage(err)); setActionError(extractErrorMessage(err)); },
   });
@@ -163,6 +183,22 @@ export default function PosPage() {
     },
   });
 
+  useEffect(() => {
+    if (!sale) {
+      setItemQuantityInputs({});
+      setItemUnitPriceInputs({});
+      return;
+    }
+    const nextInputs: Record<string, string> = {};
+    const nextPriceInputs: Record<string, string> = {};
+    sale.items.forEach((item) => {
+      nextInputs[item.id] = String(item.quantity);
+      nextPriceInputs[item.id] = String(item.unit_price);
+    });
+    setItemQuantityInputs(nextInputs);
+    setItemUnitPriceInputs(nextPriceInputs);
+  }, [sale]);
+
   function handleSelectProduct(product: PosProduct) {
     setActionError(null);
     if (!sale) {
@@ -184,6 +220,45 @@ export default function PosPage() {
   function handleAddOneMore(productId: string) {
     if (!sale) return;
     addItemMut.mutate({ productId, quantity: 1 });
+  }
+
+  function handleItemQuantityInputChange(itemId: string, value: string) {
+    setItemQuantityInputs((prev) => ({ ...prev, [itemId]: value }));
+  }
+
+  function commitItemQuantity(item: SaleItem) {
+    if (!sale) return;
+    const rawValue = itemQuantityInputs[item.id] ?? String(item.quantity);
+    const parsed = Number(rawValue);
+    const fallbackQty = Math.max(1, Math.trunc(Number(item.quantity) || 1));
+    const normalizedQty = Number.isFinite(parsed)
+      ? Math.trunc(parsed)
+      : fallbackQty;
+    const clampedQty = Math.max(1, Math.min(MAX_MANUAL_ITEM_QUANTITY, normalizedQty));
+
+    setItemQuantityInputs((prev) => ({ ...prev, [item.id]: String(clampedQty) }));
+    if (clampedQty === item.quantity) return;
+    setItemQuantityMut.mutate({ itemId: item.id, quantity: clampedQty });
+  }
+
+  function handleItemUnitPriceInputChange(itemId: string, value: string) {
+    setItemUnitPriceInputs((prev) => ({ ...prev, [itemId]: value }));
+  }
+
+  function commitItemUnitPrice(item: SaleItem) {
+    if (!sale) return;
+    const rawValue = (itemUnitPriceInputs[item.id] ?? String(item.unit_price)).replace(',', '.');
+    const parsed = Number(rawValue);
+    const fallbackPrice = Number(item.unit_price) || 0;
+    const normalized = Number.isFinite(parsed) ? parsed : fallbackPrice;
+    const clamped = Math.max(0.01, normalized);
+    const rounded = Math.round(clamped * 100) / 100;
+    const roundedCurrent = Math.round((Number(item.unit_price) || 0) * 100) / 100;
+    const nextValue = rounded.toFixed(2);
+
+    setItemUnitPriceInputs((prev) => ({ ...prev, [item.id]: nextValue }));
+    if (rounded === roundedCurrent) return;
+    setItemUnitPriceMut.mutate({ itemId: item.id, unitPrice: nextValue });
   }
 
   function handleSelectCustomer(customerId: string) {
@@ -236,6 +311,8 @@ export default function PosPage() {
     customers.results.length === 0;
 
   const showCustomerSearch = !sale?.customer || !!sale?.customer_is_default || isChangingCustomer;
+  const isItemQtyActionPending =
+    addItemMut.isPending || removeItemMut.isPending || setItemQuantityMut.isPending || setItemUnitPriceMut.isPending;
 
   if (!currentStore) {
     return <div className="text-center py-12 text-gray-500 dark:text-gray-400">Aucun magasin selectionne.</div>;
@@ -480,9 +557,34 @@ export default function PosPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate text-gray-900 dark:text-gray-100">{item.product_name}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {formatCurrency(item.unit_price)} / unite
-                      </div>
+                      {canOverridePrice ? (
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">Prix</span>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            inputMode="decimal"
+                            value={itemUnitPriceInputs[item.id] ?? String(item.unit_price)}
+                            onChange={(e) => handleItemUnitPriceInputChange(item.id, e.target.value)}
+                            onBlur={() => commitItemUnitPrice(item)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                (e.currentTarget as HTMLInputElement).blur();
+                              }
+                            }}
+                            disabled={isItemQtyActionPending}
+                            className="w-28 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs text-right text-gray-900 dark:text-gray-100 dark:bg-gray-800"
+                            title="Prix unitaire"
+                          />
+                          <span className="text-xs text-gray-500 dark:text-gray-400">FCFA / unite</span>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatCurrency(item.unit_price)} / unite
+                        </div>
+                      )}
                     </div>
                     <span className="text-sm font-semibold shrink-0 text-gray-900 dark:text-gray-100">{formatCurrency(item.line_total)}</span>
                   </div>
@@ -491,19 +593,35 @@ export default function PosPage() {
                       {/* + button: add 1 more of this product */}
                       <button
                         onClick={() => handleAddOneMore(item.product)}
-                        disabled={addItemMut.isPending}
+                        disabled={isItemQtyActionPending}
                         className="p-1 rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40"
                         title="Ajouter 1"
                       >
                         <Plus size={14} />
                       </button>
-                      <span className="text-sm font-medium min-w-[2rem] text-center text-gray-900 dark:text-gray-100">
-                        {item.quantity}
-                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={MAX_MANUAL_ITEM_QUANTITY}
+                        step={1}
+                        inputMode="numeric"
+                        value={itemQuantityInputs[item.id] ?? String(item.quantity)}
+                        onChange={(e) => handleItemQuantityInputChange(item.id, e.target.value)}
+                        onBlur={() => commitItemQuantity(item)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            (e.currentTarget as HTMLInputElement).blur();
+                          }
+                        }}
+                        disabled={isItemQtyActionPending}
+                        className="w-20 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm text-center text-gray-900 dark:text-gray-100 dark:bg-gray-800"
+                        title="Quantite (max 99999)"
+                      />
                       {/* Remove button */}
                       <button
                         onClick={() => removeItemMut.mutate(item.id)}
-                        disabled={removeItemMut.isPending}
+                        disabled={isItemQtyActionPending}
                         className="p-1 rounded border border-red-200 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40"
                         title="Retirer du panier"
                       >
@@ -622,6 +740,12 @@ export default function PosPage() {
           {/* Submit buttons */}
           {sale && sale.items.length > 0 && sale.customer && (
             <div className="mt-4 space-y-2">
+              {sale.customer_is_default && (
+                <div className="flex items-start gap-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-xs text-amber-700 dark:text-amber-400">
+                  <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                  <span>Client comptant — vente sans client identifie. Selectionnez un client si necessaire.</span>
+                </div>
+              )}
               <button
                 onClick={() => submitMut.mutate()}
                 disabled={submitMut.isPending || submitAndCashMut.isPending}
@@ -654,4 +778,3 @@ export default function PosPage() {
     </div>
   );
 }
-

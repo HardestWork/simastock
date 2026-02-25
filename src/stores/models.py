@@ -78,6 +78,40 @@ ANALYTICS_FEATURE_DEFAULTS = {
     for key in ANALYTICS_FEATURE_KEYS
 }
 
+MODULE_DEFAULT_ORDER = [
+    "CORE",
+    "SELL",
+    "CASH",
+    "CUSTOMER",
+    "STOCK",
+    "PURCHASE",
+    "EXPENSE",
+    "SELLER_PERF",
+    "ANALYTICS_MANAGER",
+    "ANALYTICS_CASHIER",
+    "ANALYTICS_STOCK",
+    "ANALYTICS_DG",
+    "CLIENT_INTEL",
+    "ALERTS",
+]
+
+MODULE_CODE_LABELS = {
+    "CORE": "Platform Core",
+    "SELL": "Sales POS",
+    "CASH": "Cashier Ops",
+    "CUSTOMER": "Customer + Credit",
+    "STOCK": "Stock Ops",
+    "PURCHASE": "Purchases",
+    "EXPENSE": "Expense Control",
+    "SELLER_PERF": "Seller Performance",
+    "ANALYTICS_MANAGER": "Manager Analytics",
+    "ANALYTICS_CASHIER": "Cashier Analytics",
+    "ANALYTICS_STOCK": "Stock Analytics",
+    "ANALYTICS_DG": "DG Analytics",
+    "CLIENT_INTEL": "Client Intelligence",
+    "ALERTS": "Alerts Center",
+}
+
 
 def _normalize_feature_flags(raw_flags):
     flags = dict(FEATURE_FLAG_DEFAULTS)
@@ -281,6 +315,241 @@ class EnterpriseSubscription(TimeStampedModel):
         if self.ends_on and self.ends_on < today:
             return False
         return True
+
+
+# ---------------------------------------------------------------------------
+# Paid Module Catalog / Entitlements
+# ---------------------------------------------------------------------------
+
+
+class BillingModule(TimeStampedModel):
+    """Commercially activated feature module."""
+
+    code = models.CharField("code module", max_length=50, unique=True)
+    name = models.CharField("nom module", max_length=120)
+    description = models.TextField("description", blank=True, default="")
+    display_order = models.PositiveIntegerField("ordre affichage", default=100)
+    is_active = models.BooleanField("actif", default=True)
+
+    class Meta:
+        ordering = ["display_order", "name"]
+        verbose_name = "Module payant"
+        verbose_name_plural = "Modules payants"
+        indexes = [
+            models.Index(fields=["is_active"], name="billing_module_active_idx"),
+            models.Index(fields=["display_order"], name="billing_module_order_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+
+class BillingModuleDependency(TimeStampedModel):
+    """Dependency graph between modules (module -> depends_on)."""
+
+    module = models.ForeignKey(
+        BillingModule,
+        on_delete=models.CASCADE,
+        related_name="dependencies",
+        verbose_name="module",
+    )
+    depends_on_module = models.ForeignKey(
+        BillingModule,
+        on_delete=models.CASCADE,
+        related_name="required_by",
+        verbose_name="dependance",
+    )
+
+    class Meta:
+        verbose_name = "Dependance module"
+        verbose_name_plural = "Dependances modules"
+        constraints = [
+            models.UniqueConstraint(fields=["module", "depends_on_module"], name="uniq_module_dependency"),
+            models.CheckConstraint(
+                check=~models.Q(module=models.F("depends_on_module")),
+                name="chk_module_dependency_not_self",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.module.code} -> {self.depends_on_module.code}"
+
+
+class BillingPlan(TimeStampedModel):
+    """Commercial plan containing a module bundle."""
+
+    class BillingCycle(models.TextChoices):
+        MONTHLY = "MONTHLY", "Mensuel"
+        QUARTERLY = "QUARTERLY", "Trimestriel"
+        YEARLY = "YEARLY", "Annuel"
+        CUSTOM = "CUSTOM", "Personnalise"
+
+    code = models.CharField("code plan", max_length=50, unique=True)
+    name = models.CharField("nom plan", max_length=120)
+    description = models.TextField("description", blank=True, default="")
+    billing_cycle = models.CharField(
+        "cycle facturation",
+        max_length=20,
+        choices=BillingCycle.choices,
+        default=BillingCycle.MONTHLY,
+    )
+    base_price_fcfa = models.BigIntegerField("prix de base FCFA", default=0)
+    currency = models.CharField("devise", max_length=10, default="FCFA")
+    is_active = models.BooleanField("actif", default=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Plan commercial"
+        verbose_name_plural = "Plans commerciaux"
+        indexes = [
+            models.Index(fields=["is_active"], name="billing_plan_active_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+
+class BillingPlanModule(TimeStampedModel):
+    """Modules included in a plan."""
+
+    plan = models.ForeignKey(
+        BillingPlan,
+        on_delete=models.CASCADE,
+        related_name="plan_modules",
+        verbose_name="plan",
+    )
+    module = models.ForeignKey(
+        BillingModule,
+        on_delete=models.CASCADE,
+        related_name="plan_links",
+        verbose_name="module",
+    )
+    included = models.BooleanField("inclus", default=True)
+
+    class Meta:
+        verbose_name = "Module du plan"
+        verbose_name_plural = "Modules des plans"
+        constraints = [
+            models.UniqueConstraint(fields=["plan", "module"], name="uniq_plan_module"),
+        ]
+
+    def __str__(self):
+        return f"{self.plan.code} / {self.module.code}"
+
+
+class EnterprisePlanAssignment(TimeStampedModel):
+    """Plan assignment history for one enterprise."""
+
+    class Status(models.TextChoices):
+        TRIAL = "TRIAL", "Essai"
+        ACTIVE = "ACTIVE", "Actif"
+        PAST_DUE = "PAST_DUE", "Impaye"
+        CANCELED = "CANCELED", "Resilie"
+        EXPIRED = "EXPIRED", "Expire"
+
+    enterprise = models.ForeignKey(
+        Enterprise,
+        on_delete=models.CASCADE,
+        related_name="plan_assignments",
+        verbose_name="entreprise",
+    )
+    plan = models.ForeignKey(
+        BillingPlan,
+        on_delete=models.PROTECT,
+        related_name="enterprise_assignments",
+        verbose_name="plan",
+    )
+    status = models.CharField(
+        "statut",
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+    )
+    starts_on = models.DateField("debut")
+    ends_on = models.DateField("fin", null=True, blank=True)
+    auto_renew = models.BooleanField("renouvellement auto", default=True)
+    source_subscription = models.ForeignKey(
+        EnterpriseSubscription,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="plan_assignments",
+        verbose_name="abonnement source",
+    )
+
+    class Meta:
+        ordering = ["-starts_on", "-created_at"]
+        verbose_name = "Affectation plan entreprise"
+        verbose_name_plural = "Affectations plans entreprise"
+        indexes = [
+            models.Index(fields=["enterprise", "status"], name="ent_plan_status_idx"),
+            models.Index(fields=["starts_on", "ends_on"], name="ent_plan_window_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.enterprise.code} -> {self.plan.code} ({self.status})"
+
+    @property
+    def is_active_on_date(self):
+        today = timezone.now().date()
+        if self.status not in {self.Status.TRIAL, self.Status.ACTIVE}:
+            return False
+        if self.starts_on and self.starts_on > today:
+            return False
+        if self.ends_on and self.ends_on < today:
+            return False
+        return True
+
+
+class StoreModuleEntitlement(TimeStampedModel):
+    """Store-level override for one module (inherit/enable/disable)."""
+
+    class State(models.TextChoices):
+        INHERIT = "INHERIT", "Heriter"
+        ENABLED = "ENABLED", "Activer"
+        DISABLED = "DISABLED", "Desactiver"
+
+    store = models.ForeignKey(
+        "Store",
+        on_delete=models.CASCADE,
+        related_name="module_entitlements",
+        verbose_name="boutique",
+    )
+    module = models.ForeignKey(
+        BillingModule,
+        on_delete=models.CASCADE,
+        related_name="store_entitlements",
+        verbose_name="module",
+    )
+    state = models.CharField(
+        "etat",
+        max_length=20,
+        choices=State.choices,
+        default=State.INHERIT,
+    )
+    reason = models.CharField("raison", max_length=255, blank=True, default="")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_store_module_entitlements",
+        verbose_name="cree par",
+    )
+
+    class Meta:
+        ordering = ["store", "module__display_order", "module__name"]
+        verbose_name = "Entitlement module boutique"
+        verbose_name_plural = "Entitlements modules boutiques"
+        constraints = [
+            models.UniqueConstraint(fields=["store", "module"], name="uniq_store_module_entitlement"),
+        ]
+        indexes = [
+            models.Index(fields=["store", "state"], name="store_module_state_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.store.code} / {self.module.code} = {self.state}"
 
 
 # ---------------------------------------------------------------------------
