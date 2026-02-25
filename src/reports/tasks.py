@@ -74,13 +74,23 @@ def daily_kpi_snapshot():
         net_sales = total_sales - total_discounts - total_refunds
 
         # Credit outstanding (snapshot at end of day)
-        credit_outstanding = Sale.objects.filter(
-            store=store,
-            is_credit_sale=True,
-            amount_due__gt=0,
-        ).aggregate(
-            total=Coalesce(Sum("amount_due"), Value(Decimal("0.00"))),
-        )["total"]
+        try:
+            from credits.models import CustomerAccount
+
+            credit_outstanding = CustomerAccount.objects.filter(
+                store=store,
+                balance__gt=0,
+            ).aggregate(
+                total=Coalesce(Sum("balance"), Value(Decimal("0.00"))),
+            )["total"]
+        except (ImportError, Exception):
+            credit_outstanding = Sale.objects.filter(
+                store=store,
+                is_credit_sale=True,
+                amount_due__gt=0,
+            ).aggregate(
+                total=Coalesce(Sum("amount_due"), Value(Decimal("0.00"))),
+            )["total"]
 
         # Stock value (snapshot at end of day)
         stock_value = ProductStock.objects.filter(

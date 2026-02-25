@@ -396,11 +396,20 @@ def process_payment(
             )
             created_payments.append(payment)
 
+        has_credit_payment = any(
+            payment.method == Payment.Method.CREDIT
+            for payment in created_payments
+        )
+
         # ------------------------------------------------------------------
         # Update sale amounts
         # ------------------------------------------------------------------
         sale.amount_paid = (sale.amount_paid or Decimal("0")) + total_payment
         sale.amount_due = (sale.total or Decimal("0")) - sale.amount_paid
+
+        # Keep sales workflows and reports in sync with credit-origin payments.
+        if has_credit_payment:
+            sale.is_credit_sale = True
 
         # Ensure amount_due does not go negative
         if sale.amount_due < 0:

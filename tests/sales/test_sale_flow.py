@@ -156,6 +156,32 @@ class TestSaleFlow:
                 shift=shift,
             )
 
+    def test_credit_payment_marks_sale_as_credit_sale(
+        self,
+        store,
+        sales_user,
+        cashier_user,
+        customer,
+        customer_account,
+        product,
+        product_stock,
+    ):
+        sale = create_sale(store=store, seller=sales_user, customer=customer)
+        add_item_to_sale(sale=sale, product=product, qty=1, actor=sales_user)
+        recalculate_sale(sale)
+        submit_sale_to_cashier(sale=sale, actor=sales_user)
+
+        shift = open_shift(store=store, cashier=cashier_user, opening_float=Decimal("50000"))
+        process_payment(
+            sale=sale,
+            payments_data=[{"method": "CREDIT", "amount": float(sale.total), "reference": ""}],
+            cashier=cashier_user,
+            shift=shift,
+        )
+
+        sale.refresh_from_db()
+        assert sale.is_credit_sale is True
+
     def test_full_refund_restocks_inventory(self, store, sales_user, cashier_user, customer, product, product_stock):
         sale = create_sale(store=store, seller=sales_user, customer=customer)
         add_item_to_sale(sale=sale, product=product, qty=2, actor=sales_user)

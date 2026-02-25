@@ -707,28 +707,55 @@ def get_credit_report(store):
     Returns a dict with:
       total_outstanding, overdue_amount, overdue_count, avg_dso, by_customer
     """
-    from sales.models import Sale
-
-    credit_sales = Sale.objects.filter(
-        store=store,
-        is_credit_sale=True,
-        amount_due__gt=0,
-    )
-
-    agg = credit_sales.aggregate(
-        total_outstanding=Coalesce(Sum("amount_due"), Value(Decimal("0.00"))),
-        count=Count("id"),
-    )
-    total_outstanding = agg["total_outstanding"]
-
-    # Overdue credits
     try:
-        from credits.models import PaymentSchedule
+        from credits.models import CreditLedgerEntry, CustomerAccount, PaymentSchedule
+
+        accounts_qs = CustomerAccount.objects.filter(
+            store=store,
+            balance__gt=0,
+        )
+        total_outstanding = accounts_qs.aggregate(
+            total=Coalesce(Sum("balance"), Value(Decimal("0.00")))
+        )["total"]
+
+        account_rows = list(
+            accounts_qs.values(
+                "id",
+                customer_name=F("customer__first_name"),
+                customer_last=F("customer__last_name"),
+                customer_phone=F("customer__phone"),
+                outstanding=F("balance"),
+            )
+        )
+
+        sale_counts_by_account = dict(
+            CreditLedgerEntry.objects.filter(
+                account__store=store,
+                account__balance__gt=0,
+                entry_type=CreditLedgerEntry.EntryType.SALE_ON_CREDIT,
+                sale__isnull=False,
+            )
+            .values("account_id")
+            .annotate(nb_sales=Count("sale_id", distinct=True))
+            .values_list("account_id", "nb_sales")
+        )
+
+        by_customer = [
+            {
+                "customer_name": row["customer_name"],
+                "customer_last": row["customer_last"],
+                "customer_phone": row["customer_phone"],
+                "nb_sales": sale_counts_by_account.get(row["id"], 0),
+                "outstanding": row["outstanding"],
+            }
+            for row in account_rows
+        ]
+        by_customer.sort(key=lambda row: row["outstanding"], reverse=True)
+
         overdue_qs = PaymentSchedule.objects.filter(
             account__store=store,
             due_date__lt=date.today(),
-        ).exclude(status="PAID")
-
+        ).exclude(status=PaymentSchedule.Status.PAID)
         overdue_agg = overdue_qs.aggregate(
             overdue_amount=Coalesce(Sum("amount_due"), Value(Decimal("0.00"))),
             overdue_count=Count("id"),
@@ -736,50 +763,73 @@ def get_credit_report(store):
         overdue_amount = overdue_agg["overdue_amount"]
         overdue_count = overdue_agg["overdue_count"]
 
-        # Average DSO (Days Sales Outstanding)
-        # Calculated as average days between sale creation and today for
-        # outstanding credit sales.
         avg_dso = 0
-        if credit_sales.exists():
+        outstanding_credit_entries = CreditLedgerEntry.objects.filter(
+            account__store=store,
+            account__balance__gt=0,
+            entry_type=CreditLedgerEntry.EntryType.SALE_ON_CREDIT,
+        )
+        if outstanding_credit_entries.exists():
             total_days = sum(
-                (date.today() - s.created_at.date()).days
-                for s in credit_sales
+                (date.today() - entry.created_at.date()).days
+                for entry in outstanding_credit_entries
             )
-            avg_dso = total_days / credit_sales.count()
+            avg_dso = total_days / outstanding_credit_entries.count()
+
+        return {
+            "total_outstanding": total_outstanding,
+            "overdue_amount": overdue_amount,
+            "overdue_count": overdue_count,
+            "avg_dso": round(avg_dso, 1),
+            "by_customer": by_customer,
+        }
     except (ImportError, Exception):
-        # credits app not yet available
+        # credits app not yet available -- fall back to Sale.amount_due.
+        from sales.models import Sale
+
+        credit_sales = Sale.objects.filter(
+            store=store,
+            is_credit_sale=True,
+            amount_due__gt=0,
+        )
+
+        agg = credit_sales.aggregate(
+            total_outstanding=Coalesce(Sum("amount_due"), Value(Decimal("0.00"))),
+            count=Count("id"),
+        )
+        total_outstanding = agg["total_outstanding"]
+
         overdue_amount = Decimal("0.00")
         overdue_count = 0
         avg_dso = 0
         if credit_sales.exists():
             total_days = sum(
-                (date.today() - s.created_at.date()).days
-                for s in credit_sales
+                (date.today() - sale.created_at.date()).days
+                for sale in credit_sales
             )
             avg_dso = total_days / credit_sales.count()
 
-    # By customer
-    by_customer = list(
-        credit_sales
-        .values(
-            customer_name=F("customer__first_name"),
-            customer_last=F("customer__last_name"),
-            customer_phone=F("customer__phone"),
+        by_customer = list(
+            credit_sales
+            .values(
+                customer_name=F("customer__first_name"),
+                customer_last=F("customer__last_name"),
+                customer_phone=F("customer__phone"),
+            )
+            .annotate(
+                nb_sales=Count("id"),
+                outstanding=Coalesce(Sum("amount_due"), Value(Decimal("0.00"))),
+            )
+            .order_by("-outstanding")
         )
-        .annotate(
-            nb_sales=Count("id"),
-            outstanding=Coalesce(Sum("amount_due"), Value(Decimal("0.00"))),
-        )
-        .order_by("-outstanding")
-    )
 
-    return {
-        "total_outstanding": total_outstanding,
-        "overdue_amount": overdue_amount,
-        "overdue_count": overdue_count,
-        "avg_dso": round(avg_dso, 1),
-        "by_customer": by_customer,
-    }
+        return {
+            "total_outstanding": total_outstanding,
+            "overdue_amount": overdue_amount,
+            "overdue_count": overdue_count,
+            "avg_dso": round(avg_dso, 1),
+            "by_customer": by_customer,
+        }
 
 
 # ---------------------------------------------------------------------------
