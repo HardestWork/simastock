@@ -1,25 +1,39 @@
 /** Sales list page — shows all sales with filters. */
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { saleApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreStore } from '@/store-context/store-store';
+import { useAuthStore } from '@/auth/auth-store';
 import StatusBadge from '@/components/shared/StatusBadge';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import Pagination from '@/components/shared/Pagination';
 import { useSort } from '@/hooks/use-sort';
 import SortableHeader from '@/components/shared/SortableHeader';
-import { Plus, Download } from 'lucide-react';
+import { Plus, Download, Trash2 } from 'lucide-react';
 import { downloadCsv } from '@/lib/export';
+import { toast } from '@/lib/toast';
+import type { Sale } from '@/api/types';
 
 const PAGE_SIZE = 25;
 
+const CANCELLABLE = new Set(['DRAFT', 'PENDING_PAYMENT', 'PARTIALLY_PAID']);
+
 export default function SaleListPage() {
   const currentStore = useStoreStore((s) => s.currentStore);
+  const user = useAuthStore((s) => s.user);
+  const canCancel = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const { sortField, sortDirection, ordering, toggleSort } = useSort('created_at', 'desc');
+
+  const [cancelTarget, setCancelTarget] = useState<Sale | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+
+  const queryClient = useQueryClient();
 
   const params: Record<string, string> = {
     store: currentStore?.id ?? '',
@@ -33,6 +47,22 @@ export default function SaleListPage() {
     queryKey: queryKeys.sales.list(params),
     queryFn: () => saleApi.list(params),
     enabled: !!currentStore,
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => saleApi.cancel(id, reason),
+    onSuccess: () => {
+      toast.success('Vente annulee avec succes.');
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      setCancelTarget(null);
+      setCancelReason('');
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? 'Erreur lors de l\'annulation.';
+      toast.error(msg);
+    },
   });
 
   const totalPages = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
@@ -95,6 +125,7 @@ export default function SaleListPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Source</th>
                 <SortableHeader field="created_at" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Docs</th>
+                {canCancel && <th className="text-center px-4 py-3 font-medium text-gray-600 dark:text-gray-400 w-16" />}
               </tr>
             </thead>
             <tbody>
@@ -157,11 +188,24 @@ export default function SaleListPage() {
                       )}
                     </div>
                   </td>
+                  {canCancel && (
+                    <td className="px-4 py-3 text-center">
+                      {CANCELLABLE.has(sale.status) && (
+                        <button
+                          onClick={() => { setCancelTarget(sale); setCancelReason(''); }}
+                          title="Annuler cette vente"
+                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
               {data?.results.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={canCancel ? 10 : 9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     Aucune vente trouvee.
                   </td>
                 </tr>
@@ -172,6 +216,36 @@ export default function SaleListPage() {
       </div>
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      {/* Cancel confirmation dialog */}
+      <ConfirmDialog
+        open={!!cancelTarget}
+        title="Annuler cette vente ?"
+        message={cancelTarget
+          ? `La vente ${cancelTarget.invoice_number || 'brouillon'} de ${formatCurrency(cancelTarget.total)} sera annulee. Cette action est irreversible.`
+          : ''}
+        confirmLabel="Annuler la vente"
+        cancelLabel="Fermer"
+        tone="danger"
+        loading={cancelMutation.isPending}
+        onConfirm={() => {
+          if (cancelTarget && cancelReason.trim()) {
+            cancelMutation.mutate({ id: cancelTarget.id, reason: cancelReason.trim() });
+          }
+        }}
+        onClose={() => { setCancelTarget(null); setCancelReason(''); }}
+      >
+        <textarea
+          value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value)}
+          placeholder="Raison de l'annulation (obligatoire)"
+          rows={2}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none"
+        />
+        {cancelReason.trim() === '' && (
+          <p className="text-xs text-red-500 mt-1">Veuillez indiquer une raison pour annuler.</p>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

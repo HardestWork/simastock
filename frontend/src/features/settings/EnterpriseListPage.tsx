@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { enterpriseApi } from '@/api/endpoints';
 import type { Enterprise } from '@/api/types';
-import { Building2, Search, Plus, Save, Loader2, Power, Calendar, Store, X, Trash2, AlertCircle } from 'lucide-react';
+import { Building2, Search, Plus, Save, Loader2, Power, Calendar, Store, X, Trash2, AlertCircle, RotateCcw } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -88,6 +88,11 @@ export default function EnterpriseListPage() {
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<Enterprise | null>(null);
 
+  // Reset
+  const [resetTarget, setResetTarget] = useState<Enterprise | null>(null);
+  const [resetMode, setResetMode] = useState<'full' | 'transactions'>('transactions');
+  const [resetConfirmName, setResetConfirmName] = useState('');
+
   // Edit panel
   const [editingEnterprise, setEditingEnterprise] = useState<Enterprise | null>(null);
   const [draftSubscriptionStart, setDraftSubscriptionStart] = useState('');
@@ -153,6 +158,21 @@ export default function EnterpriseListPage() {
     },
     onError: (err: unknown) => {
       toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+    },
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: ({ id, mode }: { id: string; mode: 'full' | 'transactions' }) =>
+      enterpriseApi.reset(id, mode),
+    onSuccess: (data) => {
+      toast.success(data.detail);
+      queryClient.invalidateQueries({ queryKey: ['enterprises'] });
+      setResetTarget(null);
+      setResetConfirmName('');
+      setResetMode('transactions');
+    },
+    onError: (err: unknown) => {
+      toast.error(extractError(err));
     },
   });
 
@@ -356,6 +376,18 @@ export default function EnterpriseListPage() {
                           >
                             <Power size={14} />
                             {ent.is_active ? 'Actif' : 'Inactif'}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setResetTarget(ent);
+                              setResetMode('transactions');
+                              setResetConfirmName('');
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors"
+                            title="Reinitialiser l'entreprise"
+                          >
+                            <RotateCcw size={15} className="text-amber-500" />
                           </button>
                           <button
                             onClick={(e) => {
@@ -566,6 +598,117 @@ export default function EnterpriseListPage() {
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-60"
               >
                 {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset confirmation modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full mx-4 p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <span className="text-amber-500 mt-0.5">
+                <RotateCcw size={20} />
+              </span>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Reinitialiser l'entreprise
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  {resetTarget.name} ({resetTarget.code})
+                </p>
+              </div>
+            </div>
+
+            {/* Mode selection */}
+            <div className="space-y-3 mb-5">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Mode de reinitialisation</p>
+
+              <label className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 has-[:checked]:border-amber-400 has-[:checked]:bg-amber-50 dark:has-[:checked]:bg-amber-900/20">
+                <input
+                  type="radio"
+                  name="resetMode"
+                  value="transactions"
+                  checked={resetMode === 'transactions'}
+                  onChange={() => setResetMode('transactions')}
+                  className="mt-0.5 accent-amber-600"
+                />
+                <div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Transactions uniquement</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Supprime les ventes, paiements, credits, depenses, stocks, objectifs et analytics.
+                    Garde les produits, categories, marques, clients et utilisateurs.
+                  </div>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 has-[:checked]:border-red-400 has-[:checked]:bg-red-50 dark:has-[:checked]:bg-red-900/20">
+                <input
+                  type="radio"
+                  name="resetMode"
+                  value="full"
+                  checked={resetMode === 'full'}
+                  onChange={() => setResetMode('full')}
+                  className="mt-0.5 accent-red-600"
+                />
+                <div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Reinitialisation complete</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Supprime TOUT : produits, clients, utilisateurs (sauf superadmins), roles,
+                    ainsi que toutes les transactions. L'entreprise repart de zero.
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {/* Confirm by typing name */}
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Tapez <span className="font-bold text-gray-900 dark:text-gray-100">{resetTarget.name}</span> pour confirmer
+              </label>
+              <input
+                type="text"
+                value={resetConfirmName}
+                onChange={(e) => setResetConfirmName(e.target.value)}
+                placeholder={resetTarget.name}
+                className={inputClass}
+              />
+            </div>
+
+            {resetMutation.isError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
+                <AlertCircle size={14} />
+                {extractError(resetMutation.error)}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setResetTarget(null); setResetConfirmName(''); resetMutation.reset(); }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                disabled={resetMutation.isPending}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => resetMutation.mutate({ id: resetTarget.id, mode: resetMode })}
+                disabled={resetMutation.isPending || resetConfirmName !== resetTarget.name}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-60 transition-colors ${
+                  resetMode === 'full'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-amber-600 hover:bg-amber-700'
+                }`}
+              >
+                {resetMutation.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    Reinitialisation...
+                  </span>
+                ) : (
+                  'Reinitialiser'
+                )}
               </button>
             </div>
           </div>

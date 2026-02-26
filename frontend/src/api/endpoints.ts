@@ -234,6 +234,9 @@ export const enterpriseApi = {
 
   delete: (id: string) =>
     apiClient.delete(`enterprises/${id}/`).then((r) => r.data),
+
+  reset: (id: string, mode: 'full' | 'transactions') =>
+    apiClient.post<{ detail: string; mode: string }>(`enterprises/${id}/reset/`, { mode }).then((r) => r.data),
 };
 
 export const enterpriseSubscriptionApi = {

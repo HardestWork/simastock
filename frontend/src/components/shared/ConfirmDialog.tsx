@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 type ConfirmTone = 'danger' | 'warning' | 'info';
@@ -10,6 +11,7 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   tone?: ConfirmTone;
   loading?: boolean;
+  children?: ReactNode;
   onConfirm: () => void;
   onClose: () => void;
 }
@@ -22,6 +24,7 @@ export default function ConfirmDialog({
   cancelLabel = 'Annuler',
   tone = 'danger',
   loading = false,
+  children,
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
@@ -55,6 +58,8 @@ export default function ConfirmDialog({
               <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{message}</p>
             </div>
           </div>
+
+          {children && <div className="px-4 pt-3">{children}</div>}
 
           <div className="p-4 flex justify-end gap-2">
             <button
