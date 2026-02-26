@@ -1248,6 +1248,56 @@ export interface CustomerChurnRiskListResponse {
   items: CustomerChurnRiskItem[];
 }
 
+export interface CustomerTopClientItem {
+  rank: number;
+  customer_id: string;
+  customer_name: string;
+  customer_phone: string | null;
+  top_score: string;
+  badge: 'GOLD' | 'SILVER' | 'BRONZE' | string;
+  paid_amount: string | null;
+  paid_orders: number | null;
+  active_weeks: number | null;
+  explain: string[];
+}
+
+export interface CustomerTopClientsResponse {
+  store_id: string;
+  period: string;
+  limit: number;
+  items: CustomerTopClientItem[];
+}
+
+export interface CustomerDormantItem {
+  customer_id: string;
+  customer_name: string;
+  customer_phone: string;
+  days_without_payment: number;
+  priority_score: number;
+  segment: CustomerIntelligenceSegment;
+  score_total: number;
+  reason: string;
+  whatsapp_preview: string;
+}
+
+export interface CustomerDormantResponse {
+  store_id: string;
+  as_of: string;
+  days: number | null;
+  total: number;
+  items: CustomerDormantItem[];
+}
+
+export interface CustomerInsightsResponse {
+  store_id: string;
+  period: string;
+  as_of: string;
+  top_clients: CustomerTopClientItem[];
+  dormant_preview: CustomerDormantItem[];
+  segment_distribution: Record<string, number>;
+  open_alerts: Record<string, number>;
+}
+
 // ---------------------------------------------------------------------------
 // Stock Value Trend
 // ---------------------------------------------------------------------------

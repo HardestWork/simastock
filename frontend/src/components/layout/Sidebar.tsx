@@ -33,6 +33,7 @@ import {
   PlusCircle,
   PieChart,
   Target,
+  Sparkles,
 } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth-store';
 import { useCapabilities } from '@/lib/capabilities';
@@ -193,6 +194,13 @@ const navItems: NavItem[] = [
         icon: <CreditCard size={15} />,
         module: 'CUSTOMER',
         roles: ['MANAGER', 'ADMIN', 'CASHIER'],
+      },
+      {
+        path: '/customers/intelligence',
+        label: 'Intelligence',
+        icon: <Sparkles size={15} />,
+        module: 'CLIENT_INTEL',
+        roles: ['MANAGER', 'ADMIN'],
       },
     ],
   },

@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi, customerApi, creditApi, saleApi } from '@/api/endpoints';
-import type { CustomerRecommendationItem } from '@/api/types';
+import type { CustomerRecommendationItem, CustomerScoreSubscores } from '@/api/types';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -336,6 +336,62 @@ export default function CustomerDetailPage() {
                     </p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ── Sous-scores RFM ── */}
+            {scoreQ.data?.subscores && (
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">Decomposition du score</p>
+                <div className="space-y-3">
+                  {(
+                    [
+                      { key: 'recency', label: 'Recence', hint: `${scoreQ.data.features?.recency_days ?? '?'} j depuis dernier achat` },
+                      { key: 'frequency', label: 'Frequence', hint: `${scoreQ.data.features?.paid_orders_90d ?? '?'} cmd sur 90 jours` },
+                      { key: 'monetary', label: 'Montant', hint: formatCurrency(scoreQ.data.features?.monetary_90d ?? '0') + ' sur 90j' },
+                      { key: 'credit', label: 'Comportement credit', hint: '' },
+                      { key: 'discount_behavior', label: 'Remises', hint: `${(parseFloat(scoreQ.data.features?.discount_ratio_90d ?? '0') * 100).toFixed(0)}% ratio` },
+                    ] as Array<{ key: keyof CustomerScoreSubscores; label: string; hint: string }>
+                  ).map(({ key, label, hint }) => {
+                    const val = scoreQ.data!.subscores[key];
+                    const color = val >= 70 ? 'bg-emerald-500' : val >= 40 ? 'bg-blue-500' : 'bg-red-400';
+                    return (
+                      <div key={key}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div>
+                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{label}</span>
+                            {hint && <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">{hint}</span>}
+                          </div>
+                          <span className="text-xs font-bold text-gray-900 dark:text-white">{val}/100</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                          <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${val}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Explain items */}
+                {scoreQ.data.explain && scoreQ.data.explain.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Principaux facteurs</p>
+                    <div className="space-y-1.5">
+                      {scoreQ.data.explain.map((item, i) => {
+                        const impact = parseFloat(item.impact);
+                        const isPositive = impact >= 0;
+                        return (
+                          <div key={i} className="flex items-center justify-between gap-2">
+                            <span className="text-xs text-gray-600 dark:text-gray-300 truncate">{item.feature}</span>
+                            <span className={`text-xs font-semibold flex-shrink-0 ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
+                              {isPositive ? '+' : ''}{impact.toFixed(1)} pts
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

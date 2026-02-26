@@ -1,8 +1,28 @@
 ﻿/** Login page with email + password form. */
+import axios from 'axios';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/auth/auth-store';
+
+function extractLoginErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    const data = error.response?.data;
+
+    if (status === 429) {
+      if (typeof data?.detail === 'string' && data.detail.trim()) {
+        return `Trop de tentatives. ${data.detail}`;
+      }
+      return 'Trop de tentatives de connexion. Reessaie dans 1 minute.';
+    }
+
+    if (typeof data?.detail === 'string' && data.detail.trim()) {
+      return data.detail;
+    }
+  }
+  return 'Email ou mot de passe incorrect.';
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -23,9 +43,10 @@ export default function LoginPage() {
     try {
       await login(email, password);
       navigate('/dashboard', { replace: true });
-    } catch {
-      toast.error('Email ou mot de passe incorrect');
-      setError('Email ou mot de passe incorrect.');
+    } catch (err) {
+      const message = extractLoginErrorMessage(err);
+      toast.error(message);
+      setError(message);
     }
   }
 

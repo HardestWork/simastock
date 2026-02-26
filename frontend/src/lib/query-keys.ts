@@ -209,5 +209,8 @@ export const queryKeys = {
     customerNextOrder: (customerId: string, params: unknown) =>
       ['analytics', 'customers', customerId, 'next-order', params] as const,
     customerChurnRisk: (params: unknown) => ['analytics', 'customers', 'churn-risk', params] as const,
+    customerTopMonthly: (params: unknown) => ['analytics', 'customers', 'top', params] as const,
+    customerDormant: (params: unknown) => ['analytics', 'customers', 'dormant', params] as const,
+    customerInsights: (params: unknown) => ['analytics', 'customers', 'insights', params] as const,
   },
 } as const;

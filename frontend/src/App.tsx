@@ -12,66 +12,90 @@ import ThemeProvider from '@/components/shared/ThemeProvider';
 import LoginPage from '@/features/auth/LoginPage';
 import DashboardPage from '@/features/dashboard/DashboardPage';
 
+// Retry wrapper for lazy imports: on stale-chunk failure, bust the cache
+// with a query-string and retry once before giving up.
+function lazyRetry<T extends { default: React.ComponentType<unknown> }>(
+  factory: () => Promise<T>,
+): React.LazyExoticComponent<T['default']> {
+  return lazy(() =>
+    factory().catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : '';
+      if (
+        msg.includes('Failed to fetch dynamically imported module') ||
+        msg.includes('Loading chunk') ||
+        msg.includes('Loading CSS chunk')
+      ) {
+        // Force a full reload so the browser fetches the new index.html.
+        window.location.reload();
+        // Return a never-resolving promise to avoid a flash of error UI.
+        return new Promise<T>(() => {});
+      }
+      throw err;
+    }),
+  );
+}
+
 // Lazy-loaded feature pages
-const ForgotPasswordPage = lazy(() => import('@/features/auth/ForgotPasswordPage'));
-const ResetPasswordPage = lazy(() => import('@/features/auth/ResetPasswordPage'));
-const SaleListPage = lazy(() => import('@/features/pos/SaleListPage'));
-const PosPage = lazy(() => import('@/features/pos/PosPage'));
-const CashierDashboard = lazy(() => import('@/features/cashier/CashierDashboard'));
-const ProcessPaymentPage = lazy(() => import('@/features/cashier/ProcessPaymentPage'));
-const ProductListPage = lazy(() => import('@/features/catalog/ProductListPage'));
-const StockLevelsPage = lazy(() => import('@/features/stock/StockLevelsPage'));
-const MovementListPage = lazy(() => import('@/features/stock/MovementListPage'));
-const MovementDocumentPage = lazy(() => import('@/features/stock/MovementDocumentPage'));
-const StockEntryPage = lazy(() => import('@/features/stock/StockEntryPage'));
-const StockAdjustPage = lazy(() => import('@/features/stock/StockAdjustPage'));
-const TransferListPage = lazy(() => import('@/features/stock/TransferListPage'));
-const TransferCreatePage = lazy(() => import('@/features/stock/TransferCreatePage'));
-const TransferDetailPage = lazy(() => import('@/features/stock/TransferDetailPage'));
-const CountListPage = lazy(() => import('@/features/stock/CountListPage'));
-const CountCreatePage = lazy(() => import('@/features/stock/CountCreatePage'));
-const CountDetailPage = lazy(() => import('@/features/stock/CountDetailPage'));
-const ProductFormPage = lazy(() => import('@/features/catalog/ProductFormPage'));
-const ProductDetailPage = lazy(() => import('@/features/catalog/ProductDetailPage'));
-const CategoryListPage = lazy(() => import('@/features/catalog/CategoryListPage'));
-const BrandListPage = lazy(() => import('@/features/catalog/BrandListPage'));
-const CustomerListPage = lazy(() => import('@/features/customers/CustomerListPage'));
-const CustomerFormPage = lazy(() => import('@/features/customers/CustomerFormPage'));
-const CustomerDetailPage = lazy(() => import('@/features/customers/CustomerDetailPage'));
-const CreditListPage = lazy(() => import('@/features/credits/CreditListPage'));
-const CreditDetailPage = lazy(() => import('@/features/credits/CreditDetailPage'));
-const PaymentReceiptPage = lazy(() => import('@/features/cashier/PaymentReceiptPage'));
-const SupplierListPage = lazy(() => import('@/features/purchases/SupplierListPage'));
-const PurchaseListPage = lazy(() => import('@/features/purchases/PurchaseListPage'));
-const PurchaseFormPage = lazy(() => import('@/features/purchases/PurchaseFormPage'));
-const PurchaseDetailPage = lazy(() => import('@/features/purchases/PurchaseDetailPage'));
-const GoodsReceiptCreatePage = lazy(() => import('@/features/purchases/GoodsReceiptCreatePage'));
-const ReportsPage = lazy(() => import('@/features/reports/ReportsPage'));
-const AlertListPage = lazy(() => import('@/features/alerts/AlertListPage'));
-const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'));
-const ProfilePage = lazy(() => import('@/features/settings/ProfilePage'));
-const UserListPage = lazy(() => import('@/features/settings/UserListPage'));
-const UserFormPage = lazy(() => import('@/features/settings/UserFormPage'));
-const RoleListPage = lazy(() => import('@/features/settings/RoleListPage'));
-const QuoteListPage = lazy(() => import('@/features/quotes/QuoteListPage'));
-const QuoteFormPage = lazy(() => import('@/features/quotes/QuoteFormPage'));
-const QuoteDetailPage = lazy(() => import('@/features/quotes/QuoteDetailPage'));
-const AnalyticsPage = lazy(() => import('@/features/analytics/AnalyticsPage'));
-const StatisticsPage = lazy(() => import('@/features/statistics/StatisticsPage'));
-const EnterpriseSetupPage = lazy(() => import('@/features/settings/EnterpriseSetupPage'));
-const EnterpriseListPage = lazy(() => import('@/features/settings/EnterpriseListPage'));
-const EnterpriseSubscriptionPage = lazy(() => import('@/features/settings/EnterpriseSubscriptionPage'));
-const StoreUserCapabilitiesPage = lazy(() => import('@/features/settings/StoreUserCapabilitiesPage'));
-const ModuleEntitlementsPage = lazy(() => import('@/features/settings/ModuleEntitlementsPage'));
-const ExpenseListPage = lazy(() => import('@/features/expenses/ExpenseListPage'));
-const ExpenseDashboardPage = lazy(() => import('@/features/expenses/ExpenseDashboardPage'));
-const ExpenseSettingsPage = lazy(() => import('@/features/expenses/ExpenseSettingsPage'));
-const SellerObjectivePage = lazy(() => import('@/features/objectives/SellerObjectivePage'));
-const ObjectiveAdminPage = lazy(() => import('@/features/objectives/ObjectiveAdminPage'));
-const CashierAnalyticsPage = lazy(() => import('@/features/cashier/CashierAnalyticsPage'));
-const CashierTeamAnalyticsPage = lazy(() => import('@/features/cashier/CashierTeamAnalyticsPage'));
-const StockAnalyticsPage = lazy(() => import('@/features/stock/StockAnalyticsPage'));
-const DGDashboardPage = lazy(() => import('@/features/dg/DGDashboardPage'));
+const ForgotPasswordPage = lazyRetry(() => import('@/features/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazyRetry(() => import('@/features/auth/ResetPasswordPage'));
+const SaleListPage = lazyRetry(() => import('@/features/pos/SaleListPage'));
+const PosPage = lazyRetry(() => import('@/features/pos/PosPage'));
+const CashierDashboard = lazyRetry(() => import('@/features/cashier/CashierDashboard'));
+const ProcessPaymentPage = lazyRetry(() => import('@/features/cashier/ProcessPaymentPage'));
+const ProductListPage = lazyRetry(() => import('@/features/catalog/ProductListPage'));
+const StockLevelsPage = lazyRetry(() => import('@/features/stock/StockLevelsPage'));
+const MovementListPage = lazyRetry(() => import('@/features/stock/MovementListPage'));
+const MovementDocumentPage = lazyRetry(() => import('@/features/stock/MovementDocumentPage'));
+const StockEntryPage = lazyRetry(() => import('@/features/stock/StockEntryPage'));
+const StockAdjustPage = lazyRetry(() => import('@/features/stock/StockAdjustPage'));
+const TransferListPage = lazyRetry(() => import('@/features/stock/TransferListPage'));
+const TransferCreatePage = lazyRetry(() => import('@/features/stock/TransferCreatePage'));
+const TransferDetailPage = lazyRetry(() => import('@/features/stock/TransferDetailPage'));
+const CountListPage = lazyRetry(() => import('@/features/stock/CountListPage'));
+const CountCreatePage = lazyRetry(() => import('@/features/stock/CountCreatePage'));
+const CountDetailPage = lazyRetry(() => import('@/features/stock/CountDetailPage'));
+const ProductFormPage = lazyRetry(() => import('@/features/catalog/ProductFormPage'));
+const ProductDetailPage = lazyRetry(() => import('@/features/catalog/ProductDetailPage'));
+const CategoryListPage = lazyRetry(() => import('@/features/catalog/CategoryListPage'));
+const BrandListPage = lazyRetry(() => import('@/features/catalog/BrandListPage'));
+const CustomerListPage = lazyRetry(() => import('@/features/customers/CustomerListPage'));
+const CustomerFormPage = lazyRetry(() => import('@/features/customers/CustomerFormPage'));
+const CustomerDetailPage = lazyRetry(() => import('@/features/customers/CustomerDetailPage'));
+const CreditListPage = lazyRetry(() => import('@/features/credits/CreditListPage'));
+const CreditDetailPage = lazyRetry(() => import('@/features/credits/CreditDetailPage'));
+const PaymentReceiptPage = lazyRetry(() => import('@/features/cashier/PaymentReceiptPage'));
+const SupplierListPage = lazyRetry(() => import('@/features/purchases/SupplierListPage'));
+const PurchaseListPage = lazyRetry(() => import('@/features/purchases/PurchaseListPage'));
+const PurchaseFormPage = lazyRetry(() => import('@/features/purchases/PurchaseFormPage'));
+const PurchaseDetailPage = lazyRetry(() => import('@/features/purchases/PurchaseDetailPage'));
+const GoodsReceiptCreatePage = lazyRetry(() => import('@/features/purchases/GoodsReceiptCreatePage'));
+const ReportsPage = lazyRetry(() => import('@/features/reports/ReportsPage'));
+const AlertListPage = lazyRetry(() => import('@/features/alerts/AlertListPage'));
+const SettingsPage = lazyRetry(() => import('@/features/settings/SettingsPage'));
+const ProfilePage = lazyRetry(() => import('@/features/settings/ProfilePage'));
+const UserListPage = lazyRetry(() => import('@/features/settings/UserListPage'));
+const UserFormPage = lazyRetry(() => import('@/features/settings/UserFormPage'));
+const RoleListPage = lazyRetry(() => import('@/features/settings/RoleListPage'));
+const QuoteListPage = lazyRetry(() => import('@/features/quotes/QuoteListPage'));
+const QuoteFormPage = lazyRetry(() => import('@/features/quotes/QuoteFormPage'));
+const QuoteDetailPage = lazyRetry(() => import('@/features/quotes/QuoteDetailPage'));
+const AnalyticsPage = lazyRetry(() => import('@/features/analytics/AnalyticsPage'));
+const StatisticsPage = lazyRetry(() => import('@/features/statistics/StatisticsPage'));
+const EnterpriseSetupPage = lazyRetry(() => import('@/features/settings/EnterpriseSetupPage'));
+const EnterpriseListPage = lazyRetry(() => import('@/features/settings/EnterpriseListPage'));
+const EnterpriseSubscriptionPage = lazyRetry(() => import('@/features/settings/EnterpriseSubscriptionPage'));
+const StoreUserCapabilitiesPage = lazyRetry(() => import('@/features/settings/StoreUserCapabilitiesPage'));
+const ModuleEntitlementsPage = lazyRetry(() => import('@/features/settings/ModuleEntitlementsPage'));
+const ExpenseListPage = lazyRetry(() => import('@/features/expenses/ExpenseListPage'));
+const ExpenseDashboardPage = lazyRetry(() => import('@/features/expenses/ExpenseDashboardPage'));
+const ExpenseSettingsPage = lazyRetry(() => import('@/features/expenses/ExpenseSettingsPage'));
+const SellerObjectivePage = lazyRetry(() => import('@/features/objectives/SellerObjectivePage'));
+const ObjectiveAdminPage = lazyRetry(() => import('@/features/objectives/ObjectiveAdminPage'));
+const CashierAnalyticsPage = lazyRetry(() => import('@/features/cashier/CashierAnalyticsPage'));
+const CashierTeamAnalyticsPage = lazyRetry(() => import('@/features/cashier/CashierTeamAnalyticsPage'));
+const StockAnalyticsPage = lazyRetry(() => import('@/features/stock/StockAnalyticsPage'));
+const DGDashboardPage = lazyRetry(() => import('@/features/dg/DGDashboardPage'));
+const CustomerIntelligencePage = lazyRetry(() => import('@/features/customers/CustomerIntelligencePage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -209,6 +233,9 @@ export default function App() {
                   <Route path="/customers/new" element={<Suspense fallback={<PageLoader />}><CustomerFormPage /></Suspense>} />
                   <Route path="/customers/:id" element={<Suspense fallback={<PageLoader />}><CustomerDetailPage /></Suspense>} />
                   <Route path="/customers/:id/edit" element={<Suspense fallback={<PageLoader />}><CustomerFormPage /></Suspense>} />
+                </Route>
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['CLIENT_INTEL']} />}>
+                  <Route path="/customers/intelligence" element={<Suspense fallback={<PageLoader />}><CustomerIntelligencePage /></Suspense>} />
                 </Route>
 
                 {/* Credits */}

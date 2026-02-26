@@ -2,7 +2,7 @@
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
-from django.db.models import Avg, Sum, F, DecimalField, ExpressionWrapper, IntegerField
+from django.db.models import Avg, Count, Sum, F, DecimalField, ExpressionWrapper, IntegerField
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from rest_framework import status

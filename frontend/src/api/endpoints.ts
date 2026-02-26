@@ -87,6 +87,9 @@ import type {
   CustomerRecommendationsResponse,
   CustomerNextOrderResponse,
   CustomerChurnRiskListResponse,
+  CustomerTopClientsResponse,
+  CustomerDormantResponse,
+  CustomerInsightsResponse,
   ModuleMatrixResponse,
 } from './types';
 import type { Capability } from './types';
@@ -370,6 +373,15 @@ export const analyticsApi = {
       limit?: string;
     },
   ) => apiClient.get<CustomerChurnRiskListResponse>('analytics/customers/churn-risk/', { params }).then((r) => r.data),
+
+  customerTopMonthly: (params: { store: string; period?: string; limit?: string; refresh?: '0' | '1' }) =>
+    apiClient.get<CustomerTopClientsResponse>('analytics/customers/top/', { params }).then((r) => r.data),
+
+  customerDormant: (params: { store: string; as_of?: string; days?: string; limit?: string }) =>
+    apiClient.get<CustomerDormantResponse>('analytics/customers/dormant/', { params }).then((r) => r.data),
+
+  customerInsights: (params: { store: string; period?: string; limit?: string; as_of?: string }) =>
+    apiClient.get<CustomerInsightsResponse>('analytics/customers/insights/', { params }).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------

@@ -364,6 +364,31 @@ def test_customer_top_clients_api_returns_ranked_rows(client, store, manager_use
 
 
 @pytest.mark.django_db
+def test_customer_insights_api_returns_dashboard_payload(client, store, manager_user):
+    StoreUser.objects.get_or_create(store=store, user=manager_user, defaults={"is_default": True})
+
+    client.force_login(manager_user)
+    session = client.session
+    session["store_id"] = str(store.id)
+    session.save()
+
+    response = client.get(
+        reverse("api:analytics-customers-insights"),
+        {
+            "store": str(store.id),
+            "limit": 10,
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["store_id"] == str(store.id)
+    assert isinstance(payload["top_clients"], list)
+    assert isinstance(payload["dormant_preview"], list)
+    assert isinstance(payload["segment_distribution"], dict)
+    assert isinstance(payload["open_alerts"], dict)
+
+
+@pytest.mark.django_db
 def test_customer_score_api_computes_snapshot(client, store, manager_user, cashier_user, customer, product):
     StoreUser.objects.get_or_create(store=store, user=manager_user, defaults={"is_default": True})
     StoreUser.objects.get_or_create(store=store, user=cashier_user, defaults={"is_default": False})
