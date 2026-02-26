@@ -541,10 +541,47 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
             ExpenseSequence, ExpenseCategory,
         )
         from catalog.models import ProductImage, ProductSpec
+        from purchases.models import GoodsReceiptLine, PurchaseOrderLine
 
         User = get_user_model()
         sq = Q(store_id__in=store_ids)
         eq = Q(enterprise=enterprise)
+
+        # 0. Commercial
+        from commercial.models import (
+            CommercialAISignal, CommercialHealthSnapshot,
+            CommercialIncentiveResult, CommercialIncentiveRun,
+            CommercialIncentiveTier, CommercialIncentivePolicy,
+            CommercialObjectiveMonthly,
+            CommercialImportErrorRow, CommercialImportJob,
+            CommercialFollowUpTask, CommercialActivityAttachment,
+            CommercialActivity, CommercialOpportunityStageHistory,
+            CommercialOpportunity, CommercialProspect,
+            CommercialTeamMembership,
+            CommercialRegion, CommercialSector, CommercialTag,
+            CommercialLeadSource,
+        )
+        # Delete in reverse-dependency order
+        CommercialAISignal.objects.filter(sq).delete()
+        CommercialHealthSnapshot.objects.filter(sq).delete()
+        CommercialIncentiveResult.objects.filter(run__store_id__in=store_ids).delete()
+        CommercialIncentiveRun.objects.filter(sq).delete()
+        CommercialFollowUpTask.objects.filter(sq).delete()
+        CommercialActivityAttachment.objects.filter(activity__store_id__in=store_ids).delete()
+        CommercialActivity.objects.filter(sq).delete()
+        CommercialOpportunityStageHistory.objects.filter(opportunity__store_id__in=store_ids).delete()
+        CommercialOpportunity.objects.filter(sq).delete()
+        CommercialProspect.objects.filter(sq).delete()
+        CommercialImportErrorRow.objects.filter(job__store_id__in=store_ids).delete()
+        CommercialImportJob.objects.filter(sq).delete()
+        CommercialObjectiveMonthly.objects.filter(sq).delete()
+        CommercialTeamMembership.objects.filter(sq).delete()
+        CommercialIncentiveTier.objects.filter(policy__store_id__in=store_ids).delete()
+        CommercialIncentivePolicy.objects.filter(sq).delete()
+        if mode == 'full':
+            for M in (CommercialRegion, CommercialSector,
+                       CommercialTag, CommercialLeadSource):
+                M.objects.filter(eq).delete()
 
         # 1. Analytics
         for M in (
@@ -602,9 +639,8 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
         Quote.objects.filter(sq).delete()
 
         # 9. Purchases
-        from purchases.models import GoodsReceiptLine, PurchaseOrderLine
         GoodsReceiptLine.objects.filter(
-            goods_receipt__store_id__in=store_ids
+            receipt__store_id__in=store_ids
         ).delete()
         GoodsReceipt.objects.filter(sq).delete()
         PurchaseOrderLine.objects.filter(
