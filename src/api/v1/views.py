@@ -2511,7 +2511,7 @@ class SaleViewSet(viewsets.ModelViewSet):
     queryset = Sale.objects.select_related(
         'store', 'seller', 'customer', 'source_quote',
     ).prefetch_related('items', 'items__product')
-    filterset_fields = ['store', 'status', 'seller', 'is_credit_sale']
+    filterset_fields = ['store', 'status', 'seller', 'customer', 'is_credit_sale']
     search_fields = [
         'invoice_number',
         'customer__first_name',

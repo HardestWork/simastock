@@ -3,6 +3,7 @@ from decimal import Decimal
 
 import pytest
 
+from customers.models import Customer
 from sales.models import Sale
 
 
@@ -73,3 +74,52 @@ def test_sales_list_multi_status_ignores_invalid_values(admin_client, store, adm
     assert response.status_code == 200
     assert response.data["count"] == 0
     assert response.data["results"] == []
+
+
+@pytest.mark.django_db
+def test_sales_list_filters_by_customer(admin_client, store, admin_user, enterprise):
+    target_customer = Customer.objects.create(
+        enterprise=enterprise,
+        first_name="Alice",
+        last_name="Target",
+        phone="+237611111111",
+    )
+    other_customer = Customer.objects.create(
+        enterprise=enterprise,
+        first_name="Bob",
+        last_name="Other",
+        phone="+237622222222",
+    )
+
+    target_sale = Sale.objects.create(
+        store=store,
+        seller=admin_user,
+        customer=target_customer,
+        invoice_number="FAC-CUST-001",
+        status=Sale.Status.PAID,
+        total=Decimal("11000.00"),
+        amount_paid=Decimal("11000.00"),
+        amount_due=Decimal("0.00"),
+    )
+    Sale.objects.create(
+        store=store,
+        seller=admin_user,
+        customer=other_customer,
+        invoice_number="FAC-CUST-002",
+        status=Sale.Status.PAID,
+        total=Decimal("22000.00"),
+        amount_paid=Decimal("22000.00"),
+        amount_due=Decimal("0.00"),
+    )
+
+    response = admin_client.get(
+        "/api/v1/sales/",
+        {
+            "store": str(store.pk),
+            "customer": str(target_customer.pk),
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.data["count"] == 1
+    assert [row["id"] for row in response.data["results"]] == [str(target_sale.pk)]
