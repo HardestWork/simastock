@@ -11,6 +11,10 @@ FEATURE_FLAG_TO_MODULE_CODE = {
     "purchases_management": "PURCHASE",
     "credit_management": "CUSTOMER",
     "expenses_management": "EXPENSE",
+    "commercial_pipeline": "COMMERCIAL",
+    "commercial_ai": "COMMERCIAL",
+    "commercial_incentives": "COMMERCIAL",
+    "commercial_exports": "COMMERCIAL",
     "alerts_center": "ALERTS",
     "reports_center": "ANALYTICS_MANAGER",
     "dashboard_strategic": "ANALYTICS_DG",
@@ -273,6 +277,10 @@ class ModuleExpenseEnabled(RequireStoreModuleEnabled):
     module_code = "EXPENSE"
 
 
+class ModuleCommercialEnabled(RequireStoreModuleEnabled):
+    module_code = "COMMERCIAL"
+
+
 class ModuleSellerPerformanceEnabled(RequireStoreModuleEnabled):
     module_code = "SELLER_PERF"
 
@@ -429,6 +437,22 @@ class FeatureCreditManagementEnabled(RequireStoreFeatureFlag):
 
 class FeatureExpensesManagementEnabled(RequireStoreFeatureFlag):
     feature_key = "expenses_management"
+
+
+class FeatureCommercialPipelineEnabled(RequireStoreFeatureFlag):
+    feature_key = "commercial_pipeline"
+
+
+class FeatureCommercialAIEnabled(RequireStoreFeatureFlag):
+    feature_key = "commercial_ai"
+
+
+class FeatureCommercialIncentivesEnabled(RequireStoreFeatureFlag):
+    feature_key = "commercial_incentives"
+
+
+class FeatureCommercialExportsEnabled(RequireStoreFeatureFlag):
+    feature_key = "commercial_exports"
 
 
 class FeatureAlertsCenterEnabled(RequireStoreFeatureFlag):
@@ -648,4 +672,40 @@ class CanManageExpenseWallets(_CapabilityPermission):
 class CanSetExpenseBudgets(_CapabilityPermission):
     """Allow manager/admin to manage budgets."""
     capability = "CAN_SET_BUDGETS"
+    allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanManageLeads(_CapabilityPermission):
+    """Allow sales/manager/admin to manage leads and prospects."""
+    capability = "CAN_MANAGE_LEADS"
+    allowed_roles = ("SALES", "MANAGER", "ADMIN")
+
+
+class CanManageOpportunities(_CapabilityPermission):
+    """Allow sales/manager/admin to manage opportunities."""
+    capability = "CAN_MANAGE_OPPORTUNITIES"
+    allowed_roles = ("SALES", "MANAGER", "ADMIN")
+
+
+class CanLogCommercialActivity(_CapabilityPermission):
+    """Allow sales/manager/admin to log activities and follow-up tasks."""
+    capability = "CAN_LOG_ACTIVITY"
+    allowed_roles = ("SALES", "MANAGER", "ADMIN")
+
+
+class CanViewCommercialTeam(_CapabilityPermission):
+    """Allow manager/admin to view team-wide commercial data."""
+    capability = "CAN_VIEW_COMMERCIAL_TEAM"
+    allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanApproveCommercialBonus(_CapabilityPermission):
+    """Allow manager/admin to approve commercial incentive runs."""
+    capability = "CAN_APPROVE_COMMERCIAL_BONUS"
+    allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanExportCommercial(_CapabilityPermission):
+    """Allow manager/admin to export commercial datasets."""
+    capability = "CAN_EXPORT_COMMERCIAL"
     allowed_roles = ("MANAGER", "ADMIN")

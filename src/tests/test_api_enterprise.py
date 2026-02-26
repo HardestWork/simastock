@@ -108,6 +108,30 @@ class TestEnterpriseDelete:
         assert User.objects.filter(pk=superuser.pk).exists()
 
 
+class TestEnterpriseReset:
+    """Tests for /api/v1/enterprises/{id}/reset/ endpoint."""
+
+    @pytest.mark.django_db
+    def test_reset_requires_superuser(self, admin_client, enterprise):
+        resp = admin_client.post(
+            f"/api/v1/enterprises/{enterprise.id}/reset/",
+            {"mode": "transactions"},
+            format="json",
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.django_db
+    def test_superuser_can_reset_transactions(self, super_client, enterprise):
+        resp = super_client.post(
+            f"/api/v1/enterprises/{enterprise.id}/reset/",
+            {"mode": "transactions"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert resp.data["mode"] == "transactions"
+        assert "Entreprise" in resp.data["detail"]
+
+
 class TestEnterpriseSubscriptionAPI:
     """Tests for /api/v1/enterprise-subscriptions/ endpoints."""
 

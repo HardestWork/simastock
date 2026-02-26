@@ -8,6 +8,7 @@ import {
   Package,
   Layers,
   Users,
+  Target,
   CreditCard,
   Wallet,
   Truck,
@@ -32,7 +33,6 @@ import {
   Shield,
   PlusCircle,
   PieChart,
-  Target,
   Sparkles,
 } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth-store';
@@ -96,6 +96,44 @@ const navItems: NavItem[] = [
     module: 'SELL',
     roles: ['SALES', 'MANAGER', 'ADMIN'],
     capability: 'CAN_SELL',
+  },
+  {
+    section: 'OPERATIONS',
+    path: '/commercial',
+    label: 'Commercial CRM',
+    icon: <Target size={20} />,
+    module: 'COMMERCIAL',
+    roles: ['SALES', 'MANAGER', 'ADMIN'],
+    children: [
+      {
+        path: '/commercial',
+        label: 'Pipeline',
+        icon: <Target size={15} />,
+        module: 'COMMERCIAL',
+        roles: ['SALES', 'MANAGER', 'ADMIN'],
+      },
+      {
+        path: '/commercial/prospects',
+        label: 'Prospects',
+        icon: <Users size={15} />,
+        module: 'COMMERCIAL',
+        roles: ['SALES', 'MANAGER', 'ADMIN'],
+      },
+      {
+        path: '/commercial/tasks',
+        label: 'Relances',
+        icon: <ClipboardList size={15} />,
+        module: 'COMMERCIAL',
+        roles: ['SALES', 'MANAGER', 'ADMIN'],
+      },
+      {
+        path: '/commercial/incentives',
+        label: 'Primes',
+        icon: <Wallet size={15} />,
+        module: 'COMMERCIAL',
+        roles: ['SALES', 'MANAGER', 'ADMIN'],
+      },
+    ],
   },
   {
     section: 'OPERATIONS',

@@ -20,6 +20,12 @@ CAPABILITY_CHOICES = [
     ("CAN_MANAGE_CATEGORIES", "Peut gerer les categories de depenses"),
     ("CAN_MANAGE_WALLETS", "Peut gerer les wallets"),
     ("CAN_SET_BUDGETS", "Peut configurer les budgets depenses"),
+    ("CAN_MANAGE_LEADS", "Peut gerer les prospects commerciaux"),
+    ("CAN_MANAGE_OPPORTUNITIES", "Peut gerer les opportunites commerciales"),
+    ("CAN_LOG_ACTIVITY", "Peut enregistrer les activites commerciales"),
+    ("CAN_VIEW_COMMERCIAL_TEAM", "Peut voir les donnees commerciales equipe"),
+    ("CAN_APPROVE_COMMERCIAL_BONUS", "Peut approuver les primes commerciales"),
+    ("CAN_EXPORT_COMMERCIAL", "Peut exporter les donnees commerciales"),
 ]
 
 ALL_CAPABILITIES = [code for code, _ in CAPABILITY_CHOICES]
@@ -28,7 +34,7 @@ ALL_CAPABILITIES = [code for code, _ in CAPABILITY_CHOICES]
 ROLE_CAPABILITY_MAP = {
     "ADMIN": list(ALL_CAPABILITIES),
     "MANAGER": list(ALL_CAPABILITIES),
-    "SALES": ["CAN_SELL"],
+    "SALES": ["CAN_SELL", "CAN_MANAGE_LEADS", "CAN_MANAGE_OPPORTUNITIES", "CAN_LOG_ACTIVITY"],
     "CASHIER": ["CAN_CASH", "CAN_CREATE_EXPENSE", "CAN_VIEW_EXPENSE_REPORTS"],
     "STOCKER": ["CAN_STOCK"],
 }
@@ -36,6 +42,10 @@ ROLE_CAPABILITY_MAP = {
 # Quick-assign presets for the management UI
 CAPABILITY_PRESETS = {
     "vendeur": {"label": "Vendeur", "capabilities": ["CAN_SELL"]},
+    "commercial": {
+        "label": "Commercial",
+        "capabilities": ["CAN_SELL", "CAN_MANAGE_LEADS", "CAN_MANAGE_OPPORTUNITIES", "CAN_LOG_ACTIVITY"],
+    },
     "caissier": {
         "label": "Caissier",
         "capabilities": ["CAN_CASH", "CAN_CREATE_EXPENSE", "CAN_VIEW_EXPENSE_REPORTS"],

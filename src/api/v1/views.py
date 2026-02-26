@@ -436,7 +436,7 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         # Tenant ADMIN can manage their own enterprise settings, but cannot
         # create/delete enterprises. Only Django superusers can do that.
-        if self.action in ('create', 'destroy', 'toggle_active', 'setup'):
+        if self.action in ('create', 'destroy', 'toggle_active', 'setup', 'reset'):
             return [IsSuperAdmin()]
         if self.action in ('update', 'partial_update'):
             # Superusers can update any enterprise; admins only their own.

@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 from api.v1 import views as v1_views
 from api.v1 import analytics_views as analytics_api_views
+from api.v1 import commercial_views as commercial_api_views
 from api.v1 import expense_views as expense_api_views
 from objectives import objective_views as objective_api_views
 from cashier import cashier_analytics_views as cashier_analytics_views
@@ -60,6 +61,18 @@ router.register(r'seller-objectives', objective_api_views.SellerObjectiveViewSet
 router.register(r'objective-penalty-types', objective_api_views.SellerPenaltyTypeViewSet, basename='objective-penalty-type')
 router.register(r'objective-penalties', objective_api_views.SellerPenaltyViewSet, basename='objective-penalty')
 router.register(r'objective-sprints', objective_api_views.SprintViewSet, basename='objective-sprint')
+router.register(r'commercial/regions', commercial_api_views.CommercialRegionViewSet, basename='commercial-region')
+router.register(r'commercial/sectors', commercial_api_views.CommercialSectorViewSet, basename='commercial-sector')
+router.register(r'commercial/tags', commercial_api_views.CommercialTagViewSet, basename='commercial-tag')
+router.register(r'commercial/lead-sources', commercial_api_views.CommercialLeadSourceViewSet, basename='commercial-lead-source')
+router.register(r'commercial/prospects', commercial_api_views.CommercialProspectViewSet, basename='commercial-prospect')
+router.register(r'commercial/opportunities', commercial_api_views.CommercialOpportunityViewSet, basename='commercial-opportunity')
+router.register(r'commercial/activities', commercial_api_views.CommercialActivityViewSet, basename='commercial-activity')
+router.register(r'commercial/tasks', commercial_api_views.CommercialFollowUpTaskViewSet, basename='commercial-task')
+router.register(r'commercial/objectives', commercial_api_views.CommercialObjectiveMonthlyViewSet, basename='commercial-objective')
+router.register(r'commercial/incentive-policies', commercial_api_views.CommercialIncentivePolicyViewSet, basename='commercial-incentive-policy')
+router.register(r'commercial/incentive-runs', commercial_api_views.CommercialIncentiveRunViewSet, basename='commercial-incentive-run')
+router.register(r'commercial/exports', commercial_api_views.CommercialExportsViewSet, basename='commercial-exports')
 
 
 app_name = 'api'

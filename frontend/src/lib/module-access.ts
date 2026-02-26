@@ -14,6 +14,7 @@ export const DEFAULT_MODULE_MATRIX: ModuleMatrix = {
   STOCK: true,
   PURCHASE: true,
   EXPENSE: true,
+  COMMERCIAL: true,
   SELLER_PERF: true,
   ANALYTICS_MANAGER: true,
   ANALYTICS_CASHIER: true,
@@ -33,6 +34,7 @@ export function deriveModuleMatrixFromFlags(flags?: FeatureFlags): ModuleMatrix 
     STOCK: Boolean(f.stock_management ?? true),
     PURCHASE: Boolean(f.purchases_management ?? true),
     EXPENSE: Boolean(f.expenses_management ?? true),
+    COMMERCIAL: Boolean((f.commercial_pipeline ?? true) && (f.sales_pos ?? true)),
     SELLER_PERF: Boolean((f.enabled ?? true) && (f.sales_pos ?? true)),
     ANALYTICS_MANAGER: Boolean((f.enabled ?? true) && (f.reports_center ?? true)),
     ANALYTICS_CASHIER: Boolean((f.enabled ?? true) && (f.cashier_operations ?? true)),
@@ -75,4 +77,3 @@ export function useModuleMatrix() {
     isError: query.isError,
   };
 }
-

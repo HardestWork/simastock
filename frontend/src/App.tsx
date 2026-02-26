@@ -96,6 +96,7 @@ const CashierTeamAnalyticsPage = lazyRetry(() => import('@/features/cashier/Cash
 const StockAnalyticsPage = lazyRetry(() => import('@/features/stock/StockAnalyticsPage'));
 const DGDashboardPage = lazyRetry(() => import('@/features/dg/DGDashboardPage'));
 const CustomerIntelligencePage = lazyRetry(() => import('@/features/customers/CustomerIntelligencePage'));
+const CommercialPage = lazyRetry(() => import('@/features/commercial/CommercialPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -161,6 +162,14 @@ export default function App() {
                   <Route path="/quotes/new" element={<Suspense fallback={<PageLoader />}><QuoteFormPage /></Suspense>} />
                   <Route path="/quotes/:id" element={<Suspense fallback={<PageLoader />}><QuoteDetailPage /></Suspense>} />
                   <Route path="/quotes/:id/edit" element={<Suspense fallback={<PageLoader />}><QuoteFormPage /></Suspense>} />
+                </Route>
+
+                {/* Commercial CRM */}
+                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN']} requiredModules={['COMMERCIAL']} />}>
+                  <Route path="/commercial" element={<Suspense fallback={<PageLoader />}><CommercialPage /></Suspense>} />
+                  <Route path="/commercial/prospects" element={<Suspense fallback={<PageLoader />}><CommercialPage /></Suspense>} />
+                  <Route path="/commercial/tasks" element={<Suspense fallback={<PageLoader />}><CommercialPage /></Suspense>} />
+                  <Route path="/commercial/incentives" element={<Suspense fallback={<PageLoader />}><CommercialPage /></Suspense>} />
                 </Route>
 
                 {/* Cashier */}

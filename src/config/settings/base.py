@@ -82,6 +82,7 @@ LOCAL_APPS = [
     "analytics",
     "expenses",
     "objectives",
+    "commercial",
     "api",
 ]
 
