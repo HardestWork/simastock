@@ -197,6 +197,36 @@ export interface EnterpriseSubscriptionPayload {
   metadata?: Record<string, unknown>;
 }
 
+export type EnterpriseResetMode = 'full' | 'transactions';
+export type EnterpriseResetTarget =
+  | 'commercial'
+  | 'analytics'
+  | 'objectives'
+  | 'reports'
+  | 'alerts'
+  | 'expenses'
+  | 'cashier'
+  | 'credits'
+  | 'sales'
+  | 'purchases'
+  | 'stock'
+  | 'audit_logs'
+  | 'sequences';
+export type EnterpriseResetStockStrategy = 'keep' | 'zero' | 'delete';
+
+export interface EnterpriseResetPayload {
+  mode: EnterpriseResetMode;
+  targets?: EnterpriseResetTarget[];
+  stock_strategy?: EnterpriseResetStockStrategy;
+}
+
+export interface EnterpriseResetResponse {
+  detail: string;
+  mode: EnterpriseResetMode;
+  targets: EnterpriseResetTarget[];
+  stock_strategy: EnterpriseResetStockStrategy;
+}
+
 export interface BillingModule {
   id: string;
   code: ModuleCode;

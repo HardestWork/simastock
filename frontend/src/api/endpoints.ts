@@ -16,6 +16,8 @@ import type {
   EnterpriseSubscriptionPayload,
   EnterpriseSetupPayload,
   EnterpriseSetupResponse,
+  EnterpriseResetPayload,
+  EnterpriseResetResponse,
   Store,
   StoreModuleEntitlement,
   StoreModuleMatrixResponse,
@@ -235,8 +237,8 @@ export const enterpriseApi = {
   delete: (id: string) =>
     apiClient.delete(`enterprises/${id}/`).then((r) => r.data),
 
-  reset: (id: string, mode: 'full' | 'transactions') =>
-    apiClient.post<{ detail: string; mode: string }>(`enterprises/${id}/reset/`, { mode }).then((r) => r.data),
+  reset: (id: string, data: EnterpriseResetPayload) =>
+    apiClient.post<EnterpriseResetResponse>(`enterprises/${id}/reset/`, data).then((r) => r.data),
 };
 
 export const enterpriseSubscriptionApi = {

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { enterpriseApi } from '@/api/endpoints';
-import type { Enterprise } from '@/api/types';
+import type { Enterprise, EnterpriseResetStockStrategy, EnterpriseResetTarget } from '@/api/types';
 import { Building2, Search, Plus, Save, Loader2, Power, Calendar, Store, X, Trash2, AlertCircle, RotateCcw } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { format } from 'date-fns';
@@ -33,6 +33,50 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'expired', label: 'Expires' },
   { value: 'scheduled', label: 'Planifies' },
   { value: 'inactive', label: 'Inactifs' },
+];
+
+const RESET_TARGET_OPTIONS: Array<{
+  value: EnterpriseResetTarget;
+  label: string;
+  description: string;
+}> = [
+  { value: 'sales', label: 'Ventes & devis', description: 'Factures, devis, ventes, remboursements.' },
+  { value: 'cashier', label: 'Encaissements', description: 'Paiements et sessions de caisse.' },
+  { value: 'credits', label: 'Credits clients', description: 'Comptes credits, echeanciers, ecritures.' },
+  { value: 'stock', label: 'Stock operationnel', description: 'Mouvements, transferts, inventaires, niveaux.' },
+  { value: 'purchases', label: 'Achats', description: 'Fournisseurs, commandes, receptions.' },
+  { value: 'expenses', label: 'Depenses', description: 'Depenses, wallets, budgets, recurrents.' },
+  { value: 'commercial', label: 'Commercial CRM', description: 'Pipeline commercial, activites, relances.' },
+  { value: 'analytics', label: 'Analytics', description: 'Scores, previsions, snapshots analytics.' },
+  { value: 'objectives', label: 'Objectifs', description: 'Regles, stats, leaderboard, sprints.' },
+  { value: 'reports', label: 'Rapports', description: 'Snapshots KPI et donnees de reporting.' },
+  { value: 'alerts', label: 'Alertes', description: 'Centre d alertes et signaux.' },
+  { value: 'audit_logs', label: 'Journal audit', description: 'Historique des actions utilisateurs.' },
+  { value: 'sequences', label: 'Sequences docs', description: 'Compteurs numerotation devis/factures.' },
+];
+
+const DEFAULT_RESET_TARGETS: EnterpriseResetTarget[] = RESET_TARGET_OPTIONS.map((option) => option.value);
+
+const STOCK_STRATEGY_OPTIONS: Array<{
+  value: EnterpriseResetStockStrategy;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'keep',
+    label: 'Conserver les valeurs (Recommande)',
+    description: 'Garde les niveaux de stock pour eviter de bloquer POS/devis.',
+  },
+  {
+    value: 'zero',
+    label: 'Remettre a zero',
+    description: 'Conserve les lignes de stock mais met quantite et reserve a 0.',
+  },
+  {
+    value: 'delete',
+    label: 'Supprimer les lignes',
+    description: 'Supprime les lignes de stock (stock non initialise ensuite).',
+  },
 ];
 
 const inputClass =
@@ -91,6 +135,8 @@ export default function EnterpriseListPage() {
   // Reset
   const [resetTarget, setResetTarget] = useState<Enterprise | null>(null);
   const [resetMode, setResetMode] = useState<'full' | 'transactions'>('transactions');
+  const [resetTargets, setResetTargets] = useState<EnterpriseResetTarget[]>(DEFAULT_RESET_TARGETS);
+  const [resetStockStrategy, setResetStockStrategy] = useState<EnterpriseResetStockStrategy>('keep');
   const [resetConfirmName, setResetConfirmName] = useState('');
 
   // Edit panel
@@ -162,14 +208,29 @@ export default function EnterpriseListPage() {
   });
 
   const resetMutation = useMutation({
-    mutationFn: ({ id, mode }: { id: string; mode: 'full' | 'transactions' }) =>
-      enterpriseApi.reset(id, mode),
+    mutationFn: ({
+      id,
+      mode,
+      targets,
+      stockStrategy,
+    }: {
+      id: string;
+      mode: 'full' | 'transactions';
+      targets: EnterpriseResetTarget[];
+      stockStrategy: EnterpriseResetStockStrategy;
+    }) =>
+      enterpriseApi.reset(id, {
+        mode,
+        ...(mode === 'transactions' ? { targets, stock_strategy: stockStrategy } : {}),
+      }),
     onSuccess: (data) => {
       toast.success(data.detail);
       queryClient.invalidateQueries({ queryKey: ['enterprises'] });
       setResetTarget(null);
       setResetConfirmName('');
       setResetMode('transactions');
+      setResetTargets(DEFAULT_RESET_TARGETS);
+      setResetStockStrategy('keep');
     },
     onError: (err: unknown) => {
       toast.error(extractError(err));
@@ -382,6 +443,8 @@ export default function EnterpriseListPage() {
                               e.stopPropagation();
                               setResetTarget(ent);
                               setResetMode('transactions');
+                              setResetTargets(DEFAULT_RESET_TARGETS);
+                              setResetStockStrategy('keep');
                               setResetConfirmName('');
                             }}
                             className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors"
@@ -638,8 +701,8 @@ export default function EnterpriseListPage() {
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Transactions uniquement</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Supprime les ventes, paiements, credits, depenses, stocks, objectifs et analytics.
-                    Garde les produits, categories, marques, clients et utilisateurs.
+                    Reinitialisation transactionnelle configurable (vous choisissez les blocs a supprimer).
+                    La structure (produits, clients, utilisateurs, boutiques) est conservee.
                   </div>
                 </div>
               </label>
@@ -662,6 +725,93 @@ export default function EnterpriseListPage() {
                 </div>
               </label>
             </div>
+
+            {resetMode === 'transactions' && (
+              <>
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Blocs a supprimer</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setResetTargets(DEFAULT_RESET_TARGETS)}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Tout cocher
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setResetTargets([])}
+                        className="text-xs text-gray-500 hover:underline"
+                      >
+                        Tout decocher
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-2 rounded-lg border border-gray-200 dark:border-gray-600 p-2">
+                    {RESET_TARGET_OPTIONS.map((option) => {
+                      const checked = resetTargets.includes(option.value);
+                      return (
+                        <label
+                          key={option.value}
+                          className="flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setResetTargets((prev) => Array.from(new Set([...prev, option.value])));
+                              } else {
+                                setResetTargets((prev) => prev.filter((value) => value !== option.value));
+                              }
+                            }}
+                            className="mt-0.5 accent-amber-600"
+                          />
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {option.label}
+                            </span>
+                            <span className="block text-xs text-gray-500 dark:text-gray-400">
+                              {option.description}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {resetTargets.includes('stock') && (
+                  <div className="mb-5 space-y-2">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Traitement des valeurs stock</p>
+                    {STOCK_STRATEGY_OPTIONS.map((option) => (
+                      <label
+                        key={option.value}
+                        className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                      >
+                        <input
+                          type="radio"
+                          name="stockStrategy"
+                          value={option.value}
+                          checked={resetStockStrategy === option.value}
+                          onChange={() => setResetStockStrategy(option.value)}
+                          className="mt-0.5 accent-amber-600"
+                        />
+                        <span>
+                          <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {option.label}
+                          </span>
+                          <span className="block text-xs text-gray-500 dark:text-gray-400">
+                            {option.description}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Confirm by typing name */}
             <div className="mb-5">
@@ -686,15 +836,33 @@ export default function EnterpriseListPage() {
 
             <div className="flex items-center justify-end gap-3">
               <button
-                onClick={() => { setResetTarget(null); setResetConfirmName(''); resetMutation.reset(); }}
+                onClick={() => {
+                  setResetTarget(null);
+                  setResetConfirmName('');
+                  setResetMode('transactions');
+                  setResetTargets(DEFAULT_RESET_TARGETS);
+                  setResetStockStrategy('keep');
+                  resetMutation.reset();
+                }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 disabled={resetMutation.isPending}
               >
                 Annuler
               </button>
               <button
-                onClick={() => resetMutation.mutate({ id: resetTarget.id, mode: resetMode })}
-                disabled={resetMutation.isPending || resetConfirmName !== resetTarget.name}
+                onClick={() =>
+                  resetMutation.mutate({
+                    id: resetTarget.id,
+                    mode: resetMode,
+                    targets: resetTargets,
+                    stockStrategy: resetStockStrategy,
+                  })
+                }
+                disabled={
+                  resetMutation.isPending
+                  || resetConfirmName !== resetTarget.name
+                  || (resetMode === 'transactions' && resetTargets.length === 0)
+                }
                 className={`px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-60 transition-colors ${
                   resetMode === 'full'
                     ? 'bg-red-600 hover:bg-red-700'
@@ -717,4 +885,3 @@ export default function EnterpriseListPage() {
     </div>
   );
 }
-

@@ -4,6 +4,8 @@ from datetime import date, timedelta
 import pytest
 from django.contrib.auth import get_user_model
 from stores.models import Enterprise, EnterpriseSubscription, StoreUser
+from catalog.models import Product
+from stock.models import ProductStock
 
 User = get_user_model()
 
@@ -130,6 +132,70 @@ class TestEnterpriseReset:
         assert resp.status_code == 200
         assert resp.data["mode"] == "transactions"
         assert "Entreprise" in resp.data["detail"]
+
+    @pytest.mark.django_db
+    def test_reset_transactions_keeps_stock_by_default(self, super_client, enterprise, store):
+        product = Product.objects.create(
+            enterprise=enterprise,
+            name="Routeur Test",
+            slug="routeur-test",
+            sku="SKU-ROUTER-001",
+            selling_price="15000.00",
+            cost_price="10000.00",
+            track_stock=True,
+        )
+        stock = ProductStock.objects.create(
+            store=store,
+            product=product,
+            quantity=12,
+            reserved_qty=2,
+            min_qty=1,
+        )
+
+        resp = super_client.post(
+            f"/api/v1/enterprises/{enterprise.id}/reset/",
+            {"mode": "transactions"},
+            format="json",
+        )
+
+        assert resp.status_code == 200
+        stock.refresh_from_db()
+        assert stock.quantity == 12
+        assert stock.reserved_qty == 2
+
+    @pytest.mark.django_db
+    def test_reset_transactions_can_zero_stock_values(self, super_client, enterprise, store):
+        product = Product.objects.create(
+            enterprise=enterprise,
+            name="Switch Test",
+            slug="switch-test",
+            sku="SKU-SWITCH-001",
+            selling_price="25000.00",
+            cost_price="17000.00",
+            track_stock=True,
+        )
+        stock = ProductStock.objects.create(
+            store=store,
+            product=product,
+            quantity=8,
+            reserved_qty=3,
+            min_qty=1,
+        )
+
+        resp = super_client.post(
+            f"/api/v1/enterprises/{enterprise.id}/reset/",
+            {
+                "mode": "transactions",
+                "targets": ["stock"],
+                "stock_strategy": "zero",
+            },
+            format="json",
+        )
+
+        assert resp.status_code == 200
+        stock.refresh_from_db()
+        assert stock.quantity == 0
+        assert stock.reserved_qty == 0
 
 
 class TestEnterpriseSubscriptionAPI:

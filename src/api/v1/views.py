@@ -427,6 +427,23 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
     - Authenticated users can list/retrieve (filtered to their enterprise).
     """
 
+    RESET_TARGET_CHOICES = (
+        "commercial",
+        "analytics",
+        "objectives",
+        "reports",
+        "alerts",
+        "expenses",
+        "cashier",
+        "credits",
+        "sales",
+        "purchases",
+        "stock",
+        "audit_logs",
+        "sequences",
+    )
+    RESET_STOCK_STRATEGIES = ("keep", "zero", "delete")
+
     serializer_class = EnterpriseSerializer
     queryset = Enterprise.objects.all()
     search_fields = ['name', 'code']
@@ -507,20 +524,81 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        targets = self._normalize_reset_targets(request.data.get("targets"), mode)
+        stock_strategy = self._normalize_stock_strategy(request.data.get("stock_strategy"), mode)
         store_ids = list(enterprise.stores.values_list('id', flat=True))
 
         with transaction.atomic():
-            self._reset_enterprise(enterprise, store_ids, mode)
+            self._reset_enterprise(enterprise, store_ids, mode, targets, stock_strategy)
 
         label = 'completement reinitialise' if mode == 'full' else 'transactions supprimees'
         return Response({
             'detail': f'Entreprise {enterprise.name} — {label}.',
             'mode': mode,
+            'targets': sorted(targets),
+            'stock_strategy': stock_strategy,
         })
+
+    @classmethod
+    def _normalize_reset_targets(cls, raw_targets, mode):
+        all_targets = set(cls.RESET_TARGET_CHOICES)
+        if mode == "full":
+            return all_targets
+
+        if raw_targets in (None, ""):
+            return all_targets
+
+        if not isinstance(raw_targets, list):
+            raise ValidationError(
+                {"targets": "Format invalide. Utilisez une liste de cibles."}
+            )
+
+        normalized = set()
+        invalid = []
+        for raw in raw_targets:
+            if not isinstance(raw, str):
+                invalid.append(str(raw))
+                continue
+            code = raw.strip().lower()
+            if code not in all_targets:
+                invalid.append(raw)
+                continue
+            normalized.add(code)
+
+        if invalid:
+            raise ValidationError(
+                {
+                    "targets": (
+                        "Cibles invalides: "
+                        f"{', '.join(invalid)}. "
+                        f"Cibles valides: {', '.join(cls.RESET_TARGET_CHOICES)}."
+                    )
+                }
+            )
+        if not normalized:
+            raise ValidationError({"targets": "Selectionnez au moins une cible."})
+        return normalized
+
+    @classmethod
+    def _normalize_stock_strategy(cls, raw_stock_strategy, mode):
+        if mode == "full":
+            return "delete"
+        if raw_stock_strategy in (None, ""):
+            return "keep"
+        if not isinstance(raw_stock_strategy, str):
+            raise ValidationError(
+                {"stock_strategy": "Valeur invalide. Utilisez keep, zero ou delete."}
+            )
+        code = raw_stock_strategy.strip().lower()
+        if code not in cls.RESET_STOCK_STRATEGIES:
+            raise ValidationError(
+                {"stock_strategy": "Valeur invalide. Utilisez keep, zero ou delete."}
+            )
+        return code
 
     # ------------------------------------------------------------------
     @staticmethod
-    def _reset_enterprise(enterprise, store_ids, mode):
+    def _reset_enterprise(enterprise, store_ids, mode, targets, stock_strategy):
         """Perform the actual reset inside a transaction."""
         from analytics.models import (
             ABCAnalysis, ReorderRecommendation, CustomerCreditScore,
@@ -546,116 +624,139 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
         User = get_user_model()
         sq = Q(store_id__in=store_ids)
         eq = Q(enterprise=enterprise)
+        selected_targets = set(targets or [])
 
-        # 0. Commercial
-        from commercial.models import (
-            CommercialAISignal, CommercialHealthSnapshot,
-            CommercialIncentiveResult, CommercialIncentiveRun,
-            CommercialIncentiveTier, CommercialIncentivePolicy,
-            CommercialObjectiveMonthly,
-            CommercialImportErrorRow, CommercialImportJob,
-            CommercialFollowUpTask, CommercialActivityAttachment,
-            CommercialActivity, CommercialOpportunityStageHistory,
-            CommercialOpportunity, CommercialProspect,
-            CommercialTeamMembership,
-            CommercialRegion, CommercialSector, CommercialTag,
-            CommercialLeadSource,
-        )
-        # Delete in reverse-dependency order
-        CommercialAISignal.objects.filter(sq).delete()
-        CommercialHealthSnapshot.objects.filter(sq).delete()
-        CommercialIncentiveResult.objects.filter(run__store_id__in=store_ids).delete()
-        CommercialIncentiveRun.objects.filter(sq).delete()
-        CommercialFollowUpTask.objects.filter(sq).delete()
-        CommercialActivityAttachment.objects.filter(activity__store_id__in=store_ids).delete()
-        CommercialActivity.objects.filter(sq).delete()
-        CommercialOpportunityStageHistory.objects.filter(opportunity__store_id__in=store_ids).delete()
-        CommercialOpportunity.objects.filter(sq).delete()
-        CommercialProspect.objects.filter(sq).delete()
-        CommercialImportErrorRow.objects.filter(job__store_id__in=store_ids).delete()
-        CommercialImportJob.objects.filter(sq).delete()
-        CommercialObjectiveMonthly.objects.filter(sq).delete()
-        CommercialTeamMembership.objects.filter(sq).delete()
-        CommercialIncentiveTier.objects.filter(policy__store_id__in=store_ids).delete()
-        CommercialIncentivePolicy.objects.filter(sq).delete()
-        if mode == 'full':
-            for M in (CommercialRegion, CommercialSector,
-                       CommercialTag, CommercialLeadSource):
-                M.objects.filter(eq).delete()
+        def should_reset(target_code: str) -> bool:
+            return mode == "full" or target_code in selected_targets
 
-        # 1. Analytics
-        for M in (
-            CustomerRecommendationCache, CustomerIntelligenceAlert,
-            CustomerTopMonthly, CustomerSegmentSnapshot,
-            CustomerScoreSnapshot, CustomerMetricMonthly,
-            CustomerMetricDaily, CustomerAnalyticsRuleSet,
-            FraudEvent, SalesForecast, CustomerCreditScore,
-            ReorderRecommendation, ABCAnalysis,
-        ):
-            M.objects.filter(sq).delete()
+        if should_reset("commercial"):
+            # 0. Commercial
+            from commercial.models import (
+                CommercialAISignal, CommercialHealthSnapshot,
+                CommercialIncentiveResult, CommercialIncentiveRun,
+                CommercialIncentiveTier, CommercialIncentivePolicy,
+                CommercialObjectiveMonthly,
+                CommercialImportErrorRow, CommercialImportJob,
+                CommercialFollowUpTask, CommercialActivityAttachment,
+                CommercialActivity, CommercialOpportunityStageHistory,
+                CommercialOpportunity, CommercialProspect,
+                CommercialTeamMembership,
+                CommercialRegion, CommercialSector, CommercialTag,
+                CommercialLeadSource,
+            )
+            # Delete in reverse-dependency order
+            CommercialAISignal.objects.filter(sq).delete()
+            CommercialHealthSnapshot.objects.filter(sq).delete()
+            CommercialIncentiveResult.objects.filter(run__store_id__in=store_ids).delete()
+            CommercialIncentiveRun.objects.filter(sq).delete()
+            CommercialFollowUpTask.objects.filter(sq).delete()
+            CommercialActivityAttachment.objects.filter(activity__store_id__in=store_ids).delete()
+            CommercialActivity.objects.filter(sq).delete()
+            CommercialOpportunityStageHistory.objects.filter(opportunity__store_id__in=store_ids).delete()
+            CommercialOpportunity.objects.filter(sq).delete()
+            CommercialProspect.objects.filter(sq).delete()
+            CommercialImportErrorRow.objects.filter(job__store_id__in=store_ids).delete()
+            CommercialImportJob.objects.filter(sq).delete()
+            CommercialObjectiveMonthly.objects.filter(sq).delete()
+            CommercialTeamMembership.objects.filter(sq).delete()
+            CommercialIncentiveTier.objects.filter(policy__store_id__in=store_ids).delete()
+            CommercialIncentivePolicy.objects.filter(sq).delete()
+            if mode == 'full':
+                for M in (CommercialRegion, CommercialSector,
+                           CommercialTag, CommercialLeadSource):
+                    M.objects.filter(eq).delete()
 
-        # 2. Objectives
-        SellerSprintResult.objects.filter(sprint__store_id__in=store_ids).delete()
-        SellerSprint.objects.filter(sq).delete()
-        SellerBadge.objects.filter(sq).delete()
-        SellerPenalty.objects.filter(stats__store_id__in=store_ids).delete()
-        SellerBonusHistory.objects.filter(stats__store_id__in=store_ids).delete()
-        SellerMonthlyStats.objects.filter(sq).delete()
-        SellerObjective.objects.filter(sq).delete()
-        LeaderboardSnapshot.objects.filter(sq).delete()
-        LeaderboardSettings.objects.filter(store_id__in=store_ids).delete()
-        SellerPenaltyType.objects.filter(sq).delete()
-        ObjectiveTier.objects.filter(rule__store_id__in=store_ids).delete()
-        ObjectiveRule.objects.filter(sq).delete()
+        if should_reset("analytics"):
+            # 1. Analytics
+            for M in (
+                CustomerRecommendationCache, CustomerIntelligenceAlert,
+                CustomerTopMonthly, CustomerSegmentSnapshot,
+                CustomerScoreSnapshot, CustomerMetricMonthly,
+                CustomerMetricDaily, CustomerAnalyticsRuleSet,
+                FraudEvent, SalesForecast, CustomerCreditScore,
+                ReorderRecommendation, ABCAnalysis,
+            ):
+                M.objects.filter(sq).delete()
 
-        # 3. Reports
-        KPISnapshot.objects.filter(sq).delete()
+        if should_reset("objectives"):
+            # 2. Objectives
+            SellerSprintResult.objects.filter(sprint__store_id__in=store_ids).delete()
+            SellerSprint.objects.filter(sq).delete()
+            SellerBadge.objects.filter(sq).delete()
+            SellerPenalty.objects.filter(stats__store_id__in=store_ids).delete()
+            SellerBonusHistory.objects.filter(stats__store_id__in=store_ids).delete()
+            SellerMonthlyStats.objects.filter(sq).delete()
+            SellerObjective.objects.filter(sq).delete()
+            LeaderboardSnapshot.objects.filter(sq).delete()
+            LeaderboardSettings.objects.filter(store_id__in=store_ids).delete()
+            SellerPenaltyType.objects.filter(sq).delete()
+            ObjectiveTier.objects.filter(rule__store_id__in=store_ids).delete()
+            ObjectiveRule.objects.filter(sq).delete()
 
-        # 4. Alerts
-        Alert.objects.filter(sq).delete()
+        if should_reset("reports"):
+            # 3. Reports
+            KPISnapshot.objects.filter(sq).delete()
 
-        # 5. Expenses
-        Expense.objects.filter(sq).delete()
-        RecurringExpense.objects.filter(sq).delete()
-        Budget.objects.filter(sq).delete()
-        Wallet.objects.filter(sq).delete()
-        ExpenseSequence.objects.filter(sq).delete()
-        ExpenseCategory.objects.filter(sq).delete()  # store-scoped categories
+        if should_reset("alerts"):
+            # 4. Alerts
+            Alert.objects.filter(sq).delete()
 
-        # 6. Cashier
-        Payment.objects.filter(sq).delete()
-        CashShift.objects.filter(sq).delete()
+        if should_reset("expenses"):
+            # 5. Expenses
+            Expense.objects.filter(sq).delete()
+            RecurringExpense.objects.filter(sq).delete()
+            Budget.objects.filter(sq).delete()
+            Wallet.objects.filter(sq).delete()
+            ExpenseSequence.objects.filter(sq).delete()
+            ExpenseCategory.objects.filter(sq).delete()  # store-scoped categories
 
-        # 7. Credits
-        CreditLedgerEntry.objects.filter(account__store_id__in=store_ids).delete()
-        PaymentSchedule.objects.filter(account__store_id__in=store_ids).delete()
-        CustomerAccount.objects.filter(sq).delete()
+        if should_reset("cashier"):
+            # 6. Cashier
+            Payment.objects.filter(sq).delete()
+            CashShift.objects.filter(sq).delete()
 
-        # 8. Sales
-        Refund.objects.filter(sq).delete()
-        SaleItem.objects.filter(sale__store_id__in=store_ids).delete()
-        Sale.objects.filter(sq).delete()
-        QuoteItem.objects.filter(quote__store_id__in=store_ids).delete()
-        Quote.objects.filter(sq).delete()
+        if should_reset("credits"):
+            # 7. Credits
+            CreditLedgerEntry.objects.filter(account__store_id__in=store_ids).delete()
+            PaymentSchedule.objects.filter(account__store_id__in=store_ids).delete()
+            CustomerAccount.objects.filter(sq).delete()
 
-        # 9. Purchases
-        GoodsReceiptLine.objects.filter(
-            receipt__store_id__in=store_ids
-        ).delete()
-        GoodsReceipt.objects.filter(sq).delete()
-        PurchaseOrderLine.objects.filter(
-            purchase_order__store_id__in=store_ids
-        ).delete()
-        PurchaseOrder.objects.filter(sq).delete()
-        Supplier.objects.filter(eq).delete()
+        if should_reset("sales"):
+            # 8. Sales
+            # Payment has PROTECT FK to Sale; clear linked payments first.
+            Payment.objects.filter(sale__store_id__in=store_ids).delete()
+            Refund.objects.filter(sq).delete()
+            SaleItem.objects.filter(sale__store_id__in=store_ids).delete()
+            Sale.objects.filter(sq).delete()
+            QuoteItem.objects.filter(quote__store_id__in=store_ids).delete()
+            Quote.objects.filter(sq).delete()
 
-        # 10. Stock
-        StockCountLine.objects.filter(stock_count__store_id__in=store_ids).delete()
-        StockCount.objects.filter(sq).delete()
-        StockTransferLine.objects.filter(transfer__from_store_id__in=store_ids).delete()
-        StockTransfer.objects.filter(from_store_id__in=store_ids).delete()
-        InventoryMovement.objects.filter(sq).delete()
-        ProductStock.objects.filter(sq).delete()
+        if should_reset("purchases"):
+            # 9. Purchases
+            GoodsReceiptLine.objects.filter(
+                receipt__store_id__in=store_ids
+            ).delete()
+            GoodsReceipt.objects.filter(sq).delete()
+            PurchaseOrderLine.objects.filter(
+                purchase_order__store_id__in=store_ids
+            ).delete()
+            PurchaseOrder.objects.filter(sq).delete()
+            Supplier.objects.filter(eq).delete()
+
+        if should_reset("stock"):
+            # 10. Stock
+            StockCountLine.objects.filter(stock_count__store_id__in=store_ids).delete()
+            StockCount.objects.filter(sq).delete()
+            StockTransferLine.objects.filter(transfer__from_store_id__in=store_ids).delete()
+            StockTransfer.objects.filter(from_store_id__in=store_ids).delete()
+            InventoryMovement.objects.filter(sq).delete()
+
+            stock_qs = ProductStock.objects.filter(sq)
+            if mode == "full" or stock_strategy == "delete":
+                stock_qs.delete()
+            elif stock_strategy == "zero":
+                stock_qs.update(quantity=0, reserved_qty=0)
+            # keep => preserve current stock rows/levels
 
         if mode == 'full':
             # 11. Catalog
@@ -671,8 +772,10 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
 
         # 13. Stores — reset sequences, clear audit logs
         from stores.models import Sequence
-        AuditLog.objects.filter(store_id__in=store_ids).delete()
-        Sequence.objects.filter(sq).delete()
+        if should_reset("audit_logs"):
+            AuditLog.objects.filter(store_id__in=store_ids).delete()
+        if should_reset("sequences"):
+            Sequence.objects.filter(sq).delete()
 
         if mode == 'full':
             # 14. Users linked to stores (except superusers) + custom roles
