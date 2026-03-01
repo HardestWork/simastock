@@ -8,6 +8,7 @@ import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 import type { CountStatus } from '@/api/types';
 
 const STATUS_LABELS: Record<CountStatus, string> = {
@@ -73,7 +74,7 @@ export default function CountDetailPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.counts.detail(id!) });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
       setSaveError("Une erreur est survenue lors de l'enregistrement.");
     },
   });
@@ -87,7 +88,7 @@ export default function CountDetailPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.counts.detail(id!) });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
       setCompleteError("Une erreur est survenue lors de la finalisation de l'inventaire.");
     },
   });

@@ -6,6 +6,7 @@ import { enterpriseApi } from '@/api/endpoints';
 import type { Enterprise, EnterpriseResetStockStrategy, EnterpriseResetTarget } from '@/api/types';
 import { Building2, Search, Plus, Save, Loader2, Power, Calendar, Store, X, Trash2, AlertCircle, RotateCcw } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -102,22 +103,6 @@ function formatSubscription(start: string | null, end: string | null): string {
   return `${s} \u2192 ${e}`;
 }
 
-function extractError(err: unknown): string {
-  const ax = err as { response?: { data?: Record<string, unknown> | string } };
-  const data = ax?.response?.data;
-  if (data) {
-    if (typeof data === 'string') return 'Erreur serveur. Veuillez reessayer.';
-    if (typeof data.detail === 'string') return data.detail;
-    const msgs: string[] = [];
-    for (const [key, val] of Object.entries(data)) {
-      if (Array.isArray(val)) msgs.push(`${key}: ${val.join(', ')}`);
-      else if (typeof val === 'string') msgs.push(`${key}: ${val}`);
-    }
-    if (msgs.length) return msgs.join(' | ');
-  }
-  return 'Une erreur est survenue. Veuillez reessayer.';
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -173,7 +158,7 @@ export default function EnterpriseListPage() {
       queryClient.invalidateQueries({ queryKey: ['enterprises'] });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -188,8 +173,8 @@ export default function EnterpriseListPage() {
       setEditingEnterprise(updated);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
-      setSaveError(extractError(err));
+      toast.error(extractApiError(err));
+      setSaveError(extractApiError(err));
       setSaveSuccess(false);
     },
   });
@@ -203,7 +188,7 @@ export default function EnterpriseListPage() {
       if (editingEnterprise?.id === deleteTarget?.id) closeEdit();
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -233,7 +218,7 @@ export default function EnterpriseListPage() {
       setResetStockStrategy('keep');
     },
     onError: (err: unknown) => {
-      toast.error(extractError(err));
+      toast.error(extractApiError(err));
     },
   });
 
@@ -643,7 +628,7 @@ export default function EnterpriseListPage() {
             {deleteMutation.isError && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
                 <AlertCircle size={14} />
-                {extractError(deleteMutation.error)}
+                {extractApiError(deleteMutation.error)}
               </div>
             )}
 
@@ -830,7 +815,7 @@ export default function EnterpriseListPage() {
             {resetMutation.isError && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
                 <AlertCircle size={14} />
-                {extractError(resetMutation.error)}
+                {extractApiError(resetMutation.error)}
               </div>
             )}
 

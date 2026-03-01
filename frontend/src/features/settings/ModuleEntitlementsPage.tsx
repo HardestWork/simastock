@@ -11,6 +11,7 @@ import type {
 import { useAuthStore } from '@/auth/auth-store';
 import { queryKeys } from '@/lib/query-keys';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 const inputClass =
   'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100';
@@ -30,21 +31,6 @@ const STATE_LABELS: Record<ModuleEntitlementState, string> = {
 };
 
 type OverrideDraft = Record<string, { state: ModuleEntitlementState; reason: string }>;
-
-function extractError(err: unknown): string {
-  const data = (err as { response?: { data?: Record<string, unknown> | string } })?.response?.data;
-  if (data && typeof data === 'string') return data;
-  if (data && typeof data === 'object') {
-    if (typeof data.detail === 'string') return data.detail;
-    const first = Object.entries(data)[0];
-    if (first) {
-      const [key, value] = first;
-      if (typeof value === 'string') return `${key}: ${value}`;
-      if (Array.isArray(value)) return `${key}: ${value.join(', ')}`;
-    }
-  }
-  return 'Une erreur est survenue.';
-}
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -163,7 +149,7 @@ export default function ModuleEntitlementsPage() {
       }
     },
     onError: (err) => {
-      toast.error(extractError(err));
+      toast.error(extractApiError(err));
     },
   });
 
@@ -188,7 +174,7 @@ export default function ModuleEntitlementsPage() {
       void queryClient.invalidateQueries({ queryKey: ['auth', 'module-matrix', selectedStoreId] });
     },
     onError: (err) => {
-      toast.error(extractError(err));
+      toast.error(extractApiError(err));
     },
   });
 
@@ -281,7 +267,7 @@ export default function ModuleEntitlementsPage() {
                 ))}
               </select>
               {plansQ.isError && (
-                <div className="mt-1 text-xs text-red-600">{extractError(plansQ.error)}</div>
+                <div className="mt-1 text-xs text-red-600">{extractApiError(plansQ.error)}</div>
               )}
             </div>
             <div>
@@ -359,7 +345,7 @@ export default function ModuleEntitlementsPage() {
           {assignmentHistoryQ.isLoading ? (
             <div className="text-sm text-gray-500 dark:text-gray-400">Chargement...</div>
           ) : assignmentHistoryQ.isError ? (
-            <div className="text-sm text-red-600">{extractError(assignmentHistoryQ.error)}</div>
+            <div className="text-sm text-red-600">{extractApiError(assignmentHistoryQ.error)}</div>
           ) : (assignmentHistoryQ.data?.results?.length ?? 0) === 0 ? (
             <div className="text-sm text-gray-500 dark:text-gray-400">Aucune affectation.</div>
           ) : (
@@ -426,7 +412,7 @@ export default function ModuleEntitlementsPage() {
             Chargement matrice modules...
           </div>
         ) : storeMatrixQ.isError ? (
-          <div className="text-sm text-red-600">{extractError(storeMatrixQ.error)}</div>
+          <div className="text-sm text-red-600">{extractApiError(storeMatrixQ.error)}</div>
         ) : !selectedStore ? (
           <div className="text-sm text-gray-500 dark:text-gray-400">Selectionnez une boutique.</div>
         ) : (

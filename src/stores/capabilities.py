@@ -6,6 +6,10 @@ of relying solely on the user's global role.
 """
 
 CAPABILITY_CHOICES = [
+    ("CAN_MANAGE_USERS", "Peut gerer les utilisateurs"),
+    ("CAN_MANAGE_STORES", "Peut gerer les boutiques"),
+    ("CAN_MANAGE_SUBSCRIPTIONS", "Peut gerer les abonnements entreprise"),
+    ("CAN_MANAGE_MODULES", "Peut gerer les modules payants"),
     ("CAN_SELL", "Peut vendre (POS, devis)"),
     ("CAN_CASH", "Peut encaisser (caisse, paiements)"),
     ("CAN_STOCK", "Peut gerer le stock"),
@@ -26,6 +30,8 @@ CAPABILITY_CHOICES = [
     ("CAN_VIEW_COMMERCIAL_TEAM", "Peut voir les donnees commerciales equipe"),
     ("CAN_APPROVE_COMMERCIAL_BONUS", "Peut approuver les primes commerciales"),
     ("CAN_EXPORT_COMMERCIAL", "Peut exporter les donnees commerciales"),
+    ("CAN_VIEW_HRM", "Peut consulter les donnees RH"),
+    ("CAN_MANAGE_HRM", "Peut gerer les donnees RH"),
 ]
 
 ALL_CAPABILITIES = [code for code, _ in CAPABILITY_CHOICES]
@@ -34,6 +40,14 @@ ALL_CAPABILITIES = [code for code, _ in CAPABILITY_CHOICES]
 ROLE_CAPABILITY_MAP = {
     "ADMIN": list(ALL_CAPABILITIES),
     "MANAGER": list(ALL_CAPABILITIES),
+    "HR": ["CAN_VIEW_HRM", "CAN_MANAGE_HRM", "CAN_VIEW_REPORTS"],
+    "COMMERCIAL": [
+        "CAN_MANAGE_LEADS",
+        "CAN_MANAGE_OPPORTUNITIES",
+        "CAN_LOG_ACTIVITY",
+        "CAN_VIEW_COMMERCIAL_TEAM",
+        "CAN_EXPORT_COMMERCIAL",
+    ],
     "SALES": ["CAN_SELL", "CAN_MANAGE_LEADS", "CAN_MANAGE_OPPORTUNITIES", "CAN_LOG_ACTIVITY"],
     "CASHIER": ["CAN_CASH", "CAN_CREATE_EXPENSE", "CAN_VIEW_EXPENSE_REPORTS"],
     "STOCKER": ["CAN_STOCK"],
@@ -44,7 +58,11 @@ CAPABILITY_PRESETS = {
     "vendeur": {"label": "Vendeur", "capabilities": ["CAN_SELL"]},
     "commercial": {
         "label": "Commercial",
-        "capabilities": ["CAN_SELL", "CAN_MANAGE_LEADS", "CAN_MANAGE_OPPORTUNITIES", "CAN_LOG_ACTIVITY"],
+        "capabilities": ["CAN_MANAGE_LEADS", "CAN_MANAGE_OPPORTUNITIES", "CAN_LOG_ACTIVITY"],
+    },
+    "rh": {
+        "label": "Ressources Humaines",
+        "capabilities": ["CAN_VIEW_HRM", "CAN_MANAGE_HRM"],
     },
     "caissier": {
         "label": "Caissier",

@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
 import { format } from 'date-fns';
 import { Search, ChevronRight, X, Download } from 'lucide-react';
 import { downloadCsv } from '@/lib/export';
@@ -15,22 +14,10 @@ import { useSort } from '@/hooks/use-sort';
 import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 import type { CustomerAccount } from '@/api/types';
 
 const PAGE_SIZE = 25;
-
-function errDetail(err: unknown): string {
-  const ax = err as AxiosError<{ detail?: string } | string>;
-  const data = ax?.response?.data;
-  if (typeof data === 'string') {
-    const status = ax?.response?.status;
-    if (status === 403 && data.toLowerCase().includes('csrf')) {
-      return 'CSRF: session invalide. Rechargez la page puis reessayez.';
-    }
-    return status ? `Erreur serveur (${status}).` : 'Erreur serveur.';
-  }
-  return (data as { detail?: string } | undefined)?.detail ?? (err as Error)?.message ?? 'Erreur.';
-}
 
 const getHealthColor = (a: CustomerAccount) => {
   const bal = parseFloat(a.balance);
@@ -100,7 +87,7 @@ export default function CreditListPage() {
       setReference('');
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -251,7 +238,7 @@ export default function CreditListPage() {
                 )}
                 {payMut.isError && (
                   <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
-                    {errDetail(payMut.error)}
+                    {extractApiError(payMut.error)}
                   </div>
                 )}
 

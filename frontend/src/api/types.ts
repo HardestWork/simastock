@@ -27,9 +27,13 @@ export interface CustomRole {
   created_at: string;
 }
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'SALES' | 'CASHIER' | 'STOCKER';
+export type UserRole = 'ADMIN' | 'MANAGER' | 'HR' | 'COMMERCIAL' | 'SALES' | 'CASHIER' | 'STOCKER';
 
 export type Capability =
+  | 'CAN_MANAGE_USERS'
+  | 'CAN_MANAGE_STORES'
+  | 'CAN_MANAGE_SUBSCRIPTIONS'
+  | 'CAN_MANAGE_MODULES'
   | 'CAN_SELL'
   | 'CAN_CASH'
   | 'CAN_STOCK'
@@ -43,7 +47,15 @@ export type Capability =
   | 'CAN_VIEW_EXPENSE_REPORTS'
   | 'CAN_MANAGE_CATEGORIES'
   | 'CAN_MANAGE_WALLETS'
-  | 'CAN_SET_BUDGETS';
+  | 'CAN_SET_BUDGETS'
+  | 'CAN_MANAGE_LEADS'
+  | 'CAN_MANAGE_OPPORTUNITIES'
+  | 'CAN_LOG_ACTIVITY'
+  | 'CAN_VIEW_COMMERCIAL_TEAM'
+  | 'CAN_APPROVE_COMMERCIAL_BONUS'
+  | 'CAN_EXPORT_COMMERCIAL'
+  | 'CAN_VIEW_HRM'
+  | 'CAN_MANAGE_HRM';
 
 // ---------------------------------------------------------------------------
 // Feature Flags (Enterprise/Store)
@@ -62,6 +74,7 @@ export type FeatureFlagKey =
   | 'commercial_ai'
   | 'commercial_incentives'
   | 'commercial_exports'
+  | 'hrm_management'
   | 'alerts_center'
   | 'reports_center'
   | 'vat'
@@ -84,6 +97,7 @@ export type ModuleCode =
   | 'STOCK'
   | 'PURCHASE'
   | 'EXPENSE'
+  | 'HRM'
   | 'COMMERCIAL'
   | 'SELLER_PERF'
   | 'ANALYTICS_MANAGER'
@@ -406,6 +420,7 @@ export interface Product {
   slug: string;
   sku: string;
   barcode: string;
+  description: string;
   category: string;
   category_name: string;
   brand: string | null;
@@ -996,6 +1011,11 @@ export interface SalesReport {
   date_from: string;
   date_to: string;
   group_by?: string;
+  filters?: {
+    customer?: string | null;
+    cashier?: string | null;
+    product?: string | null;
+  };
   summary: {
     total_revenue: string;
     total_orders: number;
@@ -2044,4 +2064,350 @@ export interface DGDashboardData {
   top_sellers: DGTopSeller[];
   top_cashiers: DGTopCashier[];
   org_alerts: DGOrgAlert[];
+}
+
+// ---------------------------------------------------------------------------
+// HRM — Human Resource Management
+// ---------------------------------------------------------------------------
+
+export interface HrmDepartment {
+  id: string;
+  enterprise: string;
+  name: string;
+  code: string;
+  parent: string | null;
+  parent_name: string | null;
+  head: string | null;
+  head_name: string | null;
+  is_active: boolean;
+  employee_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrmPosition {
+  id: string;
+  enterprise: string;
+  title: string;
+  code: string;
+  department: string | null;
+  department_name: string | null;
+  min_salary: string;
+  max_salary: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type HrmEmployeeStatus = 'ACTIVE' | 'ON_LEAVE' | 'SUSPENDED' | 'TERMINATED' | 'RESIGNED';
+export type HrmGender = 'M' | 'F' | '';
+
+export interface HrmEmployeeList {
+  id: string;
+  employee_number: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  phone: string;
+  email: string;
+  department: string | null;
+  department_name: string | null;
+  position: string | null;
+  position_title: string | null;
+  store: string | null;
+  store_name: string | null;
+  status: HrmEmployeeStatus;
+  hire_date: string | null;
+  photo: string | null;
+  created_at: string;
+}
+
+export interface HrmEmployee extends HrmEmployeeList {
+  enterprise: string;
+  user: string | null;
+  user_email: string | null;
+  gender: HrmGender;
+  date_of_birth: string | null;
+  national_id: string;
+  address: string;
+  manager: string | null;
+  manager_name: string | null;
+  termination_date: string | null;
+  base_salary: string;
+  bank_name: string;
+  bank_account: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  updated_at: string;
+}
+
+export type HrmContractType = 'CDI' | 'CDD' | 'STAGE' | 'INTERIM' | 'FREELANCE';
+export type HrmContractStatus = 'DRAFT' | 'ACTIVE' | 'EXPIRED' | 'TERMINATED';
+
+export interface HrmContract {
+  id: string;
+  employee: string;
+  employee_name: string | null;
+  contract_type: HrmContractType;
+  reference: string;
+  start_date: string;
+  end_date: string | null;
+  salary: string;
+  position: string | null;
+  position_title: string | null;
+  status: HrmContractStatus;
+  notes: string;
+  document: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrmAttendancePolicy {
+  id: string;
+  enterprise: string;
+  name: string;
+  work_start: string;
+  work_end: string;
+  break_minutes: number;
+  late_tolerance_minutes: number;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type HrmAttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'HALF_DAY' | 'ON_LEAVE' | 'HOLIDAY';
+
+export interface HrmAttendance {
+  id: string;
+  employee: string;
+  employee_name: string | null;
+  date: string;
+  check_in: string | null;
+  check_out: string | null;
+  status: HrmAttendanceStatus;
+  late_minutes: number;
+  overtime_minutes: number;
+  notes: string;
+  policy: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrmLeaveType {
+  id: string;
+  enterprise: string;
+  name: string;
+  code: string;
+  default_days: number;
+  is_paid: boolean;
+  requires_document: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrmLeaveBalance {
+  id: string;
+  employee: string;
+  employee_name: string | null;
+  leave_type: string;
+  leave_type_name: string | null;
+  year: number;
+  allocated: string;
+  used: string;
+  carried_over: string;
+  remaining: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type HrmLeaveRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+export interface HrmLeaveRequest {
+  id: string;
+  employee: string;
+  employee_name: string | null;
+  leave_type: string;
+  leave_type_name: string | null;
+  start_date: string;
+  end_date: string;
+  days_requested: string;
+  reason: string;
+  status: HrmLeaveRequestStatus;
+  reviewed_by: string | null;
+  reviewer_name: string | null;
+  reviewed_at: string | null;
+  review_comment: string;
+  document: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type HrmPayrollPeriodStatus = 'OPEN' | 'PROCESSING' | 'CLOSED';
+
+export interface HrmPayrollPeriod {
+  id: string;
+  enterprise: string;
+  label: string;
+  start_date: string;
+  end_date: string;
+  status: HrmPayrollPeriodStatus;
+  closed_at: string | null;
+  closed_by: string | null;
+  payslip_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type HrmPaySlipStatus = 'DRAFT' | 'VALIDATED' | 'PAID';
+
+export interface HrmPaySlipLine {
+  id: string;
+  payslip: string;
+  line_type: 'EARNING' | 'DEDUCTION';
+  label: string;
+  amount: string;
+  sort_order: number;
+}
+
+export interface HrmPaySlip {
+  id: string;
+  period: string;
+  period_label: string | null;
+  employee: string;
+  employee_name: string | null;
+  base_salary: string;
+  gross_salary: string;
+  total_deductions: string;
+  net_salary: string;
+  status: HrmPaySlipStatus;
+  paid_at: string | null;
+  notes: string;
+  lines: HrmPaySlipLine[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type HrmSalaryComponentType = 'EARNING' | 'DEDUCTION';
+
+export interface HrmSalaryComponent {
+  id: string;
+  enterprise: string;
+  name: string;
+  code: string;
+  component_type: HrmSalaryComponentType;
+  is_taxable: boolean;
+  is_fixed: boolean;
+  default_amount: string;
+  default_percentage: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrmEmployeeSalaryComponent {
+  id: string;
+  employee: string;
+  component: string;
+  component_name: string | null;
+  component_type: string | null;
+  amount: string;
+  percentage: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrmEvaluationCriteria {
+  id: string;
+  template: string;
+  label: string;
+  weight: string;
+  sort_order: number;
+}
+
+export interface HrmEvaluationTemplate {
+  id: string;
+  enterprise: string;
+  name: string;
+  description: string;
+  is_active: boolean;
+  criteria: HrmEvaluationCriteria[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type HrmPerformanceReviewStatus = 'DRAFT' | 'SUBMITTED' | 'COMPLETED';
+
+export interface HrmPerformanceReviewScore {
+  id: string;
+  review: string;
+  criteria: string;
+  criteria_label: string | null;
+  score: string;
+  comment: string;
+}
+
+export interface HrmPerformanceReview {
+  id: string;
+  employee: string;
+  employee_name: string | null;
+  template: string | null;
+  reviewer: string | null;
+  reviewer_name: string | null;
+  period_label: string;
+  review_date: string;
+  overall_score: string | null;
+  status: HrmPerformanceReviewStatus;
+  comments: string;
+  employee_comments: string;
+  scores: HrmPerformanceReviewScore[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type HrmDisciplinarySeverity = 'VERBAL_WARNING' | 'WRITTEN_WARNING' | 'SUSPENSION' | 'TERMINATION';
+export type HrmDisciplinaryStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED' | 'APPEALED';
+
+export interface HrmDisciplinaryAction {
+  id: string;
+  employee: string;
+  employee_name: string | null;
+  severity: HrmDisciplinarySeverity;
+  incident_date: string;
+  description: string;
+  action_taken: string;
+  status: HrmDisciplinaryStatus;
+  issued_by: string | null;
+  issued_by_name: string | null;
+  document: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type HrmDocType = 'CV' | 'ID_CARD' | 'DIPLOMA' | 'CERTIFICATE' | 'MEDICAL' | 'CONTRACT' | 'OTHER';
+
+export interface HrmEmployeeDocument {
+  id: string;
+  employee: string;
+  employee_name: string | null;
+  doc_type: HrmDocType;
+  title: string;
+  file: string;
+  expiry_date: string | null;
+  notes: string;
+  uploaded_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrmHoliday {
+  id: string;
+  enterprise: string;
+  name: string;
+  date: string;
+  is_recurring: boolean;
+  created_at: string;
+  updated_at: string;
 }

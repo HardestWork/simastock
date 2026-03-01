@@ -8,10 +8,13 @@ import SortableHeader from '@/components/shared/SortableHeader';
 import { Plus, Pencil, Trash2, X, Save, Loader2, Shield } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import type { CustomRole, UserRole } from '@/api/types';
+import { extractApiError } from '@/lib/api-error';
 
 const BASE_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'ADMIN', label: 'Administrateur' },
   { value: 'MANAGER', label: 'Gestionnaire' },
+  { value: 'HR', label: 'Ressources Humaines' },
+  { value: 'COMMERCIAL', label: 'Commercial' },
   { value: 'SALES', label: 'Vendeur' },
   { value: 'CASHIER', label: 'Caissier' },
   { value: 'STOCKER', label: 'Magasinier' },
@@ -20,6 +23,8 @@ const BASE_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 const BASE_ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Administrateur',
   MANAGER: 'Gestionnaire',
+  HR: 'Ressources Humaines',
+  COMMERCIAL: 'Commercial',
   SALES: 'Vendeur',
   CASHIER: 'Caissier',
   STOCKER: 'Magasinier',
@@ -61,7 +66,7 @@ export default function RoleListPage() {
       resetForm();
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
       setFormError('Erreur lors de la creation du role.');
     },
   });
@@ -74,7 +79,7 @@ export default function RoleListPage() {
       resetForm();
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
       setFormError('Erreur lors de la mise a jour du role.');
     },
   });
@@ -88,7 +93,7 @@ export default function RoleListPage() {
       setDeleteConfirm(null);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 

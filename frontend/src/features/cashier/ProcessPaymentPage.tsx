@@ -18,6 +18,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -86,7 +87,7 @@ export default function ProcessPaymentPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -119,13 +120,8 @@ export default function ProcessPaymentPage() {
       navigate(`/cashier/receipt/${saleId}`);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
-      const msg =
-        (err as { response?: { data?: { detail?: string; non_field_errors?: string[] } } })
-          ?.response?.data?.detail ||
-        ((err as { response?: { data?: { non_field_errors?: string[] } } })
-          ?.response?.data?.non_field_errors ?? [])[0] ||
-        'Une erreur est survenue lors du traitement du paiement.';
+      const msg = extractApiError(err);
+      toast.error(msg);
       setSubmitError(msg);
     },
   });

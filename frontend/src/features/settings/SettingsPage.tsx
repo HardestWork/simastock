@@ -2,18 +2,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
 import { Save, RefreshCw, Plus, X, Loader2 } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 import { enterpriseApi, storeApi } from '@/api/endpoints';
 import type { Enterprise, FeatureFlags, Store } from '@/api/types';
 import { FEATURE_FLAG_KEYS, FEATURE_FLAG_LABELS, type OverrideMode } from '@/lib/feature-flags';
-
-function extractDetail(err: unknown): string {
-  const ax = err as AxiosError<{ detail?: string }>;
-  return ax?.response?.data?.detail ?? (err as Error)?.message ?? 'Erreur.';
-}
 
 function normalizeFlags(flags?: FeatureFlags): FeatureFlags {
   return (flags && typeof flags === 'object') ? flags : {};
@@ -131,7 +126,7 @@ export default function SettingsPage() {
       qc.invalidateQueries({ queryKey: ['settings', 'stores'] });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -145,7 +140,7 @@ export default function SettingsPage() {
       qc.invalidateQueries({ queryKey: ['settings', 'enterprise'] });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -161,7 +156,7 @@ export default function SettingsPage() {
       qc.invalidateQueries({ queryKey: ['settings', 'stores'] });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -181,13 +176,13 @@ export default function SettingsPage() {
       setNewStore({ name: '', code: '', address: '', phone: '', email: '' });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
   const globalError =
-    (enterpriseQ.isError ? extractDetail(enterpriseQ.error) : null) ??
-    (storesQ.isError ? extractDetail(storesQ.error) : null);
+    (enterpriseQ.isError ? extractApiError(enterpriseQ.error) : null) ??
+    (storesQ.isError ? extractApiError(storesQ.error) : null);
 
   return (
     <div>
@@ -273,7 +268,7 @@ export default function SettingsPage() {
                   className="w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                 />
                 {createStoreMut.isError && (
-                  <div className="text-xs text-red-600">{extractDetail(createStoreMut.error)}</div>
+                  <div className="text-xs text-red-600">{extractApiError(createStoreMut.error)}</div>
                 )}
                 <button
                   type="button"
@@ -339,7 +334,7 @@ export default function SettingsPage() {
 
                   {saveStoreMut.isError && (
                     <div className="mb-3 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-                      {extractDetail(saveStoreMut.error)}
+                      {extractApiError(saveStoreMut.error)}
                     </div>
                   )}
                   {saveStoreMut.isSuccess && (
@@ -464,7 +459,7 @@ export default function SettingsPage() {
 
             {saveInvoiceMut.isError && (
               <div className="mb-3 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-                {extractDetail(saveInvoiceMut.error)}
+                {extractApiError(saveInvoiceMut.error)}
               </div>
             )}
             {saveInvoiceMut.isSuccess && (
@@ -593,7 +588,7 @@ export default function SettingsPage() {
 
           {saveEnterpriseMut.isError && (
             <div className="mb-3 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-              {extractDetail(saveEnterpriseMut.error)}
+              {extractApiError(saveEnterpriseMut.error)}
             </div>
           )}
           {saveEnterpriseMut.isSuccess && (

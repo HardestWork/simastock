@@ -22,8 +22,8 @@ import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from '@/lib/toast';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import { extractApiError as extractErrorMessage } from '@/lib/api-error';
 import type { PurchaseOrderStatus } from '@/api/types';
-import type { AxiosError } from 'axios';
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
@@ -36,16 +36,6 @@ const statusConfig: Record<PurchaseOrderStatus, { label: string; classes: string
   RECEIVED: { label: 'Recu', classes: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
   CANCELLED: { label: 'Annule', classes: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
 };
-
-function extractErrorMessage(err: unknown): string {
-  const axErr = err as AxiosError<{ detail?: string; non_field_errors?: string[] }>;
-  return (
-    axErr?.response?.data?.detail ??
-    axErr?.response?.data?.non_field_errors?.[0] ??
-    (err as Error)?.message ??
-    'Une erreur est survenue.'
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /*  Main component                                                            */

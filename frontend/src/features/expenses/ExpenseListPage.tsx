@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Plus, Search, X } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 import { expenseApi } from '@/api/endpoints';
 import { downloadCsv } from '@/lib/export';
 import { queryKeys } from '@/lib/query-keys';
@@ -121,7 +122,7 @@ export default function ExpenseListPage() {
       }
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || 'Erreur lors de la creation de la depense');
+      toast.error(extractApiError(err, 'Erreur lors de la creation de la depense'));
     },
   });
 
@@ -142,7 +143,7 @@ export default function ExpenseListPage() {
       }
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || 'Annulation impossible');
+      toast.error(extractApiError(err, 'Annulation impossible'));
     },
   });
 

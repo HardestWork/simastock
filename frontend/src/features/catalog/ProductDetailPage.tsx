@@ -5,8 +5,9 @@ import { productApi, stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { useAuthStore } from '@/auth/auth-store';
-import { ArrowLeft, Pencil, Package, Barcode, Tag, FolderTree, AlertCircle } from 'lucide-react';
-import type { AxiosError } from 'axios';
+import { ArrowLeft, Pencil, Package, Barcode, Tag, FolderTree, AlertCircle, FileText, QrCode, Download } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { extractApiError } from '@/lib/api-error';
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -64,10 +65,8 @@ export default function ProductDetailPage() {
   // -------------------------------------------------------------------------
 
   if (isError) {
-    const axiosErr = error as AxiosError<{ detail?: string }>;
-    const status = axiosErr?.response?.status;
-    const detail =
-      (axiosErr?.response?.data as any)?.detail ?? (error as Error).message;
+    const status = (error as any)?.response?.status;
+    const detail = extractApiError(error);
 
     if (status === 404) {
       return (
@@ -219,6 +218,53 @@ export default function ProductDetailPage() {
               </div>
             )}
           </div>
+
+          {/* QR Code card */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mt-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <QrCode size={16} />
+              QR Code produit
+            </h3>
+            <div className="flex flex-col items-center gap-3">
+              <div id="product-qr" className="bg-white p-3 rounded-lg">
+                <QRCodeSVG
+                  value={product.barcode || product.sku || product.id}
+                  size={160}
+                  level="M"
+                  includeMargin={false}
+                />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                {product.barcode || product.sku}
+              </p>
+              <button
+                onClick={() => {
+                  const svg = document.querySelector('#product-qr svg');
+                  if (!svg) return;
+                  const svgData = new XMLSerializer().serializeToString(svg);
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  const img = new Image();
+                  img.onload = () => {
+                    canvas.width = img.width * 2;
+                    canvas.height = img.height * 2;
+                    ctx!.fillStyle = '#ffffff';
+                    ctx!.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx!.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const a = document.createElement('a');
+                    a.download = `qr-${product.sku || product.id}.png`;
+                    a.href = canvas.toDataURL('image/png');
+                    a.click();
+                  };
+                  img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              >
+                <Download size={14} />
+                Telecharger PNG
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* -------------------------------------------------------------- */}
@@ -266,6 +312,20 @@ export default function ProductDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* Description */}
+            {product.description && (
+              <>
+                <hr className="my-5 border-gray-100 dark:border-gray-700" />
+                <div className="flex items-start gap-3">
+                  <FileText size={18} className="text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Description</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">{product.description}</p>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Pricing section */}
             <hr className="my-5 border-gray-100 dark:border-gray-700" />

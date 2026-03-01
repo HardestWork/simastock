@@ -7,6 +7,7 @@ import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 export default function CountCreatePage() {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ export default function CountCreatePage() {
       navigate(`/stock/counts/${response.id}`);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
       setError("Une erreur est survenue lors de la creation de l'inventaire.");
     },
   });

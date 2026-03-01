@@ -12,7 +12,7 @@ import SortableHeader from '@/components/shared/SortableHeader';
 import { Search, Plus, Upload, AlertCircle, Download } from 'lucide-react';
 import { downloadCsv } from '@/lib/export';
 import { toast } from '@/lib/toast';
-import type { AxiosError } from 'axios';
+import { extractApiError } from '@/lib/api-error';
 import type { CsvImportResult } from '@/api/types';
 
 const PAGE_SIZE = 25;
@@ -59,18 +59,8 @@ export default function CustomerListPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Erreur lors de l\'import CSV');
-      const ax = err as AxiosError<Record<string, unknown> | string>;
-      const data = ax?.response?.data;
-      if (typeof data === 'string') {
-        setImportError(data);
-      } else if (data && typeof data.detail === 'string') {
-        setImportError(data.detail);
-      } else if (data && typeof data.file === 'string') {
-        setImportError(data.file);
-      } else {
-        setImportError("Import CSV impossible.");
-      }
+      toast.error(extractApiError(err, 'Erreur lors de l\'import CSV'));
+      setImportError(extractApiError(err, 'Import CSV impossible.'));
     },
   });
 

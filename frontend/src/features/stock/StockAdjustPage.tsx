@@ -7,6 +7,7 @@ import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 import type { ProductStock } from '@/api/types';
 
 // ---------------------------------------------------------------------------
@@ -80,7 +81,7 @@ export default function StockAdjustPage() {
       navigate(`/stock/movements/${response.batch_id}`);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 

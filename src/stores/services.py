@@ -29,6 +29,7 @@ MODULE_DEPENDENCIES = {
     "STOCK": ("CORE",),
     "PURCHASE": ("STOCK",),
     "EXPENSE": ("CORE",),
+    "HRM": ("CORE",),
     "COMMERCIAL": ("SELL",),
     "SELLER_PERF": ("SELL", "CASH"),
     "ANALYTICS_MANAGER": ("SELL", "CASH", "STOCK"),
@@ -126,6 +127,7 @@ def _derive_module_matrix_from_feature_flags(store: Store | None) -> dict[str, b
     modules["STOCK"] = bool(flags.get("stock_management", True))
     modules["PURCHASE"] = bool(flags.get("purchases_management", True))
     modules["EXPENSE"] = bool(flags.get("expenses_management", True))
+    modules["HRM"] = bool(flags.get("hrm_management", True))
     modules["COMMERCIAL"] = bool(flags.get("commercial_pipeline", True) and flags.get("sales_pos", True))
     modules["SELLER_PERF"] = bool(flags.get("enabled", True) and flags.get("sales_pos", True))
     modules["ANALYTICS_MANAGER"] = bool(flags.get("enabled", True) and flags.get("reports_center", True))

@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from stores.models import Enterprise, EnterpriseSubscription, StoreUser
 from catalog.models import Product
 from stock.models import ProductStock
+from commercial.models import CommercialIncentivePolicy, CommercialIncentiveTier
 
 User = get_user_model()
 
@@ -196,6 +197,35 @@ class TestEnterpriseReset:
         stock.refresh_from_db()
         assert stock.quantity == 0
         assert stock.reserved_qty == 0
+
+    @pytest.mark.django_db
+    def test_reset_full_removes_global_commercial_policies(self, super_client, enterprise):
+        policy = CommercialIncentivePolicy.objects.create(
+            scope=CommercialIncentivePolicy.Scope.GLOBAL,
+            enterprise=enterprise,
+            store=None,
+            name="Global policy",
+            effective_from=date.today(),
+            is_active=True,
+        )
+        tier = CommercialIncentiveTier.objects.create(
+            policy=policy,
+            rank=1,
+            name="Base",
+            min_signed_revenue="0.00",
+            fixed_bonus="1000.00",
+            variable_rate_pct="1.00",
+        )
+
+        resp = super_client.post(
+            f"/api/v1/enterprises/{enterprise.id}/reset/",
+            {"mode": "full"},
+            format="json",
+        )
+
+        assert resp.status_code == 200
+        assert not CommercialIncentiveTier.objects.filter(pk=tier.pk).exists()
+        assert not CommercialIncentivePolicy.objects.filter(pk=policy.pk).exists()
 
 
 class TestEnterpriseSubscriptionAPI:

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/api/client';
 import type { PaginatedResponse } from '@/api/types';
 import { useAuthStore } from '@/auth/auth-store';
+import { useCapabilities } from '@/lib/capabilities';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from '@/lib/toast';
 import { useStoreStore } from '@/store-context/store-store';
@@ -171,6 +172,7 @@ function Modal(props: { open: boolean; title: string; onClose: () => void; child
 export default function CommercialPage() {
   const currentStore = useStoreStore((s) => s.currentStore);
   const user = useAuthStore((s) => s.user);
+  const capabilities = useCapabilities();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -205,7 +207,21 @@ export default function CommercialPage() {
   });
 
   const storeId = currentStore?.id ?? '';
-  const canComputeIncentives = Boolean(user?.is_superuser || user?.role === 'ADMIN' || user?.role === 'MANAGER');
+  const isPrivilegedRole = Boolean(user?.is_superuser);
+  const canManageLeads = isPrivilegedRole || capabilities.includes('CAN_MANAGE_LEADS');
+  const canManageOpportunities = isPrivilegedRole || capabilities.includes('CAN_MANAGE_OPPORTUNITIES');
+  const canLogActivity = isPrivilegedRole || capabilities.includes('CAN_LOG_ACTIVITY');
+  const canComputeIncentives = isPrivilegedRole || capabilities.includes('CAN_APPROVE_COMMERCIAL_BONUS');
+  const availableTabs = useMemo(
+    () =>
+      ([
+        canManageOpportunities ? 'pipeline' : null,
+        canManageLeads ? 'prospects' : null,
+        canLogActivity ? 'tasks' : null,
+        canComputeIncentives ? 'incentives' : null,
+      ].filter(Boolean) as CommercialTab[]),
+    [canComputeIncentives, canLogActivity, canManageLeads, canManageOpportunities],
+  );
 
   const opportunitiesQuery = useQuery({
     queryKey: ['commercial', 'opportunities', storeId],
@@ -215,7 +231,7 @@ export default function CommercialPage() {
       });
       return response.data;
     },
-    enabled: !!storeId && tab === 'pipeline',
+    enabled: !!storeId && canManageOpportunities && tab === 'pipeline',
   });
 
   const prospectsQuery = useQuery({
@@ -226,7 +242,7 @@ export default function CommercialPage() {
       });
       return response.data;
     },
-    enabled: !!storeId && tab === 'prospects',
+    enabled: !!storeId && canManageLeads && tab === 'prospects',
   });
 
   const tasksQuery = useQuery({
@@ -237,7 +253,7 @@ export default function CommercialPage() {
       });
       return response.data;
     },
-    enabled: !!storeId && tab === 'tasks',
+    enabled: !!storeId && canLogActivity && tab === 'tasks',
   });
 
   const prospectsLookupQuery = useQuery({
@@ -270,7 +286,7 @@ export default function CommercialPage() {
       });
       return response.data;
     },
-    enabled: !!storeId && tab === 'incentives',
+    enabled: !!storeId && canComputeIncentives && tab === 'incentives',
   });
 
   useEffect(() => {
@@ -295,8 +311,15 @@ export default function CommercialPage() {
       );
       return response.data;
     },
-    enabled: !!storeId && tab === 'incentives' && !!selectedRunId,
+    enabled: !!storeId && canComputeIncentives && tab === 'incentives' && !!selectedRunId,
   });
+
+  useEffect(() => {
+    if (!availableTabs.length) return;
+    if (!availableTabs.includes(tab)) {
+      navigate(tabPath(availableTabs[0]), { replace: true });
+    }
+  }, [availableTabs, navigate, tab]);
 
   const moveStageMutation = useMutation({
     mutationFn: async (payload: { id: string; toStage: string }) => {
@@ -457,9 +480,31 @@ export default function CommercialPage() {
   }, [opportunitiesQuery.data]);
 
   const hasAnyOpportunity = (opportunitiesQuery.data?.results ?? []).length > 0;
+  const pipelineError = opportunitiesQuery.isError
+    ? extractApiError(opportunitiesQuery.error, 'Chargement du pipeline impossible.')
+    : '';
+  const prospectsError = prospectsQuery.isError
+    ? extractApiError(prospectsQuery.error, 'Chargement des prospects impossible.')
+    : '';
+  const tasksError = tasksQuery.isError
+    ? extractApiError(tasksQuery.error, 'Chargement des relances impossible.')
+    : '';
+  const incentivesError = incentiveRunsQuery.isError
+    ? extractApiError(incentiveRunsQuery.error, 'Chargement des primes impossible.')
+    : incentiveResultsQuery.isError
+    ? extractApiError(incentiveResultsQuery.error, 'Chargement des resultats impossible.')
+    : '';
 
   if (!currentStore) {
     return <div className="text-center py-10 text-gray-500">Aucune boutique selectionnee.</div>;
+  }
+
+  if (!availableTabs.length) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        Permissions insuffisantes pour utiliser le module commercial dans cette boutique.
+      </div>
+    );
   }
 
   return (
@@ -472,7 +517,7 @@ export default function CommercialPage() {
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-2 mb-4 flex flex-wrap gap-2">
-        {(['pipeline', 'prospects', 'tasks', 'incentives'] as CommercialTab[]).map((entry) => (
+        {availableTabs.map((entry) => (
           <button
             key={entry}
             onClick={() => navigate(tabPath(entry))}
@@ -490,14 +535,16 @@ export default function CommercialPage() {
 
       {tab !== 'incentives' && (
         <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setProspectModalOpen(true)}
-            className="px-3 py-2 rounded-lg bg-primary text-white text-sm"
-          >
-            Nouveau prospect
-          </button>
-          {tab === 'pipeline' && (
+          {canManageLeads && (
+            <button
+              type="button"
+              onClick={() => setProspectModalOpen(true)}
+              className="px-3 py-2 rounded-lg bg-primary text-white text-sm"
+            >
+              Nouveau prospect
+            </button>
+          )}
+          {tab === 'pipeline' && canManageOpportunities && (
             <button
               type="button"
               onClick={() => setOpportunityModalOpen(true)}
@@ -506,7 +553,7 @@ export default function CommercialPage() {
               Nouvelle opportunite
             </button>
           )}
-          {tab === 'tasks' && (
+          {tab === 'tasks' && canLogActivity && (
             <button
               type="button"
               onClick={() => setTaskModalOpen(true)}
@@ -520,11 +567,16 @@ export default function CommercialPage() {
 
       {tab === 'pipeline' && (
         <div className="space-y-4">
+          {pipelineError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {pipelineError}
+            </div>
+          )}
           {opportunitiesQuery.isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
-          ) : (
+          ) : opportunitiesQuery.isError ? null : (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {STAGE_COLUMNS.map((column) => (
@@ -572,11 +624,16 @@ export default function CommercialPage() {
 
       {tab === 'prospects' && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          {prospectsError && (
+            <div className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {prospectsError}
+            </div>
+          )}
           {prospectsQuery.isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
-          ) : (
+          ) : prospectsQuery.isError ? null : (
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                 <tr>
@@ -601,7 +658,7 @@ export default function CommercialPage() {
                     <td className="px-4 py-3 text-right">{row.score}</td>
                     <td className="px-4 py-3">{formatDate(row.next_follow_up_at)}</td>
                     <td className="px-4 py-3 text-right">
-                      {row.status === 'NEW' ? (
+                      {row.status === 'NEW' && canManageOpportunities ? (
                         <button
                           type="button"
                           onClick={() => qualifyProspectMutation.mutate(row.id)}
@@ -631,11 +688,16 @@ export default function CommercialPage() {
 
       {tab === 'tasks' && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          {tasksError && (
+            <div className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {tasksError}
+            </div>
+          )}
           {tasksQuery.isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
-          ) : (
+          ) : tasksQuery.isError ? null : (
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                 <tr>
@@ -683,6 +745,11 @@ export default function CommercialPage() {
 
       {tab === 'incentives' && (
         <div className="space-y-4">
+          {incentivesError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {incentivesError}
+            </div>
+          )}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap items-end gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Periode</label>
@@ -723,7 +790,7 @@ export default function CommercialPage() {
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
-            ) : (
+            ) : incentiveRunsQuery.isError || incentiveResultsQuery.isError ? null : (
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                   <tr>

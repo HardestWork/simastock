@@ -93,6 +93,28 @@ import type {
   CustomerDormantResponse,
   CustomerInsightsResponse,
   ModuleMatrixResponse,
+  HrmDepartment,
+  HrmPosition,
+  HrmEmployeeList,
+  HrmEmployee,
+  HrmContract,
+  HrmAttendancePolicy,
+  HrmAttendance,
+  HrmLeaveType,
+  HrmLeaveBalance,
+  HrmLeaveRequest,
+  HrmPayrollPeriod,
+  HrmPaySlip,
+  HrmPaySlipLine,
+  HrmSalaryComponent,
+  HrmEmployeeSalaryComponent,
+  HrmEvaluationTemplate,
+  HrmEvaluationCriteria,
+  HrmPerformanceReview,
+  HrmPerformanceReviewScore,
+  HrmDisciplinaryAction,
+  HrmEmployeeDocument,
+  HrmHoliday,
 } from './types';
 import type { Capability } from './types';
 
@@ -408,6 +430,14 @@ export const categoryApi = {
 
   delete: (id: string) =>
     apiClient.delete(`categories/${id}/`),
+
+  importCsv: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return apiClient.post<CsvImportResult>('categories/import-csv/', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
 };
 
 export const brandApi = {
@@ -425,6 +455,14 @@ export const brandApi = {
 
   delete: (id: string) =>
     apiClient.delete(`brands/${id}/`),
+
+  importCsv: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return apiClient.post<CsvImportResult>('brands/import-csv/', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
 };
 
 export const productApi = {
@@ -855,8 +893,32 @@ export const reportApi = {
   kpis: (params: { store: string; date_from?: string; date_to?: string }) =>
     apiClient.get<KPIData>('reports/kpis/', { params }).then((r) => r.data),
 
-  sales: (params: { store: string; date_from?: string; date_to?: string; group_by?: string }) =>
+  sales: (
+    params: {
+      store: string;
+      date_from?: string;
+      date_to?: string;
+      group_by?: string;
+      customer?: string;
+      cashier?: string;
+      product?: string;
+    },
+  ) =>
     apiClient.get<SalesReport>('reports/sales/', { params }).then((r) => r.data),
+
+  cashierOperationsPdf: (
+    params: {
+      store: string;
+      date_from?: string;
+      date_to?: string;
+      customer?: string;
+      cashier?: string;
+      product?: string;
+    },
+  ) =>
+    apiClient
+      .get<Blob>('reports/cashier-operations/pdf/', { params, responseType: 'blob' })
+      .then((r) => r.data),
 
   stockTrend: (params: { store: string; date_from?: string; date_to?: string }) =>
     apiClient.get<StockValueTrend>('reports/stock-trend/', { params }).then((r) => r.data),
@@ -992,4 +1054,300 @@ export const stockAnalyticsApi = {
 export const dgApi = {
   dashboard: (params?: { store?: string; period?: string }) =>
     apiClient.get<DGDashboardData>('dg/dashboard/', { params }).then(r => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// HRM
+// ---------------------------------------------------------------------------
+
+export const hrmApi = {
+  // Departments
+  departments: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmDepartment>>('hrm/departments/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmDepartment>(`hrm/departments/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmDepartment>) =>
+      apiClient.post<HrmDepartment>('hrm/departments/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmDepartment>) =>
+      apiClient.patch<HrmDepartment>(`hrm/departments/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/departments/${id}/`),
+  },
+
+  // Positions
+  positions: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmPosition>>('hrm/positions/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmPosition>(`hrm/positions/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmPosition>) =>
+      apiClient.post<HrmPosition>('hrm/positions/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmPosition>) =>
+      apiClient.patch<HrmPosition>(`hrm/positions/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/positions/${id}/`),
+  },
+
+  // Employees
+  employees: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmEmployeeList>>('hrm/employees/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmEmployee>(`hrm/employees/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmEmployee>) =>
+      apiClient.post<HrmEmployee>('hrm/employees/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmEmployee>) =>
+      apiClient.patch<HrmEmployee>(`hrm/employees/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/employees/${id}/`),
+  },
+
+  // Contracts
+  contracts: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmContract>>('hrm/contracts/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmContract>(`hrm/contracts/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmContract>) =>
+      apiClient.post<HrmContract>('hrm/contracts/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmContract>) =>
+      apiClient.patch<HrmContract>(`hrm/contracts/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/contracts/${id}/`),
+  },
+
+  // Attendance policies
+  attendancePolicies: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmAttendancePolicy>>('hrm/attendance-policies/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmAttendancePolicy>(`hrm/attendance-policies/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmAttendancePolicy>) =>
+      apiClient.post<HrmAttendancePolicy>('hrm/attendance-policies/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmAttendancePolicy>) =>
+      apiClient.patch<HrmAttendancePolicy>(`hrm/attendance-policies/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/attendance-policies/${id}/`),
+  },
+
+  // Attendances
+  attendances: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmAttendance>>('hrm/attendances/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmAttendance>(`hrm/attendances/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmAttendance>) =>
+      apiClient.post<HrmAttendance>('hrm/attendances/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmAttendance>) =>
+      apiClient.patch<HrmAttendance>(`hrm/attendances/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/attendances/${id}/`),
+    bulkCheckin: (data: { employee_ids: string[]; date: string; check_in?: string }) =>
+      apiClient.post('hrm/attendances/bulk-checkin/', data).then(r => r.data),
+  },
+
+  // Leave types
+  leaveTypes: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmLeaveType>>('hrm/leave-types/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmLeaveType>(`hrm/leave-types/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmLeaveType>) =>
+      apiClient.post<HrmLeaveType>('hrm/leave-types/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmLeaveType>) =>
+      apiClient.patch<HrmLeaveType>(`hrm/leave-types/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/leave-types/${id}/`),
+  },
+
+  // Leave balances
+  leaveBalances: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmLeaveBalance>>('hrm/leave-balances/', { params }).then(r => r.data),
+    create: (data: Partial<HrmLeaveBalance>) =>
+      apiClient.post<HrmLeaveBalance>('hrm/leave-balances/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmLeaveBalance>) =>
+      apiClient.patch<HrmLeaveBalance>(`hrm/leave-balances/${id}/`, data).then(r => r.data),
+  },
+
+  // Leave requests
+  leaveRequests: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmLeaveRequest>>('hrm/leave-requests/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmLeaveRequest>(`hrm/leave-requests/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmLeaveRequest>) =>
+      apiClient.post<HrmLeaveRequest>('hrm/leave-requests/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmLeaveRequest>) =>
+      apiClient.patch<HrmLeaveRequest>(`hrm/leave-requests/${id}/`, data).then(r => r.data),
+    approve: (id: string, comment?: string) =>
+      apiClient.post<HrmLeaveRequest>(`hrm/leave-requests/${id}/approve/`, { comment }).then(r => r.data),
+    reject: (id: string, comment?: string) =>
+      apiClient.post<HrmLeaveRequest>(`hrm/leave-requests/${id}/reject/`, { comment }).then(r => r.data),
+  },
+
+  // Payroll periods
+  payrollPeriods: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmPayrollPeriod>>('hrm/payroll-periods/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmPayrollPeriod>(`hrm/payroll-periods/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmPayrollPeriod>) =>
+      apiClient.post<HrmPayrollPeriod>('hrm/payroll-periods/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmPayrollPeriod>) =>
+      apiClient.patch<HrmPayrollPeriod>(`hrm/payroll-periods/${id}/`, data).then(r => r.data),
+    close: (id: string) =>
+      apiClient.post<HrmPayrollPeriod>(`hrm/payroll-periods/${id}/close/`).then(r => r.data),
+    generatePayslips: (id: string) =>
+      apiClient.post(`hrm/payroll-periods/${id}/generate-payslips/`).then(r => r.data),
+  },
+
+  // Payslips
+  payslips: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmPaySlip>>('hrm/payslips/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmPaySlip>(`hrm/payslips/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmPaySlip>) =>
+      apiClient.post<HrmPaySlip>('hrm/payslips/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmPaySlip>) =>
+      apiClient.patch<HrmPaySlip>(`hrm/payslips/${id}/`, data).then(r => r.data),
+    validate: (id: string) =>
+      apiClient.post<HrmPaySlip>(`hrm/payslips/${id}/validate_slip/`).then(r => r.data),
+    markPaid: (id: string) =>
+      apiClient.post<HrmPaySlip>(`hrm/payslips/${id}/mark-paid/`).then(r => r.data),
+    compute: (id: string) =>
+      apiClient.post<HrmPaySlip>(`hrm/payslips/${id}/compute/`).then(r => r.data),
+  },
+
+  // Payslip lines
+  payslipLines: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmPaySlipLine>>('hrm/payslip-lines/', { params }).then(r => r.data),
+    create: (data: Partial<HrmPaySlipLine>) =>
+      apiClient.post<HrmPaySlipLine>('hrm/payslip-lines/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmPaySlipLine>) =>
+      apiClient.patch<HrmPaySlipLine>(`hrm/payslip-lines/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/payslip-lines/${id}/`),
+  },
+
+  // Salary components
+  salaryComponents: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmSalaryComponent>>('hrm/salary-components/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmSalaryComponent>(`hrm/salary-components/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmSalaryComponent>) =>
+      apiClient.post<HrmSalaryComponent>('hrm/salary-components/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmSalaryComponent>) =>
+      apiClient.patch<HrmSalaryComponent>(`hrm/salary-components/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/salary-components/${id}/`),
+  },
+
+  // Employee salary components
+  employeeSalaryComponents: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmEmployeeSalaryComponent>>('hrm/employee-salary-components/', { params }).then(r => r.data),
+    create: (data: Partial<HrmEmployeeSalaryComponent>) =>
+      apiClient.post<HrmEmployeeSalaryComponent>('hrm/employee-salary-components/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmEmployeeSalaryComponent>) =>
+      apiClient.patch<HrmEmployeeSalaryComponent>(`hrm/employee-salary-components/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/employee-salary-components/${id}/`),
+  },
+
+  // Evaluation templates
+  evaluationTemplates: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmEvaluationTemplate>>('hrm/evaluation-templates/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmEvaluationTemplate>(`hrm/evaluation-templates/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmEvaluationTemplate>) =>
+      apiClient.post<HrmEvaluationTemplate>('hrm/evaluation-templates/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmEvaluationTemplate>) =>
+      apiClient.patch<HrmEvaluationTemplate>(`hrm/evaluation-templates/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/evaluation-templates/${id}/`),
+  },
+
+  // Evaluation criteria
+  evaluationCriteria: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmEvaluationCriteria>>('hrm/evaluation-criteria/', { params }).then(r => r.data),
+    create: (data: Partial<HrmEvaluationCriteria>) =>
+      apiClient.post<HrmEvaluationCriteria>('hrm/evaluation-criteria/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmEvaluationCriteria>) =>
+      apiClient.patch<HrmEvaluationCriteria>(`hrm/evaluation-criteria/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/evaluation-criteria/${id}/`),
+  },
+
+  // Performance reviews
+  performanceReviews: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmPerformanceReview>>('hrm/performance-reviews/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmPerformanceReview>(`hrm/performance-reviews/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmPerformanceReview>) =>
+      apiClient.post<HrmPerformanceReview>('hrm/performance-reviews/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmPerformanceReview>) =>
+      apiClient.patch<HrmPerformanceReview>(`hrm/performance-reviews/${id}/`, data).then(r => r.data),
+    complete: (id: string) =>
+      apiClient.post<HrmPerformanceReview>(`hrm/performance-reviews/${id}/complete/`).then(r => r.data),
+  },
+
+  // Performance scores
+  performanceScores: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmPerformanceReviewScore>>('hrm/performance-scores/', { params }).then(r => r.data),
+    create: (data: Partial<HrmPerformanceReviewScore>) =>
+      apiClient.post<HrmPerformanceReviewScore>('hrm/performance-scores/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmPerformanceReviewScore>) =>
+      apiClient.patch<HrmPerformanceReviewScore>(`hrm/performance-scores/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/performance-scores/${id}/`),
+  },
+
+  // Disciplinary actions
+  disciplinaryActions: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmDisciplinaryAction>>('hrm/disciplinary-actions/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmDisciplinaryAction>(`hrm/disciplinary-actions/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmDisciplinaryAction>) =>
+      apiClient.post<HrmDisciplinaryAction>('hrm/disciplinary-actions/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmDisciplinaryAction>) =>
+      apiClient.patch<HrmDisciplinaryAction>(`hrm/disciplinary-actions/${id}/`, data).then(r => r.data),
+  },
+
+  // Documents
+  documents: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmEmployeeDocument>>('hrm/documents/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmEmployeeDocument>(`hrm/documents/${id}/`).then(r => r.data),
+    create: (data: FormData) =>
+      apiClient.post<HrmEmployeeDocument>('hrm/documents/', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/documents/${id}/`),
+  },
+
+  // Holidays
+  holidays: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmHoliday>>('hrm/holidays/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmHoliday>(`hrm/holidays/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmHoliday>) =>
+      apiClient.post<HrmHoliday>('hrm/holidays/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmHoliday>) =>
+      apiClient.patch<HrmHoliday>(`hrm/holidays/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/holidays/${id}/`),
+  },
 };

@@ -7,6 +7,7 @@ import type { PurchaseOrderStatus } from '@/api/types';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 import { useStoreStore } from '@/store-context/store-store';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useSort } from '@/hooks/use-sort';
@@ -72,11 +73,7 @@ export default function PurchaseListPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all });
     },
     onError: (err: unknown) => {
-      toast.error(
-        (err as any)?.response?.data?.detail
-        || (err as any)?.response?.data?.non_field_errors?.[0]
-        || 'Erreur lors de la suppression',
-      );
+      toast.error(extractApiError(err, 'Erreur lors de la suppression'));
     },
   });
 

@@ -52,6 +52,57 @@ def _serializer_user_enterprise_id(user):
     return link.store.enterprise_id
 
 
+def _effective_target_role(*, role, custom_role, fallback_role=None):
+    """Resolve the effective role after optional custom-role mapping."""
+    if custom_role:
+        return custom_role.base_role
+    return role or fallback_role
+
+
+def _validate_user_role_transition(*, request, target_role, current_role=None):
+    """Enforce role hierarchy on create/update operations."""
+    if not request or not request.user or not request.user.is_authenticated:
+        return
+    actor = request.user
+
+    # Non-superusers must not promote accounts to ADMIN.
+    if target_role == "ADMIN" and not getattr(actor, "is_superuser", False):
+        if current_role != "ADMIN":
+            raise serializers.ValidationError(
+                "Seuls les superadmins peuvent creer ou promouvoir des utilisateurs ADMIN."
+            )
+
+    # Keep manager restrictions for compatibility if endpoint gets reused.
+    if getattr(actor, "role", None) == "MANAGER" and target_role not in (
+        "SALES",
+        "COMMERCIAL",
+        "HR",
+        "CASHIER",
+        "STOCKER",
+    ):
+        raise serializers.ValidationError(
+            "Les managers ne peuvent creer/gerer que des utilisateurs SALES, COMMERCIAL, HR, CASHIER ou STOCKER."
+        )
+
+
+def _validate_custom_role_scope(*, request, custom_role):
+    """Ensure custom roles are assigned only within the actor enterprise."""
+    if not custom_role or not request or not request.user or not request.user.is_authenticated:
+        return
+    actor = request.user
+    if getattr(actor, "is_superuser", False):
+        return
+    actor_enterprise_id = _serializer_user_enterprise_id(actor)
+    if actor_enterprise_id is None:
+        raise serializers.ValidationError(
+            "Aucune entreprise active n'est associee a votre compte."
+        )
+    if str(custom_role.enterprise_id) != str(actor_enterprise_id):
+        raise serializers.ValidationError(
+            {"custom_role": "Ce role personnalise n'appartient pas a votre entreprise."}
+        )
+
+
 # ---------------------------------------------------------------------------
 # Custom Role Serializer
 # ---------------------------------------------------------------------------
@@ -89,9 +140,20 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'role']
 
     def update(self, instance, validated_data):
+        request = self.context.get("request")
         custom_role = validated_data.get('custom_role')
-        if custom_role:
-            validated_data['role'] = custom_role.base_role
+        _validate_custom_role_scope(request=request, custom_role=custom_role)
+        target_role = _effective_target_role(
+            role=validated_data.get("role"),
+            custom_role=custom_role,
+            fallback_role=instance.role,
+        )
+        _validate_user_role_transition(
+            request=request,
+            target_role=target_role,
+            current_role=instance.role,
+        )
+        validated_data['role'] = target_role
         return super().update(instance, validated_data)
 
 
@@ -124,15 +186,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request:
             return value
-        creator = request.user
-        if value == 'ADMIN' and not getattr(creator, 'is_superuser', False):
-            raise serializers.ValidationError(
-                "Seuls les superadmins peuvent creer des utilisateurs ADMIN."
-            )
-        if getattr(creator, 'role', None) == 'MANAGER' and value not in ('SALES', 'CASHIER', 'STOCKER'):
-            raise serializers.ValidationError(
-                "Les managers ne peuvent creer que des utilisateurs SALES, CASHIER ou STOCKER."
-            )
+        _validate_user_role_transition(request=request, target_role=value, current_role=None)
         return value
 
     def validate(self, attrs):
@@ -140,10 +194,22 @@ class UserCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'password_confirm': 'Les mots de passe ne correspondent pas.'}
             )
-        # Sync role from custom_role
+        request = self.context.get("request")
+        custom_role = attrs.get("custom_role")
+        _validate_custom_role_scope(request=request, custom_role=custom_role)
+
+        # Sync role from custom_role, then validate effective role.
         custom_role = attrs.get('custom_role')
-        if custom_role:
-            attrs['role'] = custom_role.base_role
+        effective_role = _effective_target_role(
+            role=attrs.get("role"),
+            custom_role=custom_role,
+        )
+        _validate_user_role_transition(
+            request=request,
+            target_role=effective_role,
+            current_role=None,
+        )
+        attrs['role'] = effective_role
         return attrs
 
     def create(self, validated_data):
@@ -606,6 +672,7 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'enterprise', 'name', 'slug', 'sku', 'barcode',
+            'description',
             'category', 'category_name', 'brand', 'brand_name',
             'product_type', 'track_stock',
             'cost_price', 'selling_price',

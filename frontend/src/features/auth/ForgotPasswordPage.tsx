@@ -1,21 +1,11 @@
 ﻿/** Password reset request page (forgot password). */
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { AxiosError } from 'axios';
 import { Mail, ArrowLeft, Send } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 import { authApi } from '@/api/endpoints';
-
-function errDetail(err: unknown): string {
-  const ax = err as AxiosError<{ detail?: string } | string>;
-  const data = ax?.response?.data;
-  if (typeof data === 'string') {
-    const status = ax?.response?.status;
-    return status ? `Erreur serveur (${status}).` : 'Erreur serveur.';
-  }
-  return (data as { detail?: string } | undefined)?.detail ?? (err as Error)?.message ?? 'Erreur.';
-}
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -36,7 +26,7 @@ export default function ForgotPasswordPage() {
       setSuccess(res.detail);
       if (res.debug_reset_url) setDebugLink(res.debug_reset_url);
     } catch (err) {
-      const message = errDetail(err);
+      const message = extractApiError(err);
       toast.error(message);
       setError(message);
     } finally {

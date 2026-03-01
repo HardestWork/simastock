@@ -5,6 +5,7 @@ import { authApi } from '@/api/endpoints';
 import { useAuthStore } from '@/auth/auth-store';
 import { User as UserIcon, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrateur',
@@ -39,7 +40,7 @@ export default function ProfilePage() {
       setProfileMsg({ type: 'success', text: 'Profil utilisateur mis a jour.' });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
       setProfileMsg({ type: 'error', text: 'Erreur lors de la mise a jour du profil.' });
     },
   });
@@ -56,7 +57,7 @@ export default function ProfilePage() {
       setConfirmPassword('');
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
       setPasswordMsg({ type: 'error', text: 'Erreur lors du changement de mot de passe. Verifiez l\'ancien mot de passe.' });
     },
   });

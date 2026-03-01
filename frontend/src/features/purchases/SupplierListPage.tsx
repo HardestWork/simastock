@@ -10,7 +10,7 @@ import SortableHeader from '@/components/shared/SortableHeader';
 import { Search, Plus, Pencil, Trash2, X, Phone, Mail, MapPin, User } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import type { Supplier } from '@/api/types';
-import type { AxiosError } from 'axios';
+import { extractApiError } from '@/lib/api-error';
 
 const PAGE_SIZE = 25;
 
@@ -70,17 +70,9 @@ export default function SupplierListPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all });
       resetForm();
     },
-    onError: (err: AxiosError) => {
-      toast.error(
-        (err.response?.data as any)?.detail
-          || (err.response?.data as any)?.non_field_errors?.[0]
-          || 'Erreur lors de la creation du fournisseur',
-      );
-      const detail =
-        (err.response?.data as any)?.detail
-        ?? (err.response?.data as any)?.name?.[0]
-        ?? err.message;
-      setFormError(String(detail));
+    onError: (err: unknown) => {
+      toast.error(extractApiError(err, 'Erreur lors de la creation du fournisseur'));
+      setFormError(extractApiError(err));
     },
   });
 
@@ -93,17 +85,9 @@ export default function SupplierListPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all });
       resetForm();
     },
-    onError: (err: AxiosError) => {
-      toast.error(
-        (err.response?.data as any)?.detail
-          || (err.response?.data as any)?.non_field_errors?.[0]
-          || 'Erreur lors de la mise a jour du fournisseur',
-      );
-      const detail =
-        (err.response?.data as any)?.detail
-        ?? (err.response?.data as any)?.name?.[0]
-        ?? err.message;
-      setFormError(String(detail));
+    onError: (err: unknown) => {
+      toast.error(extractApiError(err, 'Erreur lors de la mise a jour du fournisseur'));
+      setFormError(extractApiError(err));
     },
   });
 
@@ -115,11 +99,7 @@ export default function SupplierListPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all });
     },
     onError: (err: unknown) => {
-      toast.error(
-        (err as any)?.response?.data?.detail
-          || (err as any)?.response?.data?.non_field_errors?.[0]
-          || 'Erreur lors de la suppression du fournisseur',
-      );
+      toast.error(extractApiError(err, 'Erreur lors de la suppression du fournisseur'));
     },
   });
 

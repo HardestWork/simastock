@@ -20,20 +20,10 @@ import {
   AlertCircle,
   ChevronLeft,
 } from 'lucide-react';
-import type { AxiosError } from 'axios';
 import { toast } from '@/lib/toast';
+import { extractApiError as extractErrorMessage } from '@/lib/api-error';
 
 type DiscountMode = 'none' | 'percent' | 'fixed';
-
-function extractErrorMessage(err: unknown): string {
-  const axErr = err as AxiosError<{ detail?: string; non_field_errors?: string[] }>;
-  return (
-    axErr?.response?.data?.detail ??
-    axErr?.response?.data?.non_field_errors?.[0] ??
-    (err as Error)?.message ??
-    'Une erreur est survenue.'
-  );
-}
 
 export default function QuoteFormPage() {
   const queryClient = useQueryClient();
@@ -518,9 +508,7 @@ export default function QuoteFormPage() {
                   </button>
                   {createCustomerMut.isError && (
                     <p className="text-xs text-red-600">
-                      Erreur:{' '}
-                      {((createCustomerMut.error as AxiosError)?.response?.data as any)?.detail ??
-                        'Impossible de creer le client.'}
+                      Erreur: {extractErrorMessage(createCustomerMut.error, 'Impossible de creer le client.')}
                     </p>
                   )}
                 </form>
@@ -571,9 +559,7 @@ export default function QuoteFormPage() {
                 </div>
               ) : isProductsError ? (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-                  Erreur chargement produits:{' '}
-                  {((productsError as AxiosError)?.response?.data as any)?.detail ??
-                    (productsError as Error).message}
+                  Erreur chargement produits: {extractErrorMessage(productsError, 'Impossible de charger les produits.')}
                 </div>
               ) : products && products.results.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

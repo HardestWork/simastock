@@ -181,8 +181,16 @@ export const queryKeys = {
   // Reports
   kpis: (storeId: string, dateFrom?: string, dateTo?: string) =>
     ['reports', 'kpis', storeId, dateFrom, dateTo] as const,
-  salesReport: (storeId: string, dateFrom?: string, dateTo?: string, groupBy?: string) =>
-    ['reports', 'sales', storeId, dateFrom, dateTo, groupBy] as const,
+  salesReport: (
+    storeId: string,
+    dateFrom?: string,
+    dateTo?: string,
+    groupBy?: string,
+    customer?: string,
+    cashier?: string,
+    product?: string,
+  ) =>
+    ['reports', 'sales', storeId, dateFrom, dateTo, groupBy, customer, cashier, product] as const,
   stockTrend: (storeId: string, dateFrom?: string, dateTo?: string) =>
     ['reports', 'stock-trend', storeId, dateFrom, dateTo] as const,
   dailyStatistics: (storeId: string, dateFrom?: string, dateTo?: string) =>
@@ -212,5 +220,86 @@ export const queryKeys = {
     customerTopMonthly: (params: unknown) => ['analytics', 'customers', 'top', params] as const,
     customerDormant: (params: unknown) => ['analytics', 'customers', 'dormant', params] as const,
     customerInsights: (params: unknown) => ['analytics', 'customers', 'insights', params] as const,
+  },
+  // HRM
+  hrm: {
+    departments: {
+      all: ['hrm', 'departments'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'departments', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'departments', id] as const,
+    },
+    positions: {
+      all: ['hrm', 'positions'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'positions', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'positions', id] as const,
+    },
+    employees: {
+      all: ['hrm', 'employees'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'employees', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'employees', id] as const,
+    },
+    contracts: {
+      all: ['hrm', 'contracts'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'contracts', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'contracts', id] as const,
+    },
+    attendancePolicies: {
+      all: ['hrm', 'attendance-policies'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'attendance-policies', 'list', params] as const,
+    },
+    attendances: {
+      all: ['hrm', 'attendances'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'attendances', 'list', params] as const,
+    },
+    leaveTypes: {
+      all: ['hrm', 'leave-types'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'leave-types', 'list', params] as const,
+    },
+    leaveBalances: {
+      all: ['hrm', 'leave-balances'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'leave-balances', 'list', params] as const,
+    },
+    leaveRequests: {
+      all: ['hrm', 'leave-requests'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'leave-requests', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'leave-requests', id] as const,
+    },
+    payrollPeriods: {
+      all: ['hrm', 'payroll-periods'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'payroll-periods', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'payroll-periods', id] as const,
+    },
+    payslips: {
+      all: ['hrm', 'payslips'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'payslips', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'payslips', id] as const,
+    },
+    salaryComponents: {
+      all: ['hrm', 'salary-components'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'salary-components', 'list', params] as const,
+    },
+    evaluationTemplates: {
+      all: ['hrm', 'evaluation-templates'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'evaluation-templates', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'evaluation-templates', id] as const,
+    },
+    performanceReviews: {
+      all: ['hrm', 'performance-reviews'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'performance-reviews', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'performance-reviews', id] as const,
+    },
+    disciplinaryActions: {
+      all: ['hrm', 'disciplinary-actions'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'disciplinary-actions', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'disciplinary-actions', id] as const,
+    },
+    documents: {
+      all: ['hrm', 'documents'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'documents', 'list', params] as const,
+    },
+    holidays: {
+      all: ['hrm', 'holidays'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'holidays', 'list', params] as const,
+    },
   },
 } as const;

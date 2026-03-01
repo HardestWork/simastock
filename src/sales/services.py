@@ -813,11 +813,11 @@ def accept_quote(quote: Quote, actor) -> Quote:
 
 @transaction.atomic
 def refuse_quote(quote: Quote, reason: str, actor) -> Quote:
-    """Mark a SENT quote as REFUSED."""
+    """Mark a SENT or ACCEPTED quote as REFUSED."""
     quote = Quote.objects.select_for_update().get(pk=quote.pk)
 
-    if quote.status != Quote.Status.SENT:
-        raise ValueError("Seul un devis envoye peut etre refuse.")
+    if quote.status not in (Quote.Status.SENT, Quote.Status.ACCEPTED):
+        raise ValueError("Seul un devis envoye ou accepte peut etre refuse.")
 
     quote.status = Quote.Status.REFUSED
     quote.refused_at = timezone.now()
@@ -838,15 +838,20 @@ def refuse_quote(quote: Quote, reason: str, actor) -> Quote:
 
 @transaction.atomic
 def convert_quote_to_sale(quote: Quote, actor) -> Sale:
-    """Convert an ACCEPTED quote into a DRAFT sale.
+    """Convert a SENT or ACCEPTED quote into a sale.
 
     Copies customer, items, discounts, and notes from the quote.
     Links the sale back to the quote via ``source_quote``.
+    If the quote is SENT, it is automatically accepted before conversion.
     """
     quote = Quote.objects.select_for_update().get(pk=quote.pk)
 
-    if quote.status != Quote.Status.ACCEPTED:
-        raise ValueError("Seul un devis accepte peut etre converti en facture.")
+    if quote.status not in (Quote.Status.SENT, Quote.Status.ACCEPTED):
+        raise ValueError("Seul un devis envoye ou accepte peut etre converti en facture.")
+
+    # Auto-accept if still SENT
+    if quote.status == Quote.Status.SENT:
+        quote.accepted_at = timezone.now()
 
     if quote.converted_sale_id:
         raise ValueError("Ce devis a deja ete converti en facture.")

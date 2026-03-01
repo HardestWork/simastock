@@ -6,10 +6,10 @@ import { supplierApi, purchaseOrderApi, productApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from '@/lib/toast';
+import { extractApiError as extractErrorMessage } from '@/lib/api-error';
 import { useStoreStore } from '@/store-context/store-store';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { Product } from '@/api/types';
-import type { AxiosError } from 'axios';
 import {
   Plus,
   Trash2,
@@ -30,16 +30,6 @@ interface LineDraft {
   product_sku: string;
   quantity_ordered: number;
   unit_cost: number;
-}
-
-function extractErrorMessage(err: unknown): string {
-  const axErr = err as AxiosError<{ detail?: string; non_field_errors?: string[] }>;
-  return (
-    axErr?.response?.data?.detail ??
-    axErr?.response?.data?.non_field_errors?.[0] ??
-    (err as Error)?.message ??
-    'Une erreur est survenue.'
-  );
 }
 
 // ---------------------------------------------------------------------------

@@ -6,26 +6,10 @@ import { enterpriseApi } from '@/api/endpoints';
 import type { EnterpriseSetupPayload, EnterpriseSetupResponse } from '@/api/types';
 import { ArrowLeft, Save, Loader2, AlertCircle, CheckCircle2, Building2, Store, UserCog, Copy, Mail } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import type { AxiosError } from 'axios';
+import { extractApiError } from '@/lib/api-error';
 
 const inputClass =
   'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100';
-
-function extractError(err: unknown): string {
-  const ax = err as AxiosError<Record<string, unknown> | string>;
-  const data = ax?.response?.data;
-  if (data) {
-    if (typeof data === 'string') return 'Erreur serveur. Veuillez reessayer.';
-    if (typeof data.detail === 'string') return data.detail;
-    const msgs: string[] = [];
-    for (const [key, val] of Object.entries(data)) {
-      if (Array.isArray(val)) msgs.push(`${key}: ${val.join(', ')}`);
-      else if (typeof val === 'string') msgs.push(`${key}: ${val}`);
-    }
-    if (msgs.length) return msgs.join(' | ');
-  }
-  return 'Une erreur est survenue. Veuillez reessayer.';
-}
 
 export default function EnterpriseSetupPage() {
   // Enterprise fields
@@ -68,8 +52,8 @@ export default function EnterpriseSetupPage() {
       setCopied(false);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
-      setError(extractError(err));
+      toast.error(extractApiError(err));
+      setError(extractApiError(err));
     },
   });
 

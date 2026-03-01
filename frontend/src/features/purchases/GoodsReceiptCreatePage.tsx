@@ -7,6 +7,7 @@ import { purchaseOrderApi, goodsReceiptApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 import { useStoreStore } from '@/store-context/store-store';
 import type { GoodsReceiptCreatePayload, PurchaseOrderLine } from '@/api/types';
 
@@ -57,11 +58,7 @@ export default function GoodsReceiptCreatePage() {
       navigate(`/purchases/orders/${orderId}`);
     },
     onError: (err: unknown) => {
-      const message =
-        (err as any)?.response?.data?.detail ||
-        (err as any)?.response?.data?.non_field_errors?.[0] ||
-        'Une erreur est survenue lors de la creation de la reception.';
-      toast.error(message);
+      toast.error(extractApiError(err, 'Une erreur est survenue lors de la creation de la reception.'));
     },
   });
 

@@ -1,9 +1,9 @@
 ﻿/** Advanced analytics/AI page (Manager/Admin). */
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
 import { BarChart3, RefreshCw, AlertTriangle } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 import { analyticsApi } from '@/api/endpoints';
 import type {
@@ -15,11 +15,6 @@ import type {
 import CurrencyDisplay from '@/components/shared/CurrencyDisplay';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
-
-function errDetail(err: unknown): string {
-  const ax = err as AxiosError<{ detail?: string }>;
-  return ax?.response?.data?.detail ?? (err as Error)?.message ?? 'Erreur.';
-}
 
 type Tab = 'dashboard' | 'abc' | 'reorder' | 'credit' | 'forecast' | 'fraud' | 'margin' | 'customers';
 
@@ -305,21 +300,21 @@ export default function AnalyticsPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
   const anyError =
-    (strategicQ.isError ? errDetail(strategicQ.error) : null) ??
-    (abcQ.isError ? errDetail(abcQ.error) : null) ??
-    (reorderQ.isError ? errDetail(reorderQ.error) : null) ??
-    (creditQ.isError ? errDetail(creditQ.error) : null) ??
-    (forecastQ.isError ? errDetail(forecastQ.error) : null) ??
-    (fraudQ.isError ? errDetail(fraudQ.error) : null) ??
-    (marginQ.isError ? errDetail(marginQ.error) : null) ??
-    (orientationQ.isError ? errDetail(orientationQ.error) : null) ??
-    (customerCreditRiskQ.isError ? errDetail(customerCreditRiskQ.error) : null) ??
-    (customerChurnQ.isError ? errDetail(customerChurnQ.error) : null);
+    (strategicQ.isError ? extractApiError(strategicQ.error) : null) ??
+    (abcQ.isError ? extractApiError(abcQ.error) : null) ??
+    (reorderQ.isError ? extractApiError(reorderQ.error) : null) ??
+    (creditQ.isError ? extractApiError(creditQ.error) : null) ??
+    (forecastQ.isError ? extractApiError(forecastQ.error) : null) ??
+    (fraudQ.isError ? extractApiError(fraudQ.error) : null) ??
+    (marginQ.isError ? extractApiError(marginQ.error) : null) ??
+    (orientationQ.isError ? extractApiError(orientationQ.error) : null) ??
+    (customerCreditRiskQ.isError ? extractApiError(customerCreditRiskQ.error) : null) ??
+    (customerChurnQ.isError ? extractApiError(customerChurnQ.error) : null);
 
   const forecastAgg = useMemo(() => {
     const byDate = new Map<string, number>();

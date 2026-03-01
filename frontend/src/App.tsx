@@ -97,6 +97,12 @@ const StockAnalyticsPage = lazyRetry(() => import('@/features/stock/StockAnalyti
 const DGDashboardPage = lazyRetry(() => import('@/features/dg/DGDashboardPage'));
 const CustomerIntelligencePage = lazyRetry(() => import('@/features/customers/CustomerIntelligencePage'));
 const CommercialPage = lazyRetry(() => import('@/features/commercial/CommercialPage'));
+const HrmEmployeeListPage = lazyRetry(() => import('@/features/hrm/EmployeeListPage'));
+const HrmEmployeeDetailPage = lazyRetry(() => import('@/features/hrm/EmployeeDetailPage'));
+const HrmEmployeeFormPage = lazyRetry(() => import('@/features/hrm/EmployeeFormPage'));
+const HrmLeaveRequestListPage = lazyRetry(() => import('@/features/hrm/LeaveRequestListPage'));
+const HrmAttendanceListPage = lazyRetry(() => import('@/features/hrm/AttendanceListPage'));
+const HrmPayrollPage = lazyRetry(() => import('@/features/hrm/PayrollPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -165,7 +171,15 @@ export default function App() {
                 </Route>
 
                 {/* Commercial CRM */}
-                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN']} requiredModules={['COMMERCIAL']} />}>
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN']}
+                      requiredModules={['COMMERCIAL']}
+                      allowedCapabilities={['CAN_MANAGE_LEADS', 'CAN_MANAGE_OPPORTUNITIES', 'CAN_LOG_ACTIVITY', 'CAN_APPROVE_COMMERCIAL_BONUS']}
+                    />
+                  }
+                >
                   <Route path="/commercial" element={<Suspense fallback={<PageLoader />}><CommercialPage /></Suspense>} />
                   <Route path="/commercial/prospects" element={<Suspense fallback={<PageLoader />}><CommercialPage /></Suspense>} />
                   <Route path="/commercial/tasks" element={<Suspense fallback={<PageLoader />}><CommercialPage /></Suspense>} />
@@ -298,6 +312,26 @@ export default function App() {
                   <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsPage /></Suspense>} />
                 </Route>
 
+                {/* HRM */}
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['HR', 'MANAGER', 'ADMIN']}
+                      requiredModules={['HRM']}
+                      allowedCapabilities={['CAN_VIEW_HRM', 'CAN_MANAGE_HRM']}
+                    />
+                  }
+                >
+                  <Route path="/hrm" element={<Navigate to="/hrm/employees" replace />} />
+                  <Route path="/hrm/employees" element={<Suspense fallback={<PageLoader />}><HrmEmployeeListPage /></Suspense>} />
+                  <Route path="/hrm/employees/new" element={<Suspense fallback={<PageLoader />}><HrmEmployeeFormPage /></Suspense>} />
+                  <Route path="/hrm/employees/:id" element={<Suspense fallback={<PageLoader />}><HrmEmployeeDetailPage /></Suspense>} />
+                  <Route path="/hrm/employees/:id/edit" element={<Suspense fallback={<PageLoader />}><HrmEmployeeFormPage /></Suspense>} />
+                  <Route path="/hrm/leaves" element={<Suspense fallback={<PageLoader />}><HrmLeaveRequestListPage /></Suspense>} />
+                  <Route path="/hrm/attendance" element={<Suspense fallback={<PageLoader />}><HrmAttendanceListPage /></Suspense>} />
+                  <Route path="/hrm/payroll" element={<Suspense fallback={<PageLoader />}><HrmPayrollPage /></Suspense>} />
+                </Route>
+
                 {/* Profile (all authenticated users) */}
                 <Route path="/profile" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
 
@@ -307,7 +341,15 @@ export default function App() {
                 </Route>
 
                 {/* Settings */}
-                <Route element={<ProtectedRoute allowedRoles={['ADMIN']} requiredModules={['CORE']} />}>
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['MANAGER', 'ADMIN']}
+                      requiredModules={['CORE']}
+                      allowedCapabilities={['CAN_MANAGE_USERS', 'CAN_MANAGE_STORES', 'CAN_MANAGE_SUBSCRIPTIONS', 'CAN_MANAGE_MODULES']}
+                    />
+                  }
+                >
                   <Route path="/settings" element={<Navigate to="/settings/stores" replace />} />
                   <Route path="/settings/stores" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
                   <Route path="/settings/invoice" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
@@ -317,10 +359,12 @@ export default function App() {
                   <Route path="/settings/users/:id/edit" element={<Suspense fallback={<PageLoader />}><UserFormPage /></Suspense>} />
                   <Route path="/settings/roles" element={<Suspense fallback={<PageLoader />}><RoleListPage /></Suspense>} />
                   <Route path="/settings/permissions" element={<Suspense fallback={<PageLoader />}><StoreUserCapabilitiesPage /></Suspense>} />
-                  <Route path="/settings/modules" element={<Suspense fallback={<PageLoader />}><ModuleEntitlementsPage /></Suspense>} />
-                  <Route path="/settings/subscriptions" element={<Suspense fallback={<PageLoader />}><EnterpriseSubscriptionPage /></Suspense>} />
-                  <Route path="/settings/enterprises" element={<Suspense fallback={<PageLoader />}><EnterpriseListPage /></Suspense>} />
-                  <Route path="/settings/enterprise-setup" element={<Suspense fallback={<PageLoader />}><EnterpriseSetupPage /></Suspense>} />
+                  <Route element={<ProtectedRoute superuserOnly />}>
+                    <Route path="/settings/modules" element={<Suspense fallback={<PageLoader />}><ModuleEntitlementsPage /></Suspense>} />
+                    <Route path="/settings/subscriptions" element={<Suspense fallback={<PageLoader />}><EnterpriseSubscriptionPage /></Suspense>} />
+                    <Route path="/settings/enterprises" element={<Suspense fallback={<PageLoader />}><EnterpriseListPage /></Suspense>} />
+                    <Route path="/settings/enterprise-setup" element={<Suspense fallback={<PageLoader />}><EnterpriseSetupPage /></Suspense>} />
+                  </Route>
                 </Route>
               </Route>
             </Route>

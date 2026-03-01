@@ -6,7 +6,7 @@ import { productApi, categoryApi, brandApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { ArrowLeft, Save, Loader2, AlertCircle, Upload, Trash2 } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import type { AxiosError } from 'axios';
+import { extractApiError } from '@/lib/api-error';
 
 export default function ProductFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +23,7 @@ export default function ProductFormPage() {
   const [brand, setBrand] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
+  const [description, setDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -60,6 +61,7 @@ export default function ProductFormPage() {
       setBrand(product.brand || '');
       setCostPrice(product.cost_price || '');
       setSellingPrice(product.selling_price || '');
+      setDescription(product.description || '');
       setIsActive(product.is_active ?? true);
     }
   }, [product]);
@@ -77,39 +79,6 @@ export default function ProductFormPage() {
     }
   };
 
-  // ---- Helpers to extract API error message ----
-  const extractErrorMessage = (err: unknown): string => {
-    const axiosErr = err as AxiosError<Record<string, unknown> | string>;
-    const status = axiosErr?.response?.status;
-    const data = axiosErr?.response?.data;
-    if (data) {
-      // When the gateway/server returns HTML (e.g. 413 upload too large, CSRF 403),
-      // axios gives us a string. Avoid showing "0: < 1: h ..." to the user.
-      if (typeof data === 'string') {
-        const lower = data.toLowerCase();
-        if (status === 413 || lower.includes('request entity too large') || lower.includes('payload too large')) {
-          return 'Image trop lourde (limite upload). Essayez une image plus petite (ou compressez-la).';
-        }
-        if (status === 403 && lower.includes('csrf')) {
-          return 'CSRF: session invalide. Rechargez la page puis reessayez.';
-        }
-        return status ? `Erreur serveur (${status}). Veuillez reessayer.` : 'Erreur serveur. Veuillez reessayer.';
-      }
-      if (typeof data.detail === 'string') return data.detail;
-      // Collect field-level errors
-      const messages: string[] = [];
-      for (const [key, val] of Object.entries(data)) {
-        if (Array.isArray(val)) {
-          messages.push(`${key}: ${val.join(', ')}`);
-        } else if (typeof val === 'string') {
-          messages.push(`${key}: ${val}`);
-        }
-      }
-      if (messages.length > 0) return messages.join(' | ');
-    }
-    return 'Une erreur est survenue. Veuillez reessayer.';
-  };
-
   // ---- Create mutation ----
   const createMut = useMutation({
     mutationFn: (data: FormData) => productApi.create(data),
@@ -119,8 +88,8 @@ export default function ProductFormPage() {
       navigate(`/catalog/${response.id}`);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
-      setSubmitError(extractErrorMessage(err));
+      toast.error(extractApiError(err));
+      setSubmitError(extractApiError(err));
     },
   });
 
@@ -135,8 +104,8 @@ export default function ProductFormPage() {
       navigate(`/catalog/${id}`);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
-      setSubmitError(extractErrorMessage(err));
+      toast.error(extractApiError(err));
+      setSubmitError(extractApiError(err));
     },
   });
 
@@ -148,7 +117,7 @@ export default function ProductFormPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id!) });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -179,6 +148,7 @@ export default function ProductFormPage() {
         brand: brand || null,
         cost_price: costPrice.trim(),
         selling_price: sellingPrice.trim(),
+        description: description.trim(),
         is_active: isActive,
       };
       updateMut.mutate(jsonData);
@@ -194,6 +164,7 @@ export default function ProductFormPage() {
       if (brand) formData.append('brand', brand);
       formData.append('cost_price', costPrice.trim());
       formData.append('selling_price', sellingPrice.trim());
+      formData.append('description', description.trim());
       formData.append('is_active', String(isActive));
       if (imageFile) {
         formData.append('image', imageFile);
@@ -369,6 +340,20 @@ export default function ProductFormPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
                 placeholder="0"
                 required
+              />
+            </div>
+
+            {/* Description */}
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100 resize-none"
+                placeholder="Description du produit (optionnel)"
               />
             </div>
 

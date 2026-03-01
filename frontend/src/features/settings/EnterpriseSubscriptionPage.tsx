@@ -23,6 +23,7 @@ import { useAuthStore } from '@/auth/auth-store';
 import { formatCurrency } from '@/lib/currency';
 import { queryKeys } from '@/lib/query-keys';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 const inputClass =
   'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100';
@@ -89,21 +90,6 @@ function defaultForm(enterpriseId: string): FormState {
     external_subscription_id: '',
     metadata_text: '{}',
   };
-}
-
-function extractError(err: unknown): string {
-  const data = (err as { response?: { data?: Record<string, unknown> | string } })?.response?.data;
-  if (data && typeof data === 'string') return data;
-  if (data && typeof data === 'object') {
-    if (typeof data.detail === 'string') return data.detail;
-    const first = Object.entries(data)[0];
-    if (first) {
-      const [field, value] = first;
-      if (Array.isArray(value)) return `${field}: ${value.join(', ')}`;
-      if (typeof value === 'string') return `${field}: ${value}`;
-    }
-  }
-  return 'Une erreur est survenue.';
 }
 
 function formatDate(dateStr: string | null): string {
@@ -202,7 +188,7 @@ export default function EnterpriseSubscriptionPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.enterpriseSubscriptions.all });
     },
     onError: (err: unknown) => {
-      const msg = extractError(err);
+      const msg = extractApiError(err);
       setFormError(msg);
       toast.error(msg);
     },
@@ -220,7 +206,7 @@ export default function EnterpriseSubscriptionPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.enterpriseSubscriptions.all });
     },
     onError: (err: unknown) => {
-      toast.error(extractError(err));
+      toast.error(extractApiError(err));
     },
   });
 
@@ -375,7 +361,7 @@ export default function EnterpriseSubscriptionPage() {
             </div>
           ) : subscriptionsQ.isError ? (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-              {extractError(subscriptionsQ.error)}
+              {extractApiError(subscriptionsQ.error)}
             </div>
           ) : subscriptions.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-10 text-center text-gray-500 dark:text-gray-400">

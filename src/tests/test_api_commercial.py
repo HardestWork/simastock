@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from commercial.models import (
+    CommercialProspect,
     CommercialIncentivePolicy,
     CommercialIncentiveResult,
     CommercialIncentiveTier,
@@ -82,6 +83,33 @@ def test_move_stage_rejects_invalid_transition(sales_client, sales_user, store):
     )
     assert response.status_code == 400
     assert "to_stage" in response.data
+
+
+@pytest.mark.django_db
+def test_qualify_prospect_is_idempotent(sales_client, sales_user, store):
+    prospect = CommercialProspect.objects.create(
+        store=store,
+        owner=sales_user,
+        company_name="Prospect unique",
+        status=CommercialProspect.Status.NEW,
+        estimated_potential=Decimal("180000"),
+    )
+
+    first_response = sales_client.post(
+        f"/api/v1/commercial/prospects/{prospect.id}/qualify/",
+        {"store": str(store.id)},
+        format="json",
+    )
+    second_response = sales_client.post(
+        f"/api/v1/commercial/prospects/{prospect.id}/qualify/",
+        {"store": str(store.id)},
+        format="json",
+    )
+
+    assert first_response.status_code == 201, first_response.data
+    assert second_response.status_code == 400
+    assert second_response.data["detail"] == "Ce prospect est deja qualifie."
+    assert CommercialOpportunity.objects.filter(prospect=prospect).count() == 1
 
 
 @pytest.mark.django_db

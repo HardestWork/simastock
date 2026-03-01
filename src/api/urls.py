@@ -10,6 +10,7 @@ from objectives import objective_views as objective_api_views
 from cashier import cashier_analytics_views as cashier_analytics_views
 from stock import stock_analytics_views as stock_analytics_views
 from api.v1 import dg_views as dg_views
+from api.v1 import hrm_views as hrm_api_views
 from api.auth_views import (
     CookieTokenObtainPairView,
     CookieTokenRefreshView,
@@ -74,6 +75,29 @@ router.register(r'commercial/incentive-policies', commercial_api_views.Commercia
 router.register(r'commercial/incentive-runs', commercial_api_views.CommercialIncentiveRunViewSet, basename='commercial-incentive-run')
 router.register(r'commercial/exports', commercial_api_views.CommercialExportsViewSet, basename='commercial-exports')
 
+# HRM
+router.register(r'hrm/departments', hrm_api_views.DepartmentViewSet, basename='hrm-department')
+router.register(r'hrm/positions', hrm_api_views.PositionViewSet, basename='hrm-position')
+router.register(r'hrm/employees', hrm_api_views.EmployeeViewSet, basename='hrm-employee')
+router.register(r'hrm/contracts', hrm_api_views.ContractViewSet, basename='hrm-contract')
+router.register(r'hrm/attendance-policies', hrm_api_views.AttendancePolicyViewSet, basename='hrm-attendance-policy')
+router.register(r'hrm/attendances', hrm_api_views.AttendanceViewSet, basename='hrm-attendance')
+router.register(r'hrm/leave-types', hrm_api_views.LeaveTypeViewSet, basename='hrm-leave-type')
+router.register(r'hrm/leave-balances', hrm_api_views.LeaveBalanceViewSet, basename='hrm-leave-balance')
+router.register(r'hrm/leave-requests', hrm_api_views.LeaveRequestViewSet, basename='hrm-leave-request')
+router.register(r'hrm/payroll-periods', hrm_api_views.PayrollPeriodViewSet, basename='hrm-payroll-period')
+router.register(r'hrm/payslips', hrm_api_views.PaySlipViewSet, basename='hrm-payslip')
+router.register(r'hrm/payslip-lines', hrm_api_views.PaySlipLineViewSet, basename='hrm-payslip-line')
+router.register(r'hrm/salary-components', hrm_api_views.SalaryComponentViewSet, basename='hrm-salary-component')
+router.register(r'hrm/employee-salary-components', hrm_api_views.EmployeeSalaryComponentViewSet, basename='hrm-employee-salary-component')
+router.register(r'hrm/evaluation-templates', hrm_api_views.EvaluationTemplateViewSet, basename='hrm-evaluation-template')
+router.register(r'hrm/evaluation-criteria', hrm_api_views.EvaluationCriteriaViewSet, basename='hrm-evaluation-criteria')
+router.register(r'hrm/performance-reviews', hrm_api_views.PerformanceReviewViewSet, basename='hrm-performance-review')
+router.register(r'hrm/performance-scores', hrm_api_views.PerformanceReviewScoreViewSet, basename='hrm-performance-score')
+router.register(r'hrm/disciplinary-actions', hrm_api_views.DisciplinaryActionViewSet, basename='hrm-disciplinary-action')
+router.register(r'hrm/documents', hrm_api_views.EmployeeDocumentViewSet, basename='hrm-document')
+router.register(r'hrm/holidays', hrm_api_views.HolidayViewSet, basename='hrm-holiday')
+
 
 app_name = 'api'
 urlpatterns = [
@@ -93,6 +117,7 @@ urlpatterns = [
     # Reports
     path('reports/kpis/', v1_views.KPIView.as_view(), name='kpis'),
     path('reports/sales/', v1_views.SalesReportAPIView.as_view(), name='sales-report'),
+    path('reports/cashier-operations/pdf/', v1_views.CashierOperationsPDFAPIView.as_view(), name='cashier-operations-pdf'),
     path('reports/stock-trend/', v1_views.StockValueTrendView.as_view(), name='stock-value-trend'),
     path('reports/daily-statistics/', v1_views.DailyStatisticsAPIView.as_view(), name='daily-statistics'),
 

@@ -6,11 +6,13 @@ import { userApi, roleApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { ArrowLeft, Save, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import type { AxiosError } from 'axios';
+import { extractApiError } from '@/lib/api-error';
 
 const SYSTEM_ROLE_OPTIONS = [
   { value: 'ADMIN', label: 'Administrateur' },
   { value: 'MANAGER', label: 'Gestionnaire' },
+  { value: 'HR', label: 'Ressources Humaines' },
+  { value: 'COMMERCIAL', label: 'Commercial' },
   { value: 'SALES', label: 'Vendeur' },
   { value: 'CASHIER', label: 'Caissier' },
   { value: 'STOCKER', label: 'Magasinier' },
@@ -64,32 +66,6 @@ export default function UserFormPage() {
     }
   }, [user]);
 
-  // ---- Helpers to extract API error message ----
-  const extractErrorMessage = (err: unknown): string => {
-    const axiosErr = err as AxiosError<Record<string, unknown> | string>;
-    const status = axiosErr?.response?.status;
-    const data = axiosErr?.response?.data;
-    if (data) {
-      if (typeof data === 'string') {
-        return status
-          ? `Erreur serveur (${status}). Veuillez reessayer.`
-          : 'Erreur serveur. Veuillez reessayer.';
-      }
-      if (typeof data.detail === 'string') return data.detail;
-      // Collect field-level errors
-      const messages: string[] = [];
-      for (const [key, val] of Object.entries(data)) {
-        if (Array.isArray(val)) {
-          messages.push(`${key}: ${val.join(', ')}`);
-        } else if (typeof val === 'string') {
-          messages.push(`${key}: ${val}`);
-        }
-      }
-      if (messages.length > 0) return messages.join(' | ');
-    }
-    return 'Une erreur est survenue. Veuillez reessayer.';
-  };
-
   // ---- Create mutation ----
   const createMut = useMutation({
     mutationFn: (data: {
@@ -107,8 +83,8 @@ export default function UserFormPage() {
       navigate('/settings/users');
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
-      setSubmitError(extractErrorMessage(err));
+      toast.error(extractApiError(err));
+      setSubmitError(extractApiError(err));
     },
   });
 
@@ -123,8 +99,8 @@ export default function UserFormPage() {
       navigate('/settings/users');
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
-      setSubmitError(extractErrorMessage(err));
+      toast.error(extractApiError(err));
+      setSubmitError(extractApiError(err));
     },
   });
 

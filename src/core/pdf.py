@@ -247,3 +247,40 @@ def generate_quote_pdf(quote, store):
         fallback="devis",
     )
     return render_pdf("pdf/quote_a4.html", context, filename)
+
+
+def generate_cashier_operations_report_pdf(
+    *,
+    store,
+    date_from,
+    date_to,
+    summary,
+    by_cashier,
+    by_method,
+    operations,
+    operations_truncated=False,
+    generated_at=None,
+):
+    """Generate a cashier operations report PDF for a date range."""
+    from django.utils import timezone
+
+    generated_on = generated_at or timezone.now()
+    context = {
+        "store": store,
+        "date_from": date_from,
+        "date_to": date_to,
+        "summary": summary,
+        "by_cashier": by_cashier,
+        "by_method": by_method,
+        "operations": operations,
+        "operations_truncated": operations_truncated,
+        "generated_at": generated_on,
+    }
+    filename = _safe_pdf_filename(
+        (
+            f"operations-caissiers-{store.code or 'store'}-"
+            f"{date_from:%Y%m%d}-{date_to:%Y%m%d}"
+        ),
+        fallback="operations-caissiers",
+    )
+    return render_pdf("pdf/cashier_operations_report.html", context, filename)

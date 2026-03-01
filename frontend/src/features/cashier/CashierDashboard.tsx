@@ -8,8 +8,8 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { DollarSign, Clock, AlertCircle, Banknote, Lock, CheckCircle, Smartphone, Building2, CreditCard, History } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { AxiosError } from 'axios';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 const AUTO_REFRESH_MS = 10_000;
 
@@ -71,7 +71,7 @@ export default function CashierDashboard() {
       try {
         return await cashShiftApi.current(currentStore?.id);
       } catch (err) {
-        if ((err as AxiosError)?.response?.status === 404) {
+        if ((err as any)?.response?.status === 404) {
           return null;
         }
         throw err;
@@ -162,7 +162,7 @@ export default function CashierDashboard() {
       setCloseSuccess(false);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -184,7 +184,7 @@ export default function CashierDashboard() {
       setCloseSuccess(true);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -524,7 +524,7 @@ export default function CashierDashboard() {
               {/* Error message */}
               {closeShiftMut.isError && (
                 <div className="mb-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-                  Erreur: {((closeShiftMut.error as AxiosError)?.response?.data as any)?.detail ?? 'Impossible de fermer la session.'}
+                  Erreur: {extractApiError(closeShiftMut.error, 'Impossible de fermer la session.')}
                 </div>
               )}
 

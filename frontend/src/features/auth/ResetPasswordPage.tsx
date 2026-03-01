@@ -1,30 +1,11 @@
 ﻿/** Password reset confirmation page. */
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import type { AxiosError } from 'axios';
 import { KeyRound, ArrowLeft, Save } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 import { authApi } from '@/api/endpoints';
-
-function errDetail(err: unknown): string {
-  const ax = err as AxiosError<Record<string, unknown> | string>;
-  const data = ax?.response?.data;
-  if (typeof data === 'string') {
-    const status = ax?.response?.status;
-    return status ? `Erreur serveur (${status}).` : 'Erreur serveur.';
-  }
-  if (data && typeof data === 'object') {
-    if (typeof (data as { detail?: string }).detail === 'string') return (data as { detail?: string }).detail as string;
-    const messages: string[] = [];
-    for (const [k, v] of Object.entries(data)) {
-      if (Array.isArray(v)) messages.push(`${k}: ${v.join(', ')}`);
-      else if (typeof v === 'string') messages.push(`${k}: ${v}`);
-    }
-    if (messages.length) return messages.join(' | ');
-  }
-  return (err as Error)?.message ?? 'Erreur.';
-}
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -57,7 +38,7 @@ export default function ResetPasswordPage() {
       setSuccess(res.detail);
       setTimeout(() => navigate('/login'), 1200);
     } catch (err) {
-      const message = errDetail(err);
+      const message = extractApiError(err);
       toast.error(message);
       setError(message);
     } finally {

@@ -34,19 +34,46 @@ import {
   PlusCircle,
   PieChart,
   Sparkles,
+  UserCheck,
+  Calendar,
+  Clock,
+  DollarSign,
 } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth-store';
 import { useCapabilities } from '@/lib/capabilities';
 import { useModuleMatrix } from '@/lib/module-access';
 import type { UserRole, Capability, ModuleCode } from '@/api/types';
 
-type NavSection = '' | 'OPERATIONS' | 'PILOTAGE' | 'ADMINISTRATION';
+type NavSection =
+  | ''
+  | 'VENTES'
+  | 'COMMERCIAL'
+  | 'FINANCE'
+  | 'LOGISTIQUE'
+  | 'RH'
+  | 'PILOTAGE'
+  | 'ADMINISTRATION';
 
 const SECTION_LABELS: Record<Exclude<NavSection, ''>, string> = {
-  OPERATIONS: 'Operations',
+  VENTES: 'Ventes',
+  COMMERCIAL: 'Commercial',
+  FINANCE: 'Finance',
+  LOGISTIQUE: 'Logistique',
+  RH: 'Ressources Humaines',
   PILOTAGE: 'Pilotage',
   ADMINISTRATION: 'Administration',
 };
+
+const SECTION_ORDER: NavSection[] = [
+  '',
+  'VENTES',
+  'COMMERCIAL',
+  'FINANCE',
+  'LOGISTIQUE',
+  'RH',
+  'PILOTAGE',
+  'ADMINISTRATION',
+];
 
 interface SubItem {
   path: string;
@@ -76,11 +103,19 @@ const navItems: NavItem[] = [
     label: 'Tableau de bord',
     icon: <LayoutDashboard size={20} />,
     module: 'CORE',
-    roles: ['ADMIN', 'MANAGER', 'SALES', 'CASHIER', 'STOCKER'],
+    roles: ['ADMIN', 'MANAGER', 'HR', 'COMMERCIAL', 'SALES', 'CASHIER', 'STOCKER'],
+  },
+  {
+    section: '',
+    path: '/alerts',
+    label: 'Alertes',
+    icon: <Bell size={20} />,
+    module: 'ALERTS',
+    roles: ['ADMIN', 'MANAGER', 'HR', 'COMMERCIAL', 'SALES', 'CASHIER', 'STOCKER'],
   },
 
   {
-    section: 'OPERATIONS',
+    section: 'VENTES',
     path: '/pos',
     label: 'Point de Vente',
     icon: <ShoppingCart size={20} />,
@@ -89,7 +124,7 @@ const navItems: NavItem[] = [
     capability: 'CAN_SELL',
   },
   {
-    section: 'OPERATIONS',
+    section: 'VENTES',
     path: '/quotes',
     label: 'Devis',
     icon: <FileText size={20} />,
@@ -98,45 +133,80 @@ const navItems: NavItem[] = [
     capability: 'CAN_SELL',
   },
   {
-    section: 'OPERATIONS',
+    section: 'VENTES',
+    path: '/customers',
+    label: 'Clients & Credit',
+    icon: <Users size={20} />,
+    module: 'CUSTOMER',
+    roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER'],
+    children: [
+      {
+        path: '/customers',
+        label: 'Clients',
+        icon: <Users size={15} />,
+        module: 'CUSTOMER',
+        roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER'],
+      },
+      {
+        path: '/credits',
+        label: 'Credits',
+        icon: <CreditCard size={15} />,
+        module: 'CUSTOMER',
+        roles: ['MANAGER', 'ADMIN', 'CASHIER'],
+      },
+      {
+        path: '/customers/intelligence',
+        label: 'Intelligence',
+        icon: <Sparkles size={15} />,
+        module: 'CLIENT_INTEL',
+        roles: ['MANAGER', 'ADMIN'],
+      },
+    ],
+  },
+  {
+    section: 'COMMERCIAL',
     path: '/commercial',
     label: 'Commercial CRM',
     icon: <Target size={20} />,
     module: 'COMMERCIAL',
-    roles: ['SALES', 'MANAGER', 'ADMIN'],
+    roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
     children: [
       {
         path: '/commercial',
         label: 'Pipeline',
         icon: <Target size={15} />,
         module: 'COMMERCIAL',
-        roles: ['SALES', 'MANAGER', 'ADMIN'],
+        roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
+        capability: 'CAN_MANAGE_OPPORTUNITIES',
       },
       {
         path: '/commercial/prospects',
         label: 'Prospects',
         icon: <Users size={15} />,
         module: 'COMMERCIAL',
-        roles: ['SALES', 'MANAGER', 'ADMIN'],
+        roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
+        capability: 'CAN_MANAGE_LEADS',
       },
       {
         path: '/commercial/tasks',
         label: 'Relances',
         icon: <ClipboardList size={15} />,
         module: 'COMMERCIAL',
-        roles: ['SALES', 'MANAGER', 'ADMIN'],
+        roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
+        capability: 'CAN_LOG_ACTIVITY',
       },
       {
         path: '/commercial/incentives',
         label: 'Primes',
         icon: <Wallet size={15} />,
         module: 'COMMERCIAL',
-        roles: ['SALES', 'MANAGER', 'ADMIN'],
+        roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
+        capability: 'CAN_APPROVE_COMMERCIAL_BONUS',
       },
     ],
   },
   {
-    section: 'OPERATIONS',
+    section: 'FINANCE',
     path: '/cashier',
     label: 'Caisse',
     icon: <Banknote size={20} />,
@@ -169,81 +239,7 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    section: 'OPERATIONS',
-    path: '/catalog',
-    label: 'Catalogue',
-    icon: <Package size={20} />,
-    module: 'SELL',
-    roles: ['SALES', 'MANAGER', 'ADMIN', 'STOCKER'],
-    children: [
-      { path: '/catalog', label: 'Produits', icon: <Package size={15} />, module: 'SELL' },
-      {
-        path: '/catalog/categories',
-        label: 'Categories',
-        icon: <FolderTree size={15} />,
-        module: 'STOCK',
-        roles: ['MANAGER', 'ADMIN'],
-      },
-      {
-        path: '/catalog/brands',
-        label: 'Marques',
-        icon: <Tag size={15} />,
-        module: 'STOCK',
-        roles: ['MANAGER', 'ADMIN'],
-      },
-    ],
-  },
-  {
-    section: 'OPERATIONS',
-    path: '/stock',
-    label: 'Stock',
-    icon: <Layers size={20} />,
-    module: 'STOCK',
-    roles: ['STOCKER', 'MANAGER', 'ADMIN'],
-    capability: 'CAN_STOCK',
-    children: [
-      { path: '/stock', label: 'Niveaux', icon: <Layers size={15} />, module: 'STOCK' },
-      { path: '/stock/movements', label: 'Mouvements', icon: <History size={15} />, module: 'STOCK' },
-      { path: '/stock/entry', label: 'Entrees', icon: <PackagePlus size={15} />, module: 'STOCK' },
-      { path: '/stock/adjust', label: 'Ajustements', icon: <PackageMinus size={15} />, module: 'STOCK' },
-      { path: '/stock/transfers', label: 'Transferts', icon: <ArrowRightLeft size={15} />, module: 'STOCK' },
-      { path: '/stock/counts', label: 'Inventaires', icon: <ClipboardList size={15} />, module: 'STOCK' },
-      { path: '/stock/analytics', label: 'Analyse Stock', icon: <BarChart2 size={15} />, module: 'ANALYTICS_STOCK' },
-    ],
-  },
-  {
-    section: 'OPERATIONS',
-    path: '/customers',
-    label: 'Clients & Credit',
-    icon: <Users size={20} />,
-    module: 'CUSTOMER',
-    roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER'],
-    children: [
-      {
-        path: '/customers',
-        label: 'Clients',
-        icon: <Users size={15} />,
-        module: 'CUSTOMER',
-        roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER'],
-      },
-      {
-        path: '/credits',
-        label: 'Credits',
-        icon: <CreditCard size={15} />,
-        module: 'CUSTOMER',
-        roles: ['MANAGER', 'ADMIN', 'CASHIER'],
-      },
-      {
-        path: '/customers/intelligence',
-        label: 'Intelligence',
-        icon: <Sparkles size={15} />,
-        module: 'CLIENT_INTEL',
-        roles: ['MANAGER', 'ADMIN'],
-      },
-    ],
-  },
-  {
-    section: 'OPERATIONS',
+    section: 'FINANCE',
     path: '/expenses',
     label: 'Depenses',
     icon: <Wallet size={20} />,
@@ -278,7 +274,50 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    section: 'OPERATIONS',
+    section: 'LOGISTIQUE',
+    path: '/catalog',
+    label: 'Catalogue',
+    icon: <Package size={20} />,
+    module: 'SELL',
+    roles: ['SALES', 'MANAGER', 'ADMIN', 'STOCKER'],
+    children: [
+      { path: '/catalog', label: 'Produits', icon: <Package size={15} />, module: 'SELL' },
+      {
+        path: '/catalog/categories',
+        label: 'Categories',
+        icon: <FolderTree size={15} />,
+        module: 'STOCK',
+        roles: ['MANAGER', 'ADMIN'],
+      },
+      {
+        path: '/catalog/brands',
+        label: 'Marques',
+        icon: <Tag size={15} />,
+        module: 'STOCK',
+        roles: ['MANAGER', 'ADMIN'],
+      },
+    ],
+  },
+  {
+    section: 'LOGISTIQUE',
+    path: '/stock',
+    label: 'Stock',
+    icon: <Layers size={20} />,
+    module: 'STOCK',
+    roles: ['STOCKER', 'MANAGER', 'ADMIN'],
+    capability: 'CAN_STOCK',
+    children: [
+      { path: '/stock', label: 'Niveaux', icon: <Layers size={15} />, module: 'STOCK' },
+      { path: '/stock/movements', label: 'Mouvements', icon: <History size={15} />, module: 'STOCK' },
+      { path: '/stock/entry', label: 'Entrees', icon: <PackagePlus size={15} />, module: 'STOCK' },
+      { path: '/stock/adjust', label: 'Ajustements', icon: <PackageMinus size={15} />, module: 'STOCK' },
+      { path: '/stock/transfers', label: 'Transferts', icon: <ArrowRightLeft size={15} />, module: 'STOCK' },
+      { path: '/stock/counts', label: 'Inventaires', icon: <ClipboardList size={15} />, module: 'STOCK' },
+      { path: '/stock/analytics', label: 'Analyse Stock', icon: <BarChart2 size={15} />, module: 'ANALYTICS_STOCK' },
+    ],
+  },
+  {
+    section: 'LOGISTIQUE',
     path: '/purchases',
     label: 'Achats',
     icon: <Truck size={20} />,
@@ -299,6 +338,48 @@ const navItems: NavItem[] = [
       },
     ],
   },
+  {
+    section: 'RH',
+    path: '/hrm',
+    label: 'Ressources Humaines',
+    icon: <UserCheck size={20} />,
+    module: 'HRM',
+    roles: ['HR', 'MANAGER', 'ADMIN'],
+    children: [
+      {
+        path: '/hrm/employees',
+        label: 'Employes',
+        icon: <Users size={15} />,
+        module: 'HRM',
+        roles: ['HR', 'MANAGER', 'ADMIN'],
+        capability: 'CAN_VIEW_HRM',
+      },
+      {
+        path: '/hrm/leaves',
+        label: 'Conges',
+        icon: <Calendar size={15} />,
+        module: 'HRM',
+        roles: ['HR', 'MANAGER', 'ADMIN'],
+        capability: 'CAN_VIEW_HRM',
+      },
+      {
+        path: '/hrm/attendance',
+        label: 'Pointage',
+        icon: <Clock size={15} />,
+        module: 'HRM',
+        roles: ['HR', 'MANAGER', 'ADMIN'],
+        capability: 'CAN_VIEW_HRM',
+      },
+      {
+        path: '/hrm/payroll',
+        label: 'Paie',
+        icon: <DollarSign size={15} />,
+        module: 'HRM',
+        roles: ['HR', 'MANAGER', 'ADMIN'],
+        capability: 'CAN_VIEW_HRM',
+      },
+    ],
+  },
 
   {
     section: 'PILOTAGE',
@@ -306,14 +387,14 @@ const navItems: NavItem[] = [
     label: 'Objectifs',
     icon: <Target size={20} />,
     module: 'SELLER_PERF',
-    roles: ['SALES', 'MANAGER', 'ADMIN'],
+    roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
     children: [
       {
         path: '/objectives/my-goal',
         label: 'Mon Objectif',
         icon: <Target size={15} />,
         module: 'SELLER_PERF',
-        roles: ['SALES', 'MANAGER', 'ADMIN'],
+        roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
       },
       {
         path: '/objectives/admin',
@@ -359,29 +440,20 @@ const navItems: NavItem[] = [
     roles: ['MANAGER', 'ADMIN'],
   },
   {
-    section: 'PILOTAGE',
-    path: '/alerts',
-    label: 'Alertes',
-    icon: <Bell size={20} />,
-    module: 'ALERTS',
-    roles: ['ADMIN', 'MANAGER', 'SALES', 'CASHIER', 'STOCKER'],
-  },
-
-  {
     section: 'ADMINISTRATION',
     path: '/settings',
     label: 'Parametres',
     icon: <Settings size={20} />,
     module: 'CORE',
-    roles: ['ADMIN'],
+    roles: ['MANAGER', 'ADMIN'],
     children: [
-      { path: '/settings/stores', label: 'Magasins', icon: <Wrench size={15} />, module: 'CORE' },
-      { path: '/settings/invoice', label: 'Facturation', icon: <FileText size={15} />, module: 'CORE' },
-      { path: '/settings/structure', label: 'Structure', icon: <Building2 size={15} />, module: 'CORE' },
-      { path: '/settings/subscriptions', label: 'Abonnements', icon: <CreditCard size={15} />, module: 'CORE' },
-      { path: '/settings/modules', label: 'Modules payants', icon: <Layers size={15} />, module: 'CORE' },
-      { path: '/settings/permissions', label: 'Permissions', icon: <Shield size={15} />, module: 'CORE' },
-      { path: '/settings/users', label: 'Utilisateurs', icon: <UserCog size={15} />, module: 'CORE' },
+      { path: '/settings/stores', label: 'Magasins', icon: <Wrench size={15} />, module: 'CORE', capability: 'CAN_MANAGE_STORES' },
+      { path: '/settings/invoice', label: 'Facturation', icon: <FileText size={15} />, module: 'CORE', capability: 'CAN_MANAGE_STORES' },
+      { path: '/settings/structure', label: 'Structure', icon: <Building2 size={15} />, module: 'CORE', capability: 'CAN_MANAGE_STORES' },
+      { path: '/settings/subscriptions', label: 'Abonnements', icon: <CreditCard size={15} />, module: 'CORE', superuserOnly: true },
+      { path: '/settings/modules', label: 'Modules payants', icon: <Layers size={15} />, module: 'CORE', superuserOnly: true },
+      { path: '/settings/permissions', label: 'Permissions', icon: <Shield size={15} />, module: 'CORE', capability: 'CAN_MANAGE_USERS' },
+      { path: '/settings/users', label: 'Utilisateurs', icon: <UserCog size={15} />, module: 'CORE', capability: 'CAN_MANAGE_USERS' },
       { path: '/settings/enterprises', label: 'Entreprises', icon: <Building2 size={15} />, module: 'CORE', superuserOnly: true },
       { path: '/settings/enterprise-setup', label: 'Creer entreprise', icon: <PlusCircle size={15} />, module: 'CORE', superuserOnly: true },
     ],
@@ -398,7 +470,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const capabilities = useCapabilities();
   const { isModuleEnabled } = useModuleMatrix();
   const location = useLocation();
-  const isPrivilegedRole = !!user && (user.role === 'ADMIN' || user.role === 'MANAGER' || user.is_superuser === true);
+  const isSuperuser = user?.is_superuser === true;
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     () => {
@@ -413,28 +485,48 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     },
   );
 
+  const canAccessSubItem = (child: SubItem): boolean => {
+    if (!user) return false;
+    if (child.superuserOnly && !user.is_superuser) return false;
+    if (!isModuleEnabled(child.module)) return false;
+    if (child.roles && !child.roles.includes(user.role)) return false;
+    if (child.capability) {
+      if (isSuperuser) return true;
+      return capabilities.includes(child.capability);
+    }
+    return true;
+  };
+
   const visibleItems = navItems.filter((item) => {
     if (!user) return false;
     if (!isModuleEnabled(item.module)) return false;
-    const hasRoleAccess = item.roles.includes(user.role);
-    if (item.capability && capabilities.length > 0) {
-      if (isPrivilegedRole && hasRoleAccess) return true;
+    if (!item.roles.includes(user.role)) return false;
+
+    if (item.children?.length) {
+      return item.children.some((child) => canAccessSubItem(child));
+    }
+
+    if (item.capability) {
+      if (isSuperuser) return true;
       return capabilities.includes(item.capability);
     }
-    return hasRoleAccess;
+    return true;
   });
 
   const sections: { key: NavSection; items: typeof visibleItems }[] = useMemo(() => {
-    const grouped: { key: NavSection; items: typeof visibleItems }[] = [];
-    for (const item of visibleItems) {
-      const last = grouped[grouped.length - 1];
-      if (!last || last.key !== item.section) {
-        grouped.push({ key: item.section, items: [item] });
-      } else {
-        last.items.push(item);
-      }
+    const grouped = new Map<NavSection, typeof visibleItems>();
+
+    for (const section of SECTION_ORDER) {
+      grouped.set(section, []);
     }
-    return grouped;
+
+    for (const item of visibleItems) {
+      grouped.get(item.section)?.push(item);
+    }
+
+    return SECTION_ORDER
+      .map((section) => ({ key: section, items: grouped.get(section) ?? [] }))
+      .filter(({ items }) => items.length > 0);
   }, [visibleItems]);
 
   const toggleSection = (path: string) => {
@@ -485,17 +577,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 : null}
 
             {items.map((item) => {
-              const isSuperuser = user?.is_superuser ?? false;
               const filteredChildren = item.children?.filter((child) => {
                 if (child.superuserOnly && !isSuperuser) return false;
-                if (!isModuleEnabled(child.module)) return false;
-                if (child.capability && capabilities.length > 0) {
-                  const hasChildRoleAccess = !child.roles || (user ? child.roles.includes(user.role) : false);
-                  if (isPrivilegedRole && hasChildRoleAccess) return true;
-                  return capabilities.includes(child.capability);
-                }
-                if (child.roles && user && !child.roles.includes(user.role)) return false;
-                return true;
+                return canAccessSubItem(child);
               });
 
               const hasChildren = Boolean(filteredChildren && filteredChildren.length > 0);

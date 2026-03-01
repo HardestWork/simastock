@@ -6,6 +6,7 @@ import { customerApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { ChevronLeft, Save } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 export default function CustomerFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -51,11 +52,8 @@ export default function CustomerFormPage() {
       navigate(`/customers/${response.id}`);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Une erreur est survenue lors de la creation du client.';
-      setSubmitError(msg);
+      toast.error(extractApiError(err));
+      setSubmitError(extractApiError(err));
     },
   });
 
@@ -69,11 +67,8 @@ export default function CustomerFormPage() {
       navigate(`/customers/${id}`);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Une erreur est survenue lors de la mise a jour du client.';
-      setSubmitError(msg);
+      toast.error(extractApiError(err));
+      setSubmitError(extractApiError(err));
     },
   });
 

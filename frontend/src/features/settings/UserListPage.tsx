@@ -12,13 +12,15 @@ import { Search, UserPlus, Pencil, UserCheck, UserX, Trash2, AlertCircle } from 
 import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/auth/auth-store';
 import type { User, UserRole } from '@/api/types';
-import type { AxiosError } from 'axios';
+import { extractApiError } from '@/lib/api-error';
 
 const PAGE_SIZE = 20;
 
 const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Administrateur',
   MANAGER: 'Gestionnaire',
+  HR: 'Ressources Humaines',
+  COMMERCIAL: 'Commercial',
   SALES: 'Vendeur',
   CASHIER: 'Caissier',
   STOCKER: 'Magasinier',
@@ -27,6 +29,8 @@ const ROLE_LABELS: Record<UserRole, string> = {
 const ROLE_BADGE_CLASSES: Record<UserRole, string> = {
   ADMIN: 'bg-purple-100 text-purple-700',
   MANAGER: 'bg-blue-100 text-blue-700',
+  HR: 'bg-fuchsia-100 text-fuchsia-700',
+  COMMERCIAL: 'bg-indigo-100 text-indigo-700',
   SALES: 'bg-emerald-100 text-emerald-700',
   CASHIER: 'bg-amber-100 text-amber-700',
   STOCKER: 'bg-gray-100 text-gray-700',
@@ -36,6 +40,8 @@ const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'Tous' },
   { value: 'ADMIN', label: 'Administrateur' },
   { value: 'MANAGER', label: 'Gestionnaire' },
+  { value: 'HR', label: 'Ressources Humaines' },
+  { value: 'COMMERCIAL', label: 'Commercial' },
   { value: 'SALES', label: 'Vendeur' },
   { value: 'CASHIER', label: 'Caissier' },
   { value: 'STOCKER', label: 'Magasinier' },
@@ -77,7 +83,7 @@ export default function UserListPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -91,7 +97,7 @@ export default function UserListPage() {
       setDeleteTarget(null);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -171,8 +177,7 @@ export default function UserListPage() {
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4 flex items-center gap-2">
           <AlertCircle size={16} />
           Erreur lors de la mise a jour :{' '}
-          {((toggleActiveMutation.error as AxiosError)?.response?.data as any)
-            ?.detail ?? 'Erreur inconnue'}
+          {extractApiError(toggleActiveMutation.error, 'Erreur inconnue')}
         </div>
       )}
 
@@ -184,8 +189,7 @@ export default function UserListPage() {
       ) : isError ? (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
           Erreur chargement utilisateurs :{' '}
-          {((error as AxiosError)?.response?.data as any)?.detail ??
-            (error as Error).message}
+          {extractApiError(error)}
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -309,8 +313,7 @@ export default function UserListPage() {
             {deleteMutation.isError && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
                 <AlertCircle size={14} />
-                {((deleteMutation.error as AxiosError)?.response?.data as any)?.detail ??
-                  'Erreur lors de la suppression.'}
+                {extractApiError(deleteMutation.error, 'Erreur lors de la suppression.')}
               </div>
             )}
 

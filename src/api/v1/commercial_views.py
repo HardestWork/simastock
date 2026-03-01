@@ -163,7 +163,7 @@ def _policy_is_effective_for_period(policy, *, period_start, period_end):
 
 
 def _is_eligible_incentive_seller(store, membership: StoreUser):
-    if membership.user.role != "SALES":
+    if membership.user.role not in ("SALES", "COMMERCIAL"):
         return False
     if store.is_feature_enabled("advanced_permissions"):
         return (
@@ -336,6 +336,25 @@ class CommercialProspectViewSet(viewsets.ModelViewSet):
         prospect = self.get_object()
         if prospect.status == CommercialProspect.Status.DISQUALIFIED:
             raise ValidationError({"detail": "Prospect disqualifie."})
+        existing_opportunity = (
+            CommercialOpportunity.objects.filter(prospect=prospect)
+            .order_by("-created_at")
+            .first()
+        )
+        if prospect.status in (
+            CommercialProspect.Status.QUALIFIED,
+            CommercialProspect.Status.CONVERTED,
+        ) or existing_opportunity:
+            raise ValidationError(
+                {
+                    "detail": "Ce prospect est deja qualifie.",
+                    **(
+                        {"opportunity_id": str(existing_opportunity.id)}
+                        if existing_opportunity
+                        else {}
+                    ),
+                }
+            )
 
         payload_serializer = ProspectQualifySerializer(data=request.data if isinstance(request.data, dict) else {})
         payload_serializer.is_valid(raise_exception=True)

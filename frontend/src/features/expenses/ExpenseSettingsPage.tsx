@@ -1,6 +1,7 @@
 ﻿import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 import { AlertTriangle, Pencil, RefreshCcw, Trash2, X } from 'lucide-react';
 import { expenseApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
@@ -17,23 +18,6 @@ function currentPeriod(): string {
 
 function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function apiErrorMessage(err: unknown, fallback: string): string {
-  const data = (err as any)?.response?.data;
-  const detail = data?.detail;
-  if (detail) return String(detail);
-  const nonField = data?.non_field_errors?.[0];
-  if (nonField) return nonField;
-  if (data && typeof data === 'object') {
-    const firstEntry = Object.entries(data).find(([k]) => k !== 'detail' && k !== 'non_field_errors');
-    if (firstEntry) {
-      const [field, value] = firstEntry;
-      const text = Array.isArray(value) ? value[0] : value;
-      if (text) return `${field}: ${text}`;
-    }
-  }
-  return fallback;
 }
 
 function normalizeDecimalInput(value: string): string {
@@ -221,7 +205,7 @@ export default function ExpenseSettingsPage() {
       invalidateExpenseSettings();
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, editingCategoryId ? 'Mise a jour categorie impossible' : 'Creation categorie impossible'));
+      toast.error(extractApiError(err, editingCategoryId ? 'Mise a jour categorie impossible' : 'Creation categorie impossible'));
     },
   });
 
@@ -233,7 +217,7 @@ export default function ExpenseSettingsPage() {
       invalidateExpenseSettings();
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, 'Suppression categorie impossible'));
+      toast.error(extractApiError(err, 'Suppression categorie impossible'));
     },
   });
 
@@ -245,7 +229,7 @@ export default function ExpenseSettingsPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.expenseCategories.all });
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, 'Mise a jour categorie impossible'));
+      toast.error(extractApiError(err, 'Mise a jour categorie impossible'));
     },
   });
 
@@ -274,7 +258,7 @@ export default function ExpenseSettingsPage() {
       invalidateExpenseSettings();
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, editingWalletId ? 'Mise a jour wallet impossible' : 'Creation wallet impossible'));
+      toast.error(extractApiError(err, editingWalletId ? 'Mise a jour wallet impossible' : 'Creation wallet impossible'));
     },
   });
 
@@ -296,7 +280,7 @@ export default function ExpenseSettingsPage() {
       invalidateExpenseSettings();
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, 'Suppression wallet impossible'));
+      toast.error(extractApiError(err, 'Suppression wallet impossible'));
     },
   });
 
@@ -308,7 +292,7 @@ export default function ExpenseSettingsPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.wallets.all });
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, 'Mise a jour wallet impossible'));
+      toast.error(extractApiError(err, 'Mise a jour wallet impossible'));
     },
   });
 
@@ -339,7 +323,7 @@ export default function ExpenseSettingsPage() {
       invalidateExpenseSettings();
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, editingBudgetId ? 'Mise a jour budget impossible' : 'Creation budget impossible'));
+      toast.error(extractApiError(err, editingBudgetId ? 'Mise a jour budget impossible' : 'Creation budget impossible'));
     },
   });
 
@@ -351,7 +335,7 @@ export default function ExpenseSettingsPage() {
       invalidateExpenseSettings();
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, 'Suppression budget impossible'));
+      toast.error(extractApiError(err, 'Suppression budget impossible'));
     },
   });
 
@@ -389,7 +373,7 @@ export default function ExpenseSettingsPage() {
       invalidateExpenseSettings();
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, editingRecurringId ? 'Mise a jour depense recurrente impossible' : 'Creation depense recurrente impossible'));
+      toast.error(extractApiError(err, editingRecurringId ? 'Mise a jour depense recurrente impossible' : 'Creation depense recurrente impossible'));
     },
   });
 
@@ -401,7 +385,7 @@ export default function ExpenseSettingsPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.recurringExpenses.all });
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, 'Mise a jour depense recurrente impossible'));
+      toast.error(extractApiError(err, 'Mise a jour depense recurrente impossible'));
     },
   });
 
@@ -413,7 +397,7 @@ export default function ExpenseSettingsPage() {
       invalidateExpenseSettings();
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, 'Suppression depense recurrente impossible'));
+      toast.error(extractApiError(err, 'Suppression depense recurrente impossible'));
     },
   });
 
@@ -432,7 +416,7 @@ export default function ExpenseSettingsPage() {
       invalidateExpenseSettings();
     },
     onError: (err: unknown) => {
-      toast.error(apiErrorMessage(err, 'Execution des recurrentes impossible'));
+      toast.error(extractApiError(err, 'Execution des recurrentes impossible'));
     },
   });
 

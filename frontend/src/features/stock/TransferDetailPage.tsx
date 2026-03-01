@@ -8,6 +8,7 @@ import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
 import { useAuthStore } from '@/auth/auth-store';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 import type { TransferStatus } from '@/api/types';
 
 const STATUS_LABELS: Record<TransferStatus, string> = {
@@ -68,7 +69,7 @@ export default function TransferDetailPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.transfers.detail(id!) });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -79,7 +80,7 @@ export default function TransferDetailPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.transfers.detail(id!) });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 

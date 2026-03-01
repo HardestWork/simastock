@@ -8,6 +8,7 @@ import { creditApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 import type { CustomerAccount, CreditLedgerEntry, ScheduleStatus } from '@/api/types';
 
 // ---------------------------------------------------------------------------
@@ -149,7 +150,7 @@ export default function CreditDetailPage() {
       setTimeout(() => setSuccessMessage(''), 4000);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 

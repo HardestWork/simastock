@@ -52,6 +52,8 @@ class CustomRole(models.Model):
         choices=[
             ("ADMIN", "Administrateur"),
             ("MANAGER", "Gestionnaire"),
+            ("HR", "Ressources humaines"),
+            ("COMMERCIAL", "Commercial"),
             ("SALES", "Vendeur"),
             ("CASHIER", "Caissier"),
             ("STOCKER", "Magasinier"),
@@ -84,6 +86,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Role(models.TextChoices):
         ADMIN = "ADMIN", "Administrateur"
         MANAGER = "MANAGER", "Gestionnaire"
+        HR = "HR", "Ressources humaines"
+        COMMERCIAL = "COMMERCIAL", "Commercial"
         SALES = "SALES", "Vendeur"
         CASHIER = "CASHIER", "Caissier"
         STOCKER = "STOCKER", "Magasinier"
@@ -157,6 +161,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_sales(self):
         return self.role == self.Role.SALES
+
+    @property
+    def is_hr(self):
+        return self.role == self.Role.HR
+
+    @property
+    def is_commercial(self):
+        return self.role == self.Role.COMMERCIAL
 
     @property
     def is_cashier(self):

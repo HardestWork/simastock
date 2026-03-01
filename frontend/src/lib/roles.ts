@@ -4,6 +4,8 @@ import type { UserRole } from '@/api/types';
 export const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Administrateur',
   MANAGER: 'Gestionnaire',
+  HR: 'Ressources Humaines',
+  COMMERCIAL: 'Commercial',
   SALES: 'Vendeur',
   CASHIER: 'Caissier',
   STOCKER: 'Magasinier',

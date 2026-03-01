@@ -5,7 +5,7 @@ import logging
 import secrets
 import string
 import unicodedata
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
@@ -28,6 +28,7 @@ from rest_framework import viewsets, mixins, status, filters
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -60,6 +61,7 @@ from purchases.models import Supplier, PurchaseOrder, GoodsReceipt
 from alerts.models import Alert
 from reports.models import KPISnapshot
 from core.pdf import (
+    generate_cashier_operations_report_pdf,
     generate_credit_payment_receipt_pdf,
     generate_invoice_pdf,
     generate_receipt_pdf,
@@ -133,13 +135,16 @@ from api.v1.serializers import (
 from api.v1.pagination import StandardResultsSetPagination
 from api.v1.permissions import (
     IsSuperAdmin,
-    IsAdmin,
     IsManagerOrAdmin,
     IsCashier,
     IsSales,
     IsStoreMember,
     CanProcessPayment,
     CanApproveRefund,
+    CanManageUsers,
+    CanManageStores,
+    CanManageSubscriptions,
+    CanManageModules,
     ModuleCustomerEnabled,
     ModuleSellOrStockEnabled,
     ModuleStockEnabled,
@@ -215,6 +220,16 @@ def _parse_bool_field(raw_value: str, *, default: bool = True) -> bool:
     if value in {"0", "false", "no", "non", "faux", "off"}:
         return False
     return default
+
+
+def _parse_iso_date_or_default(raw_value, default_value):
+    """Parse an ISO date, returning *default_value* when invalid or missing."""
+    if not raw_value:
+        return default_value
+    try:
+        return date.fromisoformat(str(raw_value))
+    except (TypeError, ValueError):
+        return default_value
 
 
 def _decode_uploaded_csv(uploaded_file) -> str:
@@ -459,7 +474,7 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
             # Superusers can update any enterprise; admins only their own.
             if getattr(self.request.user, "is_superuser", False):
                 return [IsSuperAdmin()]
-            return [IsAdmin()]
+            return [IsAuthenticated(), CanManageStores()]
         return [IsAuthenticated()]
 
     def get_queryset(self):
@@ -659,8 +674,11 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
             CommercialImportJob.objects.filter(sq).delete()
             CommercialObjectiveMonthly.objects.filter(sq).delete()
             CommercialTeamMembership.objects.filter(sq).delete()
-            CommercialIncentiveTier.objects.filter(policy__store_id__in=store_ids).delete()
-            CommercialIncentivePolicy.objects.filter(sq).delete()
+            policy_q = Q(store_id__in=store_ids)
+            if mode == 'full':
+                policy_q |= Q(enterprise=enterprise, store__isnull=True)
+            CommercialIncentiveTier.objects.filter(policy__in=CommercialIncentivePolicy.objects.filter(policy_q)).delete()
+            CommercialIncentivePolicy.objects.filter(policy_q).delete()
             if mode == 'full':
                 for M in (CommercialRegion, CommercialSector,
                            CommercialTag, CommercialLeadSource):
@@ -886,7 +904,7 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 class EnterpriseSubscriptionViewSet(viewsets.ModelViewSet):
-    """CRUD for enterprise subscriptions with strict tenant scoping."""
+    """CRUD for enterprise subscriptions — superadmin only."""
 
     serializer_class = EnterpriseSubscriptionSerializer
     queryset = EnterpriseSubscription.objects.select_related("enterprise")
@@ -896,11 +914,7 @@ class EnterpriseSubscriptionViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
-        if self.action in ("create", "update", "partial_update", "destroy"):
-            if getattr(self.request.user, "is_superuser", False):
-                return [IsSuperAdmin()]
-            return [IsAdmin()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), IsSuperAdmin()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -935,7 +949,7 @@ class EnterpriseSubscriptionViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 class BillingModuleViewSet(viewsets.ReadOnlyModelViewSet):
-    """Read-only module catalog for subscription configuration UI."""
+    """Read-only module catalog — superadmin only."""
 
     serializer_class = BillingModuleSerializer
     queryset = BillingModule.objects.all().order_by("display_order", "name")
@@ -943,11 +957,11 @@ class BillingModuleViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ["code", "name"]
     ordering_fields = ["display_order", "name", "code"]
     pagination_class = StandardResultsSetPagination
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
 
 
 class BillingPlanViewSet(viewsets.ReadOnlyModelViewSet):
-    """Read-only commercial plan catalog with included modules."""
+    """Read-only commercial plan catalog — superadmin only."""
 
     serializer_class = BillingPlanSerializer
     queryset = BillingPlan.objects.prefetch_related("plan_modules__module").order_by("name")
@@ -955,7 +969,7 @@ class BillingPlanViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ["code", "name"]
     ordering_fields = ["name", "base_price_fcfa", "billing_cycle"]
     pagination_class = StandardResultsSetPagination
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -965,7 +979,7 @@ class BillingPlanViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class EnterprisePlanAssignmentViewSet(viewsets.ModelViewSet):
-    """Plan assignments per enterprise (tenant scoped)."""
+    """Plan assignments per enterprise — superadmin only."""
 
     serializer_class = EnterprisePlanAssignmentSerializer
     queryset = EnterprisePlanAssignment.objects.select_related(
@@ -978,11 +992,7 @@ class EnterprisePlanAssignmentViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
-        if self.action in ("create", "update", "partial_update", "destroy"):
-            if getattr(self.request.user, "is_superuser", False):
-                return [IsSuperAdmin()]
-            return [IsAdmin()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), IsSuperAdmin()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -1057,7 +1067,7 @@ class EnterprisePlanAssignmentViewSet(viewsets.ModelViewSet):
 
 
 class StoreModuleEntitlementViewSet(viewsets.ModelViewSet):
-    """Store-level module overrides with bulk upsert support."""
+    """Store-level module overrides — superadmin only."""
 
     serializer_class = StoreModuleEntitlementSerializer
     queryset = StoreModuleEntitlement.objects.select_related("store", "module", "created_by")
@@ -1066,11 +1076,7 @@ class StoreModuleEntitlementViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
-        if self.action in ("create", "update", "partial_update", "destroy", "bulk_upsert"):
-            if getattr(self.request.user, "is_superuser", False):
-                return [IsSuperAdmin()]
-            return [IsAdmin()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), IsSuperAdmin()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -1232,7 +1238,7 @@ class StoreViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy', 'assign_users'):
-            return [IsAdmin()]
+            return [IsAuthenticated(), CanManageStores()]
         return [IsAuthenticated()]
 
     def get_queryset(self):
@@ -1355,7 +1361,7 @@ class StoreUserViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = StoreUserSerializer
-    permission_classes = [IsManagerOrAdmin, IsStoreMember]
+    permission_classes = [IsAuthenticated, CanManageUsers, IsStoreMember]
     filterset_fields = ['store']
 
     def get_queryset(self):
@@ -1387,7 +1393,7 @@ class CustomRoleViewSet(viewsets.ModelViewSet):
 
     queryset = CustomRole.objects.all()
     serializer_class = CustomRoleSerializer
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAuthenticated, CanManageUsers]
     filterset_fields = ['base_role', 'is_active']
     search_fields = ['name']
     ordering_fields = ['name', 'base_role', 'is_active']
@@ -1414,7 +1420,7 @@ class UserViewSet(viewsets.ModelViewSet):
     """
 
     queryset = User.objects.all()
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAuthenticated, CanManageUsers]
     filterset_fields = ['role', 'is_active']
     search_fields = ['email', 'first_name', 'last_name']
     ordering_fields = ['last_name', 'date_joined', 'role', 'is_active']
@@ -1484,6 +1490,114 @@ class CategoryViewSet(viewsets.ModelViewSet):
         enterprise_id = _require_user_enterprise_id(self.request.user)
         serializer.save(enterprise_id=enterprise_id)
 
+    # -- CSV export --------------------------------------------------------
+    @action(detail=False, methods=['get'], url_path='export-csv')
+    def export_csv(self, request):
+        """Export filtered categories to a CSV file."""
+        from core.export import queryset_to_csv_response
+        qs = self.filter_queryset(self.get_queryset()).select_related('parent')
+        columns = [
+            ('name', 'Nom'),
+            (lambda o: o.parent.name if o.parent else '', 'Categorie parente'),
+            ('description', 'Description'),
+            (lambda o: 'oui' if o.is_active else 'non', 'Actif'),
+        ]
+        return queryset_to_csv_response(qs, columns, 'categories')
+
+    # -- CSV import --------------------------------------------------------
+    @action(detail=False, methods=['post'], url_path='import-csv',
+            parser_classes=[MultiPartParser, FormParser])
+    def import_csv(self, request):
+        """Import categories from a CSV file.
+
+        Expected columns (flexible aliases):
+        - name / nom / categorie  (required)
+        - parent / parent_name / categorie_parente (optional)
+        - description / desc (optional)
+        - is_active / actif / active (optional)
+        """
+        content = _decode_uploaded_csv(request.FILES.get('file'))
+        reader = _build_csv_dict_reader(content)
+        header_map = {_normalize_header(h): h for h in (reader.fieldnames or [])}
+
+        enterprise_id = _require_user_enterprise_id(request.user)
+
+        # Pre-load existing categories for parent lookup
+        existing = {
+            c.name.strip().lower(): c
+            for c in Category.objects.filter(enterprise_id=enterprise_id)
+        }
+
+        created = 0
+        updated = 0
+        skipped = 0
+        errors: list[str] = []
+
+        for row_num, row in enumerate(reader, start=2):
+            try:
+                name = _row_value(row, header_map, 'name', 'nom', 'categorie', 'category')
+                if not name:
+                    skipped += 1
+                    continue
+
+                description = _row_value(row, header_map, 'description', 'desc')
+                is_active = _parse_bool_field(
+                    _row_value(row, header_map, 'is_active', 'actif', 'active'),
+                    default=True,
+                )
+
+                parent = None
+                parent_name = _row_value(row, header_map, 'parent', 'parent_name', 'categorie_parente')
+                if parent_name:
+                    parent = existing.get(parent_name.strip().lower())
+
+                slug = _unique_slug_for_enterprise(
+                    Category,
+                    enterprise_id=enterprise_id,
+                    base_value=name,
+                    fallback='categorie',
+                )
+
+                obj, obj_created = Category.objects.get_or_create(
+                    enterprise_id=enterprise_id,
+                    name__iexact=name,
+                    defaults={
+                        'name': name,
+                        'slug': slug,
+                        'description': description,
+                        'parent': parent,
+                        'is_active': is_active,
+                    },
+                )
+                if obj_created:
+                    existing[name.strip().lower()] = obj
+                    created += 1
+                else:
+                    changed = False
+                    if description and obj.description != description:
+                        obj.description = description
+                        changed = True
+                    if parent and obj.parent != parent:
+                        obj.parent = parent
+                        changed = True
+                    obj.is_active = is_active
+                    obj.save(update_fields=['description', 'parent', 'is_active', 'updated_at'])
+                    updated += 1
+            except Exception as exc:
+                if len(errors) < 50:
+                    errors.append({'line': row_num, 'message': str(exc)})
+
+        total_rows = created + updated + skipped + len(errors)
+        return Response({
+            'detail': f'{created} creee(s), {updated} mise(s) a jour, {skipped} ignoree(s).',
+            'total_rows': total_rows,
+            'created': created,
+            'updated': updated,
+            'skipped': skipped,
+            'error_count': len(errors),
+            'errors': errors,
+        })
+
 
 # ---------------------------------------------------------------------------
 # Brand ViewSet
@@ -1515,6 +1629,88 @@ class BrandViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         enterprise_id = _require_user_enterprise_id(self.request.user)
         serializer.save(enterprise_id=enterprise_id)
+
+    # -- CSV import --------------------------------------------------------
+    @action(detail=False, methods=['post'], url_path='import-csv',
+            parser_classes=[MultiPartParser, FormParser])
+    def import_csv(self, request):
+        """Import brands from a CSV file.
+
+        Expected columns (flexible aliases):
+        - name / nom / marque  (required)
+        - is_active / actif / active
+        """
+        content = _decode_uploaded_csv(request.FILES.get('file'))
+        reader = _build_csv_dict_reader(content)
+        header_map = {_normalize_header(h): h for h in (reader.fieldnames or [])}
+
+        enterprise_id = _require_user_enterprise_id(request.user)
+
+        created = 0
+        updated = 0
+        skipped = 0
+        errors: list[str] = []
+
+        for row_num, row in enumerate(reader, start=2):
+            try:
+                name = _row_value(row, header_map, 'name', 'nom', 'marque', 'brand')
+                if not name:
+                    skipped += 1
+                    continue
+
+                is_active = _parse_bool_field(
+                    _row_value(row, header_map, 'is_active', 'actif', 'active'),
+                    default=True,
+                )
+
+                slug = _unique_slug_for_enterprise(
+                    Brand,
+                    enterprise_id=enterprise_id,
+                    base_value=name,
+                    fallback='brand',
+                )
+
+                obj, obj_created = Brand.objects.get_or_create(
+                    enterprise_id=enterprise_id,
+                    name__iexact=name,
+                    defaults={
+                        'name': name,
+                        'slug': slug,
+                        'is_active': is_active,
+                    },
+                )
+                if obj_created:
+                    created += 1
+                else:
+                    obj.is_active = is_active
+                    obj.save(update_fields=['is_active', 'updated_at'])
+                    updated += 1
+            except Exception as exc:
+                if len(errors) < 50:
+                    errors.append({'line': row_num, 'message': str(exc)})
+
+        total_rows = created + updated + skipped + len(errors)
+        return Response({
+            'detail': f'{created} creee(s), {updated} mise(s) a jour, {skipped} ignoree(s).',
+            'total_rows': total_rows,
+            'created': created,
+            'updated': updated,
+            'skipped': skipped,
+            'error_count': len(errors),
+            'errors': errors,
+        })
+
+    # -- CSV export --------------------------------------------------------
+    @action(detail=False, methods=['get'], url_path='export-csv')
+    def export_csv(self, request):
+        """Export filtered brands to a CSV file."""
+        from core.export import queryset_to_csv_response
+        qs = self.filter_queryset(self.get_queryset())
+        columns = [
+            ('name', 'Nom'),
+            (lambda o: 'oui' if o.is_active else 'non', 'Actif'),
+        ]
+        return queryset_to_csv_response(qs, columns, 'marques')
 
 
 # ---------------------------------------------------------------------------
@@ -1857,6 +2053,25 @@ class ProductViewSet(viewsets.ModelViewSet):
         if page is not None:
             return self.get_paginated_response(ProductPOSSerializer(page, many=True).data)
         return Response(ProductPOSSerializer(qs, many=True).data)
+
+    # -- CSV export --------------------------------------------------------
+    @action(detail=False, methods=['get'], url_path='export-csv')
+    def export_csv(self, request):
+        """Export filtered products to a CSV file."""
+        from core.export import queryset_to_csv_response
+        qs = self.filter_queryset(self.get_queryset()).select_related('category', 'brand')
+        columns = [
+            ('name', 'Nom'),
+            ('sku', 'SKU'),
+            ('barcode', 'Code-barres'),
+            (lambda o: o.category.name if o.category else '', 'Categorie'),
+            (lambda o: o.brand.name if o.brand else '', 'Marque'),
+            ('cost_price', 'Prix achat'),
+            ('selling_price', 'Prix vente'),
+            ('description', 'Description'),
+            (lambda o: 'oui' if o.is_active else 'non', 'Actif'),
+        ]
+        return queryset_to_csv_response(qs, columns, 'produits')
 
 
 # ---------------------------------------------------------------------------
@@ -3786,7 +4001,10 @@ class SalesReportAPIView(APIView):
         - store (required): store UUID
         - date_from (optional): start date (YYYY-MM-DD)
         - date_to (optional): end date (YYYY-MM-DD)
-        - group_by (optional): 'day', 'week', 'month' (default: 'day')
+        - customer / customer_id (optional): customer UUID
+        - cashier / cashier_id (optional): cashier UUID
+        - product / product_id (optional): product UUID
+        - group_by (optional): 'day', 'month', 'year' (default: 'day')
     """
 
     permission_classes = [IsAuthenticated, IsManagerOrAdmin, FeatureReportsCenterEnabled]
@@ -3808,8 +4026,20 @@ class SalesReportAPIView(APIView):
             )
 
         today = timezone.now().date()
-        date_from = request.query_params.get('date_from', str(today))
-        date_to = request.query_params.get('date_to', str(today))
+        date_from = _parse_iso_date_or_default(
+            request.query_params.get('date_from'),
+            today,
+        )
+        date_to = _parse_iso_date_or_default(
+            request.query_params.get('date_to'),
+            today,
+        )
+        if date_from > date_to:
+            date_from, date_to = date_to, date_from
+
+        customer_id = request.query_params.get('customer') or request.query_params.get('customer_id')
+        cashier_id = request.query_params.get('cashier') or request.query_params.get('cashier_id')
+        product_id = request.query_params.get('product') or request.query_params.get('product_id')
 
         # Base queryset for completed sales
         sales_qs = Sale.objects.filter(
@@ -3818,11 +4048,29 @@ class SalesReportAPIView(APIView):
             created_at__date__gte=date_from,
             created_at__date__lte=date_to,
         )
+        if customer_id:
+            sales_qs = sales_qs.filter(customer_id=customer_id)
+        if cashier_id:
+            sale_ids_for_cashier = (
+                Payment.objects
+                .filter(store_id=store_id, cashier_id=cashier_id)
+                .values('sale_id')
+            )
+            sales_qs = sales_qs.filter(id__in=sale_ids_for_cashier)
+        if product_id:
+            sale_ids_for_product = (
+                SaleItem.objects
+                .filter(sale__store_id=store_id, product_id=product_id)
+                .values('sale_id')
+            )
+            sales_qs = sales_qs.filter(id__in=sale_ids_for_product)
+
+        selected_sale_ids = sales_qs.values('id')
 
         # Summary
         summary = sales_qs.aggregate(
             total_revenue=Coalesce(Sum('total'), Decimal('0.00'), output_field=DecimalField()),
-            total_orders=Count('id'),
+            total_orders=Count('id', distinct=True),
             average_order=Coalesce(Avg('total'), Decimal('0.00'), output_field=DecimalField()),
             total_discounts=Coalesce(Sum('discount_amount'), Decimal('0.00'), output_field=DecimalField()),
             total_collected=Coalesce(Sum('amount_paid'), Decimal('0.00'), output_field=DecimalField()),
@@ -3833,7 +4081,7 @@ class SalesReportAPIView(APIView):
         payments_by_method = (
             Payment.objects.filter(
                 store_id=store_id,
-                sale__status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
+                sale_id__in=selected_sale_ids,
                 created_at__date__gte=date_from,
                 created_at__date__lte=date_to,
             )
@@ -3859,10 +4107,7 @@ class SalesReportAPIView(APIView):
         # By category
         by_category = (
             SaleItem.objects.filter(
-                sale__store_id=store_id,
-                sale__status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
-                sale__created_at__date__gte=date_from,
-                sale__created_at__date__lte=date_to,
+                sale_id__in=selected_sale_ids,
             )
             .values('product__category__name')
             .annotate(
@@ -3895,9 +4140,14 @@ class SalesReportAPIView(APIView):
 
         report = {
             'store': store_id,
-            'date_from': date_from,
-            'date_to': date_to,
+            'date_from': date_from.isoformat(),
+            'date_to': date_to.isoformat(),
             'group_by': group_by,
+            'filters': {
+                'customer': customer_id,
+                'cashier': cashier_id,
+                'product': product_id,
+            },
             'summary': {
                 'total_revenue': str(summary['total_revenue']),
                 'total_orders': summary['total_orders'],
@@ -3942,6 +4192,218 @@ class SalesReportAPIView(APIView):
         }
 
         return Response(report)
+
+
+# ---------------------------------------------------------------------------
+# Cashier Operations PDF Export
+# ---------------------------------------------------------------------------
+
+class CashierOperationsPDFAPIView(APIView):
+    """
+    GET endpoint returning a PDF report of cashier operations.
+
+    Query params:
+        - store (required): store UUID
+        - date_from (optional): start date (YYYY-MM-DD)
+        - date_to (optional): end date (YYYY-MM-DD)
+        - customer / customer_id (optional): customer UUID
+        - cashier / cashier_id (optional): cashier UUID
+        - product / product_id (optional): product UUID
+    """
+
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin, FeatureReportsCenterEnabled]
+    MAX_OPERATION_ROWS = 300
+
+    def get(self, request):
+        store_id = request.query_params.get('store')
+        if not store_id:
+            return Response(
+                {'detail': 'Le parametre store est requis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        store_ids = _user_store_ids(request.user)
+        store = Store.objects.filter(pk=store_id, id__in=store_ids).first()
+        if store is None:
+            return Response(
+                {'detail': 'Acces refuse a cette boutique.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        today = timezone.now().date()
+        date_from = _parse_iso_date_or_default(request.query_params.get('date_from'), today)
+        date_to = _parse_iso_date_or_default(request.query_params.get('date_to'), today)
+        if date_from > date_to:
+            date_from, date_to = date_to, date_from
+
+        customer_id = request.query_params.get('customer') or request.query_params.get('customer_id')
+        cashier_id = request.query_params.get('cashier') or request.query_params.get('cashier_id')
+        product_id = request.query_params.get('product') or request.query_params.get('product_id')
+
+        payments_qs = Payment.objects.filter(
+            store_id=store.id,
+            sale__status__in=[Sale.Status.PAID, Sale.Status.PARTIALLY_PAID],
+            created_at__date__gte=date_from,
+            created_at__date__lte=date_to,
+        ).select_related('cashier', 'sale')
+
+        if customer_id:
+            payments_qs = payments_qs.filter(sale__customer_id=customer_id)
+        if cashier_id:
+            payments_qs = payments_qs.filter(cashier_id=cashier_id)
+        if product_id:
+            sale_ids_for_product = (
+                SaleItem.objects
+                .filter(sale__store_id=store.id, product_id=product_id)
+                .values('sale_id')
+            )
+            payments_qs = payments_qs.filter(sale_id__in=sale_ids_for_product)
+
+        totals = payments_qs.aggregate(
+            total_operations=Count('id'),
+            total_amount=Coalesce(
+                Sum('amount'),
+                Decimal('0.00'),
+                output_field=DecimalField(),
+            ),
+        )
+        total_operations = int(totals.get('total_operations') or 0)
+        total_amount = totals.get('total_amount') or Decimal('0.00')
+        average_ticket = (
+            (total_amount / Decimal(total_operations)).quantize(Decimal('0.01'))
+            if total_operations > 0
+            else Decimal('0.00')
+        )
+
+        by_cashier_rows = (
+            payments_qs
+            .values(
+                'cashier__first_name',
+                'cashier__last_name',
+                'cashier__email',
+            )
+            .annotate(
+                operation_count=Count('id'),
+                total_amount=Coalesce(
+                    Sum('amount'),
+                    Decimal('0.00'),
+                    output_field=DecimalField(),
+                ),
+            )
+            .order_by('-total_amount', 'cashier__last_name', 'cashier__first_name')
+        )
+        by_cashier = []
+        for row in by_cashier_rows:
+            cashier_name = (
+                f"{row.get('cashier__first_name') or ''} {row.get('cashier__last_name') or ''}"
+            ).strip() or row.get('cashier__email') or "-"
+            count = int(row.get('operation_count') or 0)
+            total = row.get('total_amount') or Decimal('0.00')
+            avg = (total / Decimal(count)).quantize(Decimal('0.01')) if count > 0 else Decimal('0.00')
+            by_cashier.append(
+                {
+                    'cashier_name': cashier_name,
+                    'operation_count': count,
+                    'total_amount': total,
+                    'average_ticket': avg,
+                }
+            )
+
+        method_display_map = dict(Payment.Method.choices)
+        by_method_rows = (
+            payments_qs
+            .values('method')
+            .annotate(
+                operation_count=Count('id'),
+                total_amount=Coalesce(
+                    Sum('amount'),
+                    Decimal('0.00'),
+                    output_field=DecimalField(),
+                ),
+            )
+            .order_by('method')
+        )
+        by_method = [
+            {
+                'method': row.get('method'),
+                'method_display': method_display_map.get(row.get('method'), row.get('method')),
+                'operation_count': int(row.get('operation_count') or 0),
+                'total_amount': row.get('total_amount') or Decimal('0.00'),
+            }
+            for row in by_method_rows
+        ]
+
+        sampled_rows = list(payments_qs.order_by('-created_at', '-id')[:self.MAX_OPERATION_ROWS])
+        operations = []
+        for payment in sampled_rows:
+            cashier_name = payment.cashier.get_full_name().strip() or payment.cashier.email
+            sale_ref = payment.sale.invoice_number or f"VTE-{str(payment.sale_id).split('-')[0].upper()}"
+            operations.append(
+                {
+                    'created_at': payment.created_at,
+                    'cashier_name': cashier_name,
+                    'invoice_number': sale_ref,
+                    'method_display': method_display_map.get(payment.method, payment.method),
+                    'amount': payment.amount,
+                    'reference': payment.reference,
+                }
+            )
+
+        customer_name = ""
+        if customer_id:
+            customer = (
+                Customer.objects
+                .filter(pk=customer_id, enterprise_id=store.enterprise_id)
+                .only('first_name', 'last_name')
+                .first()
+            )
+            if customer:
+                customer_name = customer.full_name
+
+        cashier_name = ""
+        if cashier_id:
+            cashier = User.objects.filter(pk=cashier_id).only('first_name', 'last_name', 'email').first()
+            if cashier:
+                cashier_name = cashier.get_full_name().strip() or cashier.email
+
+        product_name = ""
+        if product_id:
+            product = Product.objects.filter(pk=product_id, enterprise_id=store.enterprise_id).only('name').first()
+            if product:
+                product_name = product.name
+
+        summary = {
+            'total_operations': total_operations,
+            'total_amount': total_amount,
+            'average_ticket': average_ticket,
+            'selected_customer': customer_name,
+            'selected_cashier': cashier_name,
+            'selected_product': product_name,
+        }
+
+        try:
+            return generate_cashier_operations_report_pdf(
+                store=store,
+                date_from=date_from,
+                date_to=date_to,
+                summary=summary,
+                by_cashier=by_cashier,
+                by_method=by_method,
+                operations=operations,
+                operations_truncated=total_operations > len(operations),
+                generated_at=timezone.now(),
+            )
+        except RuntimeError:
+            logger.exception("Cashier operations PDF export failed: PDF backend unavailable.")
+            return Response(
+                {
+                    'detail': (
+                        "Generation PDF indisponible sur ce serveur. "
+                        "Installez les dependances WeasyPrint systeme (glib/pango/cairo)."
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
 
 # ---------------------------------------------------------------------------

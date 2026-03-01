@@ -15,6 +15,7 @@ FEATURE_FLAG_TO_MODULE_CODE = {
     "commercial_ai": "COMMERCIAL",
     "commercial_incentives": "COMMERCIAL",
     "commercial_exports": "COMMERCIAL",
+    "hrm_management": "HRM",
     "alerts_center": "ALERTS",
     "reports_center": "ANALYTICS_MANAGER",
     "dashboard_strategic": "ANALYTICS_DG",
@@ -239,7 +240,10 @@ class RequireStoreModuleEnabled(BasePermission):
 
         store = _resolve_object_store(obj)
         if not store:
-            return False
+            # Some resources are enterprise-scoped (no direct store FK), e.g.
+            # catalog categories/products. In that case rely on route-level
+            # module checks already performed in has_permission().
+            return True
         if self._is_enabled(store, module_codes):
             return True
         return self._deny(module_codes)
@@ -307,6 +311,10 @@ class ModuleClientIntelEnabled(RequireStoreModuleEnabled):
 
 class ModuleAlertsEnabled(RequireStoreModuleEnabled):
     module_code = "ALERTS"
+
+
+class ModuleHRMEnabled(RequireStoreModuleEnabled):
+    module_code = "HRM"
 
 
 class RequireStoreFeatureFlag(BasePermission):
@@ -399,7 +407,10 @@ class RequireStoreFeatureFlag(BasePermission):
 
         store = _resolve_object_store(obj)
         if not store:
-            return False
+            # Some resources are enterprise-scoped and do not carry a direct
+            # store FK (e.g. HRM objects). In that case rely on route-level
+            # permission checks already done in has_permission().
+            return True
         if not self._is_feature_enabled(store, feature_key):
             return self._deny_feature(feature_key)
         if required_module_code and not _is_store_module_enabled(store, required_module_code):
@@ -455,6 +466,10 @@ class FeatureCommercialExportsEnabled(RequireStoreFeatureFlag):
     feature_key = "commercial_exports"
 
 
+class FeatureHRMManagementEnabled(RequireStoreFeatureFlag):
+    feature_key = "hrm_management"
+
+
 class FeatureAlertsCenterEnabled(RequireStoreFeatureFlag):
     feature_key = "alerts_center"
 
@@ -475,10 +490,10 @@ class IsSuperAdmin(BasePermission):
 
 
 class IsAdmin(BasePermission):
-    """Allow access only to users with the ADMIN role."""
+    """Allow access to tenant administrators (ADMIN/MANAGER)."""
 
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role == 'ADMIN'
+        return request.user.is_authenticated and request.user.role in ('ADMIN', 'MANAGER')
 
 
 class IsManagerOrAdmin(BasePermission):
@@ -513,21 +528,42 @@ class _CapabilityPermission(BasePermission):
             store_lookup_fields=("store", "store_id", "from_store_id", "to_store_id"),
         )
 
+    def _has_capability_on_store(self, user, store):
+        if not self.capability:
+            return False
+        store_user = user.store_users.filter(store=store).first()
+        if store_user:
+            return store_user.has_capability(self.capability)
+        if getattr(user, "role", None) in ("ADMIN", "MANAGER") and _user_has_store_access(user, str(store.id)):
+            from stores.capabilities import ROLE_CAPABILITY_MAP
+
+            return self.capability in ROLE_CAPABILITY_MAP.get(user.role, [])
+        return False
+
     def has_permission(self, request, view):
         user = request.user
         if not user.is_authenticated:
             return False
-        # ADMIN and MANAGER always pass
-        if user.role in ("ADMIN", "MANAGER"):
+        # Platform-level superadmins always pass.
+        if getattr(user, "is_superuser", False):
             return True
 
-        # Capability-based check when feature flag is active
+        # Capability-based check when advanced permissions are enabled.
         if self.capability:
             store = self._resolve_store(request, view)
             if store and store.is_feature_enabled("advanced_permissions"):
-                store_user = user.store_users.filter(store=store).first()
-                if store_user:
-                    return store_user.has_capability(self.capability)
+                return self._has_capability_on_store(user, store)
+
+            if not store:
+                links = (
+                    user.store_users
+                    .filter(store__is_active=True)
+                    .select_related("store")
+                    .order_by("-is_default", "store_id")
+                )
+                advanced_links = [link for link in links if link.store.is_feature_enabled("advanced_permissions")]
+                if advanced_links:
+                    return any(link.has_capability(self.capability) for link in advanced_links)
 
         # Legacy role-based fallback
         return user.role in self.allowed_roles
@@ -678,19 +714,19 @@ class CanSetExpenseBudgets(_CapabilityPermission):
 class CanManageLeads(_CapabilityPermission):
     """Allow sales/manager/admin to manage leads and prospects."""
     capability = "CAN_MANAGE_LEADS"
-    allowed_roles = ("SALES", "MANAGER", "ADMIN")
+    allowed_roles = ("SALES", "COMMERCIAL", "MANAGER", "ADMIN")
 
 
 class CanManageOpportunities(_CapabilityPermission):
     """Allow sales/manager/admin to manage opportunities."""
     capability = "CAN_MANAGE_OPPORTUNITIES"
-    allowed_roles = ("SALES", "MANAGER", "ADMIN")
+    allowed_roles = ("SALES", "COMMERCIAL", "MANAGER", "ADMIN")
 
 
 class CanLogCommercialActivity(_CapabilityPermission):
     """Allow sales/manager/admin to log activities and follow-up tasks."""
     capability = "CAN_LOG_ACTIVITY"
-    allowed_roles = ("SALES", "MANAGER", "ADMIN")
+    allowed_roles = ("SALES", "COMMERCIAL", "MANAGER", "ADMIN")
 
 
 class CanViewCommercialTeam(_CapabilityPermission):
@@ -706,6 +742,42 @@ class CanApproveCommercialBonus(_CapabilityPermission):
 
 
 class CanExportCommercial(_CapabilityPermission):
-    """Allow manager/admin to export commercial datasets."""
+    """Allow commercial/manager/admin to export commercial datasets."""
     capability = "CAN_EXPORT_COMMERCIAL"
+    allowed_roles = ("COMMERCIAL", "MANAGER", "ADMIN")
+
+
+class CanManageUsers(_CapabilityPermission):
+    """Allow tenant admins/managers to manage users when capability is granted."""
+    capability = "CAN_MANAGE_USERS"
     allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanManageStores(_CapabilityPermission):
+    """Allow tenant admins/managers to manage stores when capability is granted."""
+    capability = "CAN_MANAGE_STORES"
+    allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanManageSubscriptions(_CapabilityPermission):
+    """Allow tenant admins/managers to manage enterprise subscriptions/plans."""
+    capability = "CAN_MANAGE_SUBSCRIPTIONS"
+    allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanManageModules(_CapabilityPermission):
+    """Allow tenant admins/managers to manage paid modules and entitlements."""
+    capability = "CAN_MANAGE_MODULES"
+    allowed_roles = ("MANAGER", "ADMIN")
+
+
+class CanViewHRM(_CapabilityPermission):
+    """Allow HR/manager/admin to consult HRM data."""
+    capability = "CAN_VIEW_HRM"
+    allowed_roles = ("HR", "MANAGER", "ADMIN")
+
+
+class CanManageHRM(_CapabilityPermission):
+    """Allow HR/manager/admin to mutate HRM data."""
+    capability = "CAN_MANAGE_HRM"
+    allowed_roles = ("HR", "MANAGER", "ADMIN")

@@ -23,10 +23,12 @@ import {
   Pencil,
   AlertCircle,
   Upload,
+  Download,
 } from 'lucide-react';
+import { downloadCsv } from '@/lib/export';
 import { toast } from '@/lib/toast';
 import type { Product, CsvImportResult } from '@/api/types';
-import type { AxiosError } from 'axios';
+import { extractApiError } from '@/lib/api-error';
 
 const PAGE_SIZE = 25;
 
@@ -39,7 +41,7 @@ export default function ProductListPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [importResult, setImportResult] = useState<CsvImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -85,7 +87,7 @@ export default function ProductListPage() {
       setProductToDelete(null);
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -106,18 +108,8 @@ export default function ProductListPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.brands.all });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Erreur lors de l\'import CSV');
-      const ax = err as AxiosError<Record<string, unknown> | string>;
-      const data = ax?.response?.data;
-      if (typeof data === 'string') {
-        setImportError(data);
-      } else if (data && typeof data.detail === 'string') {
-        setImportError(data.detail);
-      } else if (data && typeof data.file === 'string') {
-        setImportError(data.file);
-      } else {
-        setImportError('Import CSV impossible.');
-      }
+      toast.error(extractApiError(err, 'Erreur lors de l\'import CSV'));
+      setImportError(extractApiError(err, 'Import CSV impossible.'));
     },
   });
 
@@ -147,6 +139,13 @@ export default function ProductListPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Catalogue produits</h1>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => downloadCsv('products/export-csv/', 'produits')}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
+          >
+            <Download size={16} />
+            Exporter CSV
+          </button>
           {canImportCsv && (
             <>
               <input
@@ -292,7 +291,7 @@ export default function ProductListPage() {
       {deleteMutation.isError && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4 flex items-center gap-2">
           <AlertCircle size={16} />
-          Erreur lors de la suppression : {((deleteMutation.error as AxiosError)?.response?.data as any)?.detail ?? 'Erreur inconnue'}
+          Erreur lors de la suppression : {extractApiError(deleteMutation.error, 'Erreur inconnue')}
         </div>
       )}
 
@@ -303,7 +302,7 @@ export default function ProductListPage() {
         </div>
       ) : isError ? (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-          Erreur chargement produits : {((error as AxiosError)?.response?.data as any)?.detail ?? (error as Error).message}
+          Erreur chargement produits : {extractApiError(error)}
         </div>
       ) : viewMode === 'grid' ? (
         /* ===== GRID VIEW (Mosaique) ===== */

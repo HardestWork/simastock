@@ -10,6 +10,7 @@ interface ProtectedRouteProps {
   allowedRoles?: UserRole[];
   allowedCapabilities?: Capability[];
   requiredModules?: ModuleCode[];
+  superuserOnly?: boolean;
   children?: React.ReactNode;
 }
 
@@ -17,6 +18,7 @@ export default function ProtectedRoute({
   allowedRoles,
   allowedCapabilities,
   requiredModules,
+  superuserOnly = false,
   children,
 }: ProtectedRouteProps) {
   const { isAuthenticated, user, isLoading, initialized, loadUser } = useAuthStore();
@@ -45,6 +47,10 @@ export default function ProtectedRoute({
     return <Navigate to="/login" replace />;
   }
 
+  if (superuserOnly && user.is_superuser !== true) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const hasRoleAccess = !allowedRoles || allowedRoles.length === 0 || allowedRoles.includes(user.role);
   if (!hasRoleAccess) {
     return <Navigate to="/dashboard" replace />;
@@ -65,12 +71,11 @@ export default function ProtectedRoute({
     }
   }
 
-  const isPrivilegedRole = user.role === 'ADMIN' || user.role === 'MANAGER' || user.is_superuser === true;
-  if (isPrivilegedRole) {
+  if (user.is_superuser === true) {
     return children ? <>{children}</> : <Outlet />;
   }
 
-  if (allowedCapabilities && allowedCapabilities.length > 0 && capabilities.length > 0) {
+  if (allowedCapabilities && allowedCapabilities.length > 0) {
     const hasRequiredCapability = allowedCapabilities.some((cap) => capabilities.includes(cap));
     if (!hasRequiredCapability) {
       return <Navigate to="/dashboard" replace />;

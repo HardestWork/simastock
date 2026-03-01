@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   FileText,
   Send,
-  CheckCircle,
   XCircle,
   ArrowRightLeft,
   Copy,
@@ -23,22 +22,8 @@ import { formatCurrency } from '@/lib/currency';
 import { useAuthStore } from '@/auth/auth-store';
 import StatusBadge from '@/components/shared/StatusBadge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
-import type { AxiosError } from 'axios';
 import { toast } from '@/lib/toast';
-
-/* -------------------------------------------------------------------------- */
-/*  Helpers                                                                   */
-/* -------------------------------------------------------------------------- */
-
-function extractErrorMessage(err: unknown): string {
-  const axErr = err as AxiosError<{ detail?: string; non_field_errors?: string[] }>;
-  return (
-    axErr?.response?.data?.detail ??
-    axErr?.response?.data?.non_field_errors?.[0] ??
-    (err as Error)?.message ??
-    'Une erreur est survenue.'
-  );
-}
+import { extractApiError as extractErrorMessage } from '@/lib/api-error';
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -87,19 +72,6 @@ export default function QuoteDetailPage() {
     mutationFn: () => quoteApi.send(id!),
     onSuccess: () => {
       toast.info(`Devis envoye: ${quote?.quote_number ?? 'sans numero'}`);
-      queryClient.invalidateQueries({ queryKey: queryKeys.quotes.detail(id!) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
-    },
-    onError: (err: unknown) => {
-      toast.error(extractErrorMessage(err));
-      setActionError(extractErrorMessage(err));
-    },
-  });
-
-  const acceptMut = useMutation({
-    mutationFn: () => quoteApi.accept(id!),
-    onSuccess: () => {
-      toast.success(`Devis accepte: ${quote?.quote_number ?? 'sans numero'}`);
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.detail(id!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
     },
@@ -200,7 +172,6 @@ export default function QuoteDetailPage() {
 
   const anyMutating =
     sendMut.isPending ||
-    acceptMut.isPending ||
     refuseMut.isPending ||
     convertMut.isPending ||
     duplicateMut.isPending ||
@@ -288,18 +259,18 @@ export default function QuoteDetailPage() {
           </>
         )}
 
-        {quote.status === 'SENT' && (
+        {(quote.status === 'SENT' || quote.status === 'ACCEPTED') && (
           <>
             {isManagerOrAdmin && (
               <>
                 <button
                   type="button"
                   disabled={anyMutating}
-                  onClick={() => acceptMut.mutate()}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-60"
+                  onClick={() => convertMut.mutate()}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
                 >
-                  <CheckCircle className="h-4 w-4" />
-                  Accepter
+                  <ArrowRightLeft className="h-4 w-4" />
+                  Convertir en facture
                 </button>
                 <button
                   type="button"
@@ -311,40 +282,6 @@ export default function QuoteDetailPage() {
                   Refuser
                 </button>
               </>
-            )}
-            <button
-              type="button"
-              disabled={anyMutating}
-              onClick={() => duplicateMut.mutate()}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-60"
-            >
-              <Copy className="h-4 w-4" />
-              Dupliquer
-            </button>
-            <a
-              href={`/api/v1/quotes/${id}/pdf/`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
-            >
-              <Download className="h-4 w-4" />
-              PDF
-            </a>
-          </>
-        )}
-
-        {quote.status === 'ACCEPTED' && (
-          <>
-            {isManagerOrAdmin && (
-              <button
-                type="button"
-                disabled={anyMutating}
-                onClick={() => convertMut.mutate()}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
-              >
-                <ArrowRightLeft className="h-4 w-4" />
-                Convertir en facture
-              </button>
             )}
             <button
               type="button"

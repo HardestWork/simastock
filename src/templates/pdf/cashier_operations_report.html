@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A4; margin: 14mm; }
+        * { box-sizing: border-box; }
+        body { font-family: "Helvetica", "Arial", sans-serif; font-size: 10pt; color: #0f172a; margin: 0; }
+        .header { border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 14px; }
+        .title { font-size: 16pt; font-weight: bold; letter-spacing: 0.5px; }
+        .subtitle { margin-top: 4px; color: #334155; font-size: 10pt; }
+        .meta { display: flex; gap: 16px; margin-bottom: 12px; }
+        .meta-box { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; }
+        .meta-label { font-size: 8pt; text-transform: uppercase; color: #64748b; margin-bottom: 4px; letter-spacing: 0.4px; }
+        .meta-value { font-size: 10pt; color: #0f172a; }
+        .kpis { display: flex; gap: 12px; margin-bottom: 14px; }
+        .kpi { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; background: #f8fafc; }
+        .kpi-title { font-size: 8pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+        .kpi-value { font-size: 12pt; font-weight: bold; }
+        h2 { font-size: 10pt; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.4px; color: #334155; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        th { background: #e2e8f0; text-align: left; padding: 6px 8px; font-size: 8pt; text-transform: uppercase; color: #334155; border: 1px solid #cbd5e1; }
+        td { padding: 6px 8px; border: 1px solid #e2e8f0; font-size: 9pt; }
+        .right { text-align: right; }
+        .muted { color: #64748b; }
+        .footer { margin-top: 8px; font-size: 8pt; color: #64748b; text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">OPERATIONS PAR CAISSIER</div>
+        <div class="subtitle">{{ store.name }}</div>
+    </div>
+
+    <div class="meta">
+        <div class="meta-box">
+            <div class="meta-label">Periode</div>
+            <div class="meta-value">{{ date_from|date:"d/m/Y" }} - {{ date_to|date:"d/m/Y" }}</div>
+        </div>
+        <div class="meta-box">
+            <div class="meta-label">Filtres</div>
+            <div class="meta-value">
+                Client: {{ summary.selected_customer|default:"Tous" }}<br>
+                Caissier: {{ summary.selected_cashier|default:"Tous" }}<br>
+                Produit: {{ summary.selected_product|default:"Tous" }}
+            </div>
+        </div>
+    </div>
+
+    <div class="kpis">
+        <div class="kpi">
+            <div class="kpi-title">Operations</div>
+            <div class="kpi-value">{{ summary.total_operations }}</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-title">Montant total</div>
+            <div class="kpi-value">{{ summary.total_amount|floatformat:2 }} {{ store.currency }}</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-title">Ticket moyen</div>
+            <div class="kpi-value">{{ summary.average_ticket|floatformat:2 }} {{ store.currency }}</div>
+        </div>
+    </div>
+
+    <h2>Repartition par caissier</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Caissier</th>
+                <th class="right">Operations</th>
+                <th class="right">Montant</th>
+                <th class="right">Ticket moyen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in by_cashier %}
+            <tr>
+                <td>{{ row.cashier_name }}</td>
+                <td class="right">{{ row.operation_count }}</td>
+                <td class="right">{{ row.total_amount|floatformat:2 }} {{ store.currency }}</td>
+                <td class="right">{{ row.average_ticket|floatformat:2 }} {{ store.currency }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="muted">Aucune operation sur la periode.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Repartition par mode de paiement</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Mode</th>
+                <th class="right">Operations</th>
+                <th class="right">Montant</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in by_method %}
+            <tr>
+                <td>{{ row.method_display }}</td>
+                <td class="right">{{ row.operation_count }}</td>
+                <td class="right">{{ row.total_amount|floatformat:2 }} {{ store.currency }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="muted">Aucune operation sur la periode.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Dernieres operations{% if operations_truncated %} (echantillon){% endif %}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Caissier</th>
+                <th>Facture</th>
+                <th>Mode</th>
+                <th class="right">Montant</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in operations %}
+            <tr>
+                <td>{{ row.created_at|date:"d/m/Y H:i" }}</td>
+                <td>{{ row.cashier_name }}</td>
+                <td>{{ row.invoice_number }}</td>
+                <td>{{ row.method_display }}</td>
+                <td class="right">{{ row.amount|floatformat:2 }} {{ store.currency }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="muted">Aucune operation.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">Genere le {{ generated_at|date:"d/m/Y H:i" }}</div>
+</body>
+</html>

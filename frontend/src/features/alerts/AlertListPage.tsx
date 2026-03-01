@@ -6,6 +6,7 @@ import { useStoreStore } from '@/store-context/store-store';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { Bell, CheckCheck } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { extractApiError } from '@/lib/api-error';
 
 export default function AlertListPage() {
   const queryClient = useQueryClient();
@@ -29,7 +30,7 @@ export default function AlertListPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
@@ -40,7 +41,7 @@ export default function AlertListPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all });
     },
     onError: (err: unknown) => {
-      toast.error((err as any)?.response?.data?.detail || (err as any)?.response?.data?.non_field_errors?.[0] || 'Une erreur est survenue');
+      toast.error(extractApiError(err));
     },
   });
 
