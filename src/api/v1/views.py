@@ -5045,19 +5045,29 @@ class DocumentVerifyView(APIView):
 
     def get(self, request, token):
         # 1) Sale (invoice / receipt)
-        sale = Sale.objects.filter(verification_token=token).select_related("store").first()
+        sale = (
+            Sale.objects.filter(verification_token=token)
+            .select_related("store__enterprise", "customer")
+            .prefetch_related("items")
+            .first()
+        )
         if sale:
             return Response(self._sale_payload(sale))
 
         # 2) Quote
-        quote = Quote.objects.filter(verification_token=token).select_related("store").first()
+        quote = (
+            Quote.objects.filter(verification_token=token)
+            .select_related("store__enterprise", "customer")
+            .prefetch_related("items")
+            .first()
+        )
         if quote:
             return Response(self._quote_payload(quote))
 
         # 3) Credit ledger entry
         entry = (
             CreditLedgerEntry.objects.filter(verification_token=token)
-            .select_related("account__customer", "account__store")
+            .select_related("account__customer", "account__store__enterprise")
             .first()
         )
         if entry:
@@ -5066,50 +5076,77 @@ class DocumentVerifyView(APIView):
         # 4) Stock movement batch
         if token.startswith("batch-"):
             batch_id = token[6:]
-            movement = (
+            movements = list(
                 InventoryMovement.objects.filter(batch_id=batch_id)
-                .select_related("store")
-                .first()
+                .select_related("store__enterprise")
+                .order_by("created_at")
             )
-            if movement:
-                return Response(self._stock_payload(movement))
+            if movements:
+                return Response(self._stock_payload(movements))
 
         return Response({"found": False}, status=status.HTTP_404_NOT_FOUND)
+
+    # -- helpers --------------------------------------------------------------
+
+    @staticmethod
+    def _enterprise_name(store):
+        ent = getattr(store, "enterprise", None)
+        return ent.name if ent else ""
 
     # -- payload builders -----------------------------------------------------
 
     @staticmethod
     def _sale_payload(sale):
         store = sale.store
+        items = [
+            {
+                "product": item.product_name,
+                "quantity": item.quantity,
+                "unit_price": str(item.unit_price),
+                "line_total": str(item.line_total),
+            }
+            for item in sale.items.all()
+        ]
         return {
             "found": True,
             "document_type": "INVOICE",
             "number": sale.invoice_number or f"FAC-{str(sale.pk).split('-')[0].upper()}",
             "date": sale.created_at.isoformat() if sale.created_at else "",
-            "total": str(sale.total_amount),
+            "total": str(sale.total),
             "currency": "FCFA",
             "status": sale.status,
-            "enterprise": getattr(store, "enterprise", None) and store.enterprise.name or "",
+            "enterprise": DocumentVerifyView._enterprise_name(store),
             "store": store.name,
             "hash": sale.verification_hash,
             "customer": str(sale.customer) if sale.customer else "Client comptoir",
+            "items": items,
         }
 
     @staticmethod
     def _quote_payload(quote):
         store = quote.store
+        items = [
+            {
+                "product": item.product_name,
+                "quantity": item.quantity,
+                "unit_price": str(item.unit_price),
+                "line_total": str(item.line_total),
+            }
+            for item in quote.items.all()
+        ]
         return {
             "found": True,
             "document_type": "QUOTE",
             "number": quote.quote_number or f"DEV-{str(quote.pk).split('-')[0].upper()}",
             "date": quote.created_at.isoformat() if quote.created_at else "",
-            "total": str(quote.total_amount),
+            "total": str(quote.total),
             "currency": "FCFA",
             "status": quote.status,
-            "enterprise": getattr(store, "enterprise", None) and store.enterprise.name or "",
+            "enterprise": DocumentVerifyView._enterprise_name(store),
             "store": store.name,
             "hash": quote.verification_hash,
             "customer": str(quote.customer) if quote.customer else "",
+            "items": items,
         }
 
     @staticmethod
@@ -5124,25 +5161,36 @@ class DocumentVerifyView(APIView):
             "total": str(abs(entry.amount)),
             "currency": "FCFA",
             "status": "PAID",
-            "enterprise": getattr(store, "enterprise", None) and store.enterprise.name or "",
+            "enterprise": DocumentVerifyView._enterprise_name(store),
             "store": store.name,
             "hash": entry.verification_hash,
             "customer": str(account.customer) if account.customer else "",
+            "items": [],
         }
 
     @staticmethod
-    def _stock_payload(movement):
-        store = movement.store
+    def _stock_payload(movements):
+        first = movements[0]
+        store = first.store
+        items = [
+            {
+                "product": m.product.name if m.product else str(m.product_id),
+                "quantity": m.quantity,
+                "movement_type": m.movement_type,
+            }
+            for m in movements
+        ]
         return {
             "found": True,
             "document_type": "STOCK_MOVEMENT",
-            "number": f"MVT-{str(movement.batch_id).split('-')[0].upper()}",
-            "date": movement.created_at.isoformat() if movement.created_at else "",
+            "number": f"MVT-{str(first.batch_id).split('-')[0].upper()}",
+            "date": first.created_at.isoformat() if first.created_at else "",
             "total": "",
             "currency": "FCFA",
-            "status": movement.movement_type,
-            "enterprise": getattr(store, "enterprise", None) and store.enterprise.name or "",
+            "status": first.movement_type,
+            "enterprise": DocumentVerifyView._enterprise_name(store),
             "store": store.name,
             "hash": "",
             "customer": "",
+            "items": items,
         }

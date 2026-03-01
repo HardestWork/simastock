@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { QRCodeSVG } from 'qrcode.react';
 import { saleApi, paymentApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
@@ -268,6 +269,23 @@ export default function PaymentReceiptPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Verification QR */}
+        {sale.verification_token && (
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3 print:border-gray-300">
+            <QRCodeSVG
+              value={`${window.location.origin}/verify/${sale.verification_token}`}
+              size={60}
+              level="M"
+            />
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              <div>Verifier ce document :</div>
+              <div className="font-mono text-[10px] mt-0.5 break-all">
+                {window.location.origin}/verify/{sale.verification_token}
+              </div>
             </div>
           </div>
         )}

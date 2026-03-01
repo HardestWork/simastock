@@ -713,6 +713,7 @@ export interface Sale {
   source_quote_number: string | null;
   submitted_at: string | null;
   created_at: string;
+  verification_token: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -2416,6 +2417,14 @@ export interface HrmHoliday {
 // Document verification (public)
 // ---------------------------------------------------------------------------
 
+export interface DocumentVerificationItem {
+  product: string;
+  quantity: number;
+  unit_price?: string;
+  line_total?: string;
+  movement_type?: string;
+}
+
 export interface DocumentVerification {
   found: boolean;
   document_type: string;
@@ -2428,4 +2437,5 @@ export interface DocumentVerification {
   store: string;
   hash: string;
   customer: string;
+  items: DocumentVerificationItem[];
 }

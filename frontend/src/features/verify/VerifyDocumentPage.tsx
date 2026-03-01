@@ -2,6 +2,7 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { documentApi } from '@/api/endpoints';
+import type { DocumentVerificationItem } from '@/api/types';
 import { CheckCircle, XCircle, FileText, Loader2, ShieldCheck } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 
@@ -38,9 +39,11 @@ export default function VerifyDocumentPage() {
     retry: false,
   });
 
+  const isStock = data?.document_type === 'STOCK_MOVEMENT';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 text-xl font-bold text-gray-800">
@@ -104,13 +107,64 @@ export default function VerifyDocumentPage() {
                 </div>
 
                 <Row label="Date" value={formatDate(data.date)} />
-                {data.total && <Row label="Montant" value={formatCurrency(Number(data.total))} />}
+                {data.total && <Row label="Montant total" value={formatCurrency(Number(data.total))} />}
                 <Row label="Statut" value={STATUS_LABELS[data.status] || data.status} />
                 {data.customer && <Row label="Client" value={data.customer} />}
                 <Row label="Entreprise" value={data.enterprise} />
                 <Row label="Boutique" value={data.store} />
                 {data.hash && <Row label="Code d'authenticite" value={data.hash} mono />}
               </div>
+
+              {/* Items table */}
+              {data.items && data.items.length > 0 && (
+                <div className="px-6 pb-5">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    {isStock ? 'Mouvements' : 'Articles'}
+                  </h3>
+                  <div className="border border-gray-100 rounded-lg overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left px-3 py-2 font-medium text-gray-500">Produit</th>
+                          <th className="text-right px-3 py-2 font-medium text-gray-500">Qte</th>
+                          {!isStock && (
+                            <>
+                              <th className="text-right px-3 py-2 font-medium text-gray-500">P.U.</th>
+                              <th className="text-right px-3 py-2 font-medium text-gray-500">Total</th>
+                            </>
+                          )}
+                          {isStock && (
+                            <th className="text-left px-3 py-2 font-medium text-gray-500">Type</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.items.map((item: DocumentVerificationItem, i: number) => (
+                          <tr key={i} className="border-t border-gray-50">
+                            <td className="px-3 py-2 text-gray-800">{item.product}</td>
+                            <td className="px-3 py-2 text-right text-gray-700">{item.quantity}</td>
+                            {!isStock && (
+                              <>
+                                <td className="px-3 py-2 text-right text-gray-600">
+                                  {item.unit_price ? formatCurrency(Number(item.unit_price)) : ''}
+                                </td>
+                                <td className="px-3 py-2 text-right font-medium text-gray-800">
+                                  {item.line_total ? formatCurrency(Number(item.line_total)) : ''}
+                                </td>
+                              </>
+                            )}
+                            {isStock && (
+                              <td className="px-3 py-2 text-gray-600">
+                                {STATUS_LABELS[item.movement_type ?? ''] || item.movement_type}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

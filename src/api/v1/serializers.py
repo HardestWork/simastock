@@ -968,11 +968,12 @@ class SaleSerializer(serializers.ModelSerializer):
             'discount_percent', 'tax_amount', 'total', 'amount_paid',
             'amount_due', 'items', 'is_credit_sale', 'notes',
             'source_quote', 'source_quote_number', 'submitted_at', 'created_at',
+            'verification_token',
         ]
         read_only_fields = [
             'id', 'invoice_number', 'subtotal', 'tax_amount', 'total',
             'amount_paid', 'amount_due', 'source_quote', 'source_quote_number',
-            'submitted_at', 'created_at',
+            'submitted_at', 'created_at', 'verification_token',
         ]
 
     def get_customer_name(self, obj):
