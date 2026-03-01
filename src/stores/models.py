@@ -617,6 +617,26 @@ class Store(TimeStampedModel):
     )
     is_active = models.BooleanField(default=True)
 
+    # ------------------------------------------------------------------
+    # Stock configuration
+    # ------------------------------------------------------------------
+    class StockDecrementOn(models.TextChoices):
+        PAYMENT = "PAYMENT", "Au paiement complet"
+        VALIDATION = "VALIDATION", "A la validation (soumission)"
+
+    stock_decrement_on = models.CharField(
+        "decrement stock a",
+        max_length=20,
+        choices=StockDecrementOn.choices,
+        default=StockDecrementOn.PAYMENT,
+        help_text="Quand decrementer le stock: au paiement complet ou a la soumission en caisse.",
+    )
+    allow_negative_stock = models.BooleanField(
+        "autoriser stock negatif",
+        default=False,
+        help_text="Permet de vendre meme si le stock affiche est insuffisant.",
+    )
+
     class Meta:
         ordering = ["name"]
         verbose_name = "Boutique"

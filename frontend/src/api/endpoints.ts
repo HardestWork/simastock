@@ -637,7 +637,7 @@ export const quoteApi = {
   get: (id: string) =>
     apiClient.get<Quote>(`quotes/${id}/`).then((r) => r.data),
 
-  create: (data: { store_id: string; customer_id?: string; discount_percent?: string; notes?: string; conditions?: string; valid_until?: string }) =>
+  create: (data: { store_id: string; customer_id?: string; document_type?: string; discount_percent?: string; notes?: string; conditions?: string; valid_until?: string }) =>
     apiClient.post<Quote>('quotes/', data).then((r) => r.data),
 
   update: (id: string, data: Partial<{ customer: string; discount_percent: string; discount_amount: string; notes: string; conditions: string; valid_until: string }>) =>
@@ -660,6 +660,9 @@ export const quoteApi = {
 
   convert: (quoteId: string) =>
     apiClient.post<Sale>(`quotes/${quoteId}/convert/`).then((r) => r.data),
+
+  cancel: (quoteId: string, reason: string) =>
+    apiClient.post<Quote>(`quotes/${quoteId}/cancel/`, { reason }).then((r) => r.data),
 
   duplicate: (quoteId: string) =>
     apiClient.post<Quote>(`quotes/${quoteId}/duplicate/`).then((r) => r.data),

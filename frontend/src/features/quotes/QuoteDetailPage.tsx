@@ -48,6 +48,8 @@ export default function QuoteDetailPage() {
   const [refuseReason, setRefuseReason] = useState('');
   const [showRefuseModal, setShowRefuseModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   /* ---- Permission checks ------------------------------------------------- */
 
@@ -138,6 +140,21 @@ export default function QuoteDetailPage() {
     },
   });
 
+  const cancelMut = useMutation({
+    mutationFn: () => quoteApi.cancel(id!, cancelReason),
+    onSuccess: () => {
+      toast.warning(`Devis annule: ${quote?.quote_number ?? 'sans numero'}`);
+      queryClient.invalidateQueries({ queryKey: queryKeys.quotes.detail(id!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
+      setShowCancelModal(false);
+      setCancelReason('');
+    },
+    onError: (err: unknown) => {
+      toast.error(extractErrorMessage(err));
+      setActionError(extractErrorMessage(err));
+    },
+  });
+
   /* ---- Loading / error states -------------------------------------------- */
 
   if (isLoading) {
@@ -175,7 +192,8 @@ export default function QuoteDetailPage() {
     refuseMut.isPending ||
     convertMut.isPending ||
     duplicateMut.isPending ||
-    deleteMut.isPending;
+    deleteMut.isPending ||
+    cancelMut.isPending;
 
   /* ---- Render ------------------------------------------------------------ */
 
@@ -194,7 +212,7 @@ export default function QuoteDetailPage() {
         <div className="flex items-center gap-3 flex-wrap">
           <FileText className="h-6 w-6 text-gray-400 dark:text-gray-500" />
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Devis {quote.quote_number || `#${quote.id.substring(0, 8).toUpperCase()}`}
+            {quote.document_type === 'PROFORMA' ? 'Proforma' : 'Devis'} {quote.quote_number || `#${quote.id.substring(0, 8).toUpperCase()}`}
           </h1>
           <StatusBadge type="quote" value={quote.status} />
           {quote.is_expired && quote.status === 'SENT' && (
@@ -247,6 +265,17 @@ export default function QuoteDetailPage() {
               <Copy className="h-4 w-4" />
               Dupliquer
             </button>
+            {isManagerOrAdmin && (
+              <button
+                type="button"
+                disabled={anyMutating}
+                onClick={() => setShowCancelModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-orange-300 dark:border-orange-600 text-orange-700 dark:text-orange-400 text-sm font-medium hover:bg-orange-50 dark:hover:bg-orange-900/20 disabled:opacity-60"
+              >
+                <XCircle className="h-4 w-4" />
+                Annuler
+              </button>
+            )}
             <button
               type="button"
               disabled={anyMutating}
@@ -280,6 +309,15 @@ export default function QuoteDetailPage() {
                 >
                   <XCircle className="h-4 w-4" />
                   Refuser
+                </button>
+                <button
+                  type="button"
+                  disabled={anyMutating}
+                  onClick={() => setShowCancelModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-orange-300 dark:border-orange-600 text-orange-700 dark:text-orange-400 text-sm font-medium hover:bg-orange-50 dark:hover:bg-orange-900/20 disabled:opacity-60"
+                >
+                  <XCircle className="h-4 w-4" />
+                  Annuler
                 </button>
               </>
             )}
@@ -381,6 +419,7 @@ export default function QuoteDetailPage() {
             )
           }
         />
+        <InfoRow label="Type" value={quote.document_type === 'PROFORMA' ? 'Facture proforma' : 'Devis'} />
         <InfoRow label="Statut" value={<StatusBadge type="quote" value={quote.status} />} />
         {quote.sent_at && (
           <InfoRow
@@ -402,6 +441,15 @@ export default function QuoteDetailPage() {
         )}
         {quote.refusal_reason && (
           <InfoRow label="Motif refus" value={quote.refusal_reason} />
+        )}
+        {quote.cancelled_at && (
+          <InfoRow
+            label="Annule le"
+            value={format(new Date(quote.cancelled_at), 'dd/MM/yyyy HH:mm')}
+          />
+        )}
+        {quote.cancellation_reason && (
+          <InfoRow label="Motif annulation" value={quote.cancellation_reason} />
         )}
         {quote.converted_at && (
           <InfoRow
@@ -532,6 +580,42 @@ export default function QuoteDetailPage() {
                 className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60"
               >
                 Confirmer le refus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Cancel modal ------------------------------------------------ */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full shadow-xl">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Annuler le devis</h2>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Raison de l'annulation (optionnel)"
+              rows={4}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none mb-4 dark:bg-gray-700 dark:text-gray-100"
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelReason('');
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              >
+                Fermer
+              </button>
+              <button
+                type="button"
+                disabled={cancelMut.isPending}
+                onClick={() => cancelMut.mutate()}
+                className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 disabled:opacity-60"
+              >
+                Confirmer l'annulation
               </button>
             </div>
           </div>

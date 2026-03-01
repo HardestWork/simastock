@@ -152,6 +152,15 @@ class Sale(TimeStampedModel):
     )
 
     # ------------------------------------------------------------------
+    # Stock tracking
+    # ------------------------------------------------------------------
+    stock_decremented = models.BooleanField(
+        "stock decremente",
+        default=False,
+        help_text="True si le stock a deja ete decremente pour cette vente.",
+    )
+
+    # ------------------------------------------------------------------
     # Document verification
     # ------------------------------------------------------------------
     verification_token = models.CharField(
@@ -273,6 +282,17 @@ class Sale(TimeStampedModel):
             self.Status.PENDING_PAYMENT,
             self.Status.PARTIALLY_PAID,
         )
+
+    @property
+    def payment_status(self) -> str:
+        """Computed payment status independent of lifecycle status."""
+        if self.status in (self.Status.DRAFT, self.Status.CANCELLED):
+            return "N/A"
+        if self.amount_paid <= 0:
+            return "UNPAID"
+        if self.amount_due <= 0:
+            return "PAID"
+        return "PARTIAL"
 
 
 # ---------------------------------------------------------------------------
@@ -399,6 +419,18 @@ class Refund(TimeStampedModel):
         blank=True,
         default="",
     )
+    credit_note_number = models.CharField(
+        "numero d'avoir",
+        max_length=50,
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    restore_stock = models.BooleanField(
+        "remettre en stock",
+        default=False,
+        help_text="Remettre les articles en stock lors du remboursement.",
+    )
 
     class Meta:
         verbose_name = "remboursement"
@@ -414,7 +446,7 @@ class Refund(TimeStampedModel):
 # ---------------------------------------------------------------------------
 
 class Quote(TimeStampedModel):
-    """A formal quotation (devis) that can be converted to a sale/invoice."""
+    """A formal quotation (devis) or proforma that can be converted to a sale/invoice."""
 
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Brouillon"
@@ -423,6 +455,11 @@ class Quote(TimeStampedModel):
         REFUSED = "REFUSED", "Refuse"
         EXPIRED = "EXPIRED", "Expire"
         CONVERTED = "CONVERTED", "Converti"
+        CANCELLED = "CANCELLED", "Annule"
+
+    class DocumentType(models.TextChoices):
+        DEVIS = "DEVIS", "Devis"
+        PROFORMA = "PROFORMA", "Facture proforma"
 
     store = models.ForeignKey(
         "stores.Store",
@@ -458,6 +495,13 @@ class Quote(TimeStampedModel):
         default=Status.DRAFT,
         db_index=True,
     )
+    document_type = models.CharField(
+        "type de document",
+        max_length=20,
+        choices=DocumentType.choices,
+        default=DocumentType.DEVIS,
+        db_index=True,
+    )
 
     # ------------------------------------------------------------------
     # Amounts
@@ -486,6 +530,20 @@ class Quote(TimeStampedModel):
     accepted_at = models.DateTimeField("accepte le", null=True, blank=True)
     refused_at = models.DateTimeField("refuse le", null=True, blank=True)
     converted_at = models.DateTimeField("converti le", null=True, blank=True)
+    cancelled_at = models.DateTimeField("annule le", null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cancelled_quotes",
+        verbose_name="annule par",
+    )
+    cancellation_reason = models.TextField(
+        "raison d'annulation",
+        blank=True,
+        default="",
+    )
 
     # ------------------------------------------------------------------
     # Link to converted sale

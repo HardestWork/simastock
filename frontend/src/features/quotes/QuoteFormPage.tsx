@@ -53,7 +53,8 @@ export default function QuoteFormPage() {
   const [newCustomerLastName, setNewCustomerLastName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
 
-  // Notes & conditions
+  // Document type & Notes & conditions
+  const [documentType, setDocumentType] = useState<'DEVIS' | 'PROFORMA'>('DEVIS');
   const [notes, setNotes] = useState('');
   const [conditions, setConditions] = useState('');
 
@@ -119,6 +120,7 @@ export default function QuoteFormPage() {
         customer_id: customerId,
         notes: notes || undefined,
         conditions: conditions || undefined,
+        document_type: documentType,
       }),
     onSuccess: (data) => {
       toast.success(`Devis cree: ${data.quote_number ?? `#${data.id.slice(0, 8).toUpperCase()}`}`);
@@ -339,7 +341,9 @@ export default function QuoteFormPage() {
             <ChevronLeft size={14} /> Retour aux devis
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {isEditMode ? 'Modifier le devis' : 'Nouveau devis'}
+            {isEditMode
+              ? `Modifier le ${quote?.document_type === 'PROFORMA' ? 'proforma' : 'devis'}`
+              : `Nouveau ${documentType === 'PROFORMA' ? 'proforma' : 'devis'}`}
           </h1>
         </div>
         {quote && quote.items.length > 0 && (
@@ -370,6 +374,37 @@ export default function QuoteFormPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left â€” 2 cols: Notes, Customer search, Product search */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Document type selector (only on create, not edit) */}
+          {!isEditMode && !quote && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type de document</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDocumentType('DEVIS')}
+                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                    documentType === 'DEVIS'
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  Devis
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDocumentType('PROFORMA')}
+                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                    documentType === 'PROFORMA'
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  Facture proforma
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Notes & conditions */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

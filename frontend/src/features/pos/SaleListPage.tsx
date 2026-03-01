@@ -160,22 +160,6 @@ export default function SaleListPage() {
                       >
                         Facture
                       </a>
-                      <a
-                        className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        href={`/api/v1/sales/${sale.id}/invoice/?kind=proforma`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Proforma
-                      </a>
-                      <a
-                        className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        href={`/api/v1/sales/${sale.id}/invoice/?kind=quote`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Devis
-                      </a>
                       {(sale.status === 'PAID' || sale.status === 'PARTIALLY_PAID') && (
                         <a
                           className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"

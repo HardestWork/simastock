@@ -347,6 +347,8 @@ export interface Store {
   invoice_footer?: string;
   analytics_feature_overrides?: FeatureFlags;
   effective_feature_flags?: FeatureFlags;
+  stock_decrement_on?: 'PAYMENT' | 'VALIDATION';
+  allow_negative_stock?: boolean;
   is_active: boolean;
 }
 
@@ -699,6 +701,7 @@ export interface Sale {
   customer_is_default?: boolean;
   invoice_number: string | null;
   status: SaleStatus;
+  payment_status: string;
   subtotal: string;
   discount_amount: string;
   discount_percent: string;
@@ -720,7 +723,8 @@ export interface Sale {
 // Quotes (Devis)
 // ---------------------------------------------------------------------------
 
-export type QuoteStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REFUSED' | 'EXPIRED' | 'CONVERTED';
+export type QuoteStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REFUSED' | 'EXPIRED' | 'CONVERTED' | 'CANCELLED';
+export type QuoteDocumentType = 'DEVIS' | 'PROFORMA';
 
 export interface QuoteItem {
   id: string;
@@ -741,6 +745,7 @@ export interface Quote {
   customer_name: string | null;
   quote_number: string | null;
   status: QuoteStatus;
+  document_type: QuoteDocumentType;
   subtotal: string;
   discount_amount: string;
   discount_percent: string;
@@ -754,6 +759,8 @@ export interface Quote {
   accepted_at: string | null;
   refused_at: string | null;
   converted_at: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string;
   converted_sale_id: string | null;
   converted_sale_invoice: string | null;
   is_expired: boolean;

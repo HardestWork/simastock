@@ -298,12 +298,23 @@ def submit_sale_to_cashier(sale: Sale, actor) -> Sale:
     sale.invoice_number = generate_invoice_number(sale.store)
     sale.status = Sale.Status.PENDING_PAYMENT
     sale.submitted_at = timezone.now()
-    sale.save(update_fields=[
+
+    update_fields = [
         "invoice_number",
         "status",
         "submitted_at",
         "updated_at",
-    ])
+    ]
+
+    # Optionally decrement stock at validation (instead of at payment)
+    store = sale.store
+    if getattr(store, "stock_decrement_on", "PAYMENT") == "VALIDATION":
+        from cashier.services import _decrement_stock_for_sale
+        _decrement_stock_for_sale(sale, actor)
+        sale.stock_decremented = True
+        update_fields.append("stock_decremented")
+
+    sale.save(update_fields=update_fields)
 
     # Audit log
     _create_audit_log(
@@ -316,6 +327,7 @@ def submit_sale_to_cashier(sale: Sale, actor) -> Sale:
             "invoice_number": sale.invoice_number,
             "status": sale.status,
             "total": str(sale.total),
+            "stock_decremented": sale.stock_decremented,
         },
     )
 
@@ -360,6 +372,11 @@ def cancel_sale(sale: Sale, reason: str, actor) -> Sale:
 
     previous_status = sale.status
 
+    # Reverse stock if it was already decremented (e.g. at validation)
+    if sale.stock_decremented:
+        _reverse_stock_for_sale(sale, actor)
+        sale.stock_decremented = False
+
     sale.status = Sale.Status.CANCELLED
     sale.cancelled_at = timezone.now()
     sale.cancelled_by = actor
@@ -369,6 +386,7 @@ def cancel_sale(sale: Sale, reason: str, actor) -> Sale:
         "cancelled_at",
         "cancelled_by",
         "cancellation_reason",
+        "stock_decremented",
         "updated_at",
     ])
 
@@ -383,6 +401,7 @@ def cancel_sale(sale: Sale, reason: str, actor) -> Sale:
         after={
             "status": sale.status,
             "cancellation_reason": reason,
+            "stock_reversed": not sale.stock_decremented,
         },
     )
 
@@ -475,6 +494,24 @@ def generate_quote_number(store) -> str:
     return sequence.generate_next()
 
 
+def generate_proforma_number(store) -> str:
+    """Generate the next proforma number for *store*.
+
+    Uses prefix ``PRO`` with format: ``PRO-STORE-2026-000001``.
+    """
+    sequence = _get_or_create_sequence(store, "PRO")
+    return sequence.generate_next()
+
+
+def generate_credit_note_number(store) -> str:
+    """Generate the next credit note (avoir) number for *store*.
+
+    Uses prefix ``AVO`` with format: ``AVO-STORE-2026-000001``.
+    """
+    sequence = _get_or_create_sequence(store, "AVO")
+    return sequence.generate_next()
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -486,12 +523,17 @@ def _check_stock_availability(store, product, qty: int) -> None:
     "stock not initialized" and block the sale flow. This prevents users
     from selling items that cannot be decremented at payment time.
 
+    Skips the check entirely when ``store.allow_negative_stock`` is True.
+
     Raises
     ------
     ValueError
         If stock is insufficient.
     """
     if not bool(getattr(product, "track_stock", True)):
+        return
+
+    if getattr(store, "allow_negative_stock", False):
         return
 
     try:
@@ -544,6 +586,27 @@ def _create_audit_log(
         )
 
 
+def _reverse_stock_for_sale(sale: Sale, actor) -> None:
+    """Re-introduce stock for each line item (used on cancellation or refund)."""
+    try:
+        from stock.services import adjust_stock
+        for item in sale.items.select_related("product"):
+            if not bool(getattr(item.product, "track_stock", True)):
+                continue
+            adjust_stock(
+                store=sale.store,
+                product=item.product,
+                qty_delta=int(item.quantity),
+                movement_type="RETURN",
+                reason=f"Annulation vente {sale.invoice_number or sale.pk}",
+                actor=actor,
+                reference=str(sale.pk),
+            )
+    except ImportError:
+        logger.exception("Stock service indisponible pendant l'annulation %s", sale.pk)
+        raise ValueError("Impossible de remettre le stock: service stock indisponible.")
+
+
 @transaction.atomic
 def create_refund(
     sale: Sale,
@@ -553,6 +616,7 @@ def create_refund(
     approved_by,
     processed_by=None,
     reference: str = "",
+    restore_stock: bool = False,
 ) -> Refund:
     """Create a refund and apply business side effects atomically.
 
@@ -572,6 +636,9 @@ def create_refund(
     if not reason.strip():
         raise ValueError("La raison du remboursement est requise.")
 
+    # Generate credit note number
+    credit_note_number = generate_credit_note_number(sale.store)
+
     refund = Refund.objects.create(
         sale=sale,
         store=sale.store,
@@ -581,6 +648,8 @@ def create_refund(
         approved_by=approved_by,
         processed_by=processed_by,
         reference=(reference or "").strip(),
+        credit_note_number=credit_note_number,
+        restore_stock=restore_stock,
     )
 
     sale.amount_paid = (sale.amount_paid or Decimal("0.00")) - amount
@@ -597,7 +666,8 @@ def create_refund(
 
     sale.save(update_fields=["amount_paid", "amount_due", "status", "updated_at"])
 
-    if fully_refunded:
+    # Restore stock if explicitly requested or if fully refunded
+    if restore_stock or fully_refunded:
         try:
             from stock.services import adjust_stock
             for item in sale.items.select_related("product"):
@@ -608,7 +678,7 @@ def create_refund(
                     product=item.product,
                     qty_delta=int(item.quantity),
                     movement_type="RETURN",
-                    reason=f"Remboursement vente {sale.invoice_number or sale.pk}",
+                    reason=f"Remboursement vente {sale.invoice_number or sale.pk} (avoir {credit_note_number})",
                     actor=processed_by or approved_by,
                     reference=str(refund.pk),
                 )
@@ -641,8 +711,8 @@ def create_refund(
 # ===========================================================================
 
 
-def create_quote(store, created_by, customer=None) -> Quote:
-    """Create a new DRAFT quote."""
+def create_quote(store, created_by, customer=None, document_type: str = "DEVIS") -> Quote:
+    """Create a new DRAFT quote or proforma."""
     if store is None:
         raise ValueError("Impossible de creer un devis sans boutique active.")
 
@@ -651,8 +721,9 @@ def create_quote(store, created_by, customer=None) -> Quote:
         created_by=created_by,
         customer=customer,
         status=Quote.Status.DRAFT,
+        document_type=document_type,
     )
-    logger.info("Quote %s created (DRAFT) by %s in store %s", quote.pk, created_by, store)
+    logger.info("Quote %s created (DRAFT, type=%s) by %s in store %s", quote.pk, document_type, created_by, store)
     return quote
 
 
@@ -755,8 +826,11 @@ def send_quote(quote: Quote, actor) -> Quote:
     if not quote.customer_id:
         raise ValueError("Veuillez selectionner un client avant d'envoyer le devis.")
 
-    # Generate quote number
-    quote.quote_number = generate_quote_number(quote.store)
+    # Generate number based on document_type
+    if quote.document_type == Quote.DocumentType.PROFORMA:
+        quote.quote_number = generate_proforma_number(quote.store)
+    else:
+        quote.quote_number = generate_quote_number(quote.store)
     quote.status = Quote.Status.SENT
     quote.sent_at = timezone.now()
 
@@ -914,6 +988,55 @@ def convert_quote_to_sale(quote: Quote, actor) -> Sale:
         quote.pk, sale.pk, sale.invoice_number, actor,
     )
     return sale
+
+
+@transaction.atomic
+def cancel_quote(quote: Quote, reason: str, actor) -> Quote:
+    """Cancel a quote (from DRAFT, SENT, or ACCEPTED).
+
+    Parameters
+    ----------
+    quote : Quote
+    reason : str
+    actor : User
+
+    Returns
+    -------
+    Quote
+
+    Raises
+    ------
+    ValueError
+    """
+    quote = Quote.objects.select_for_update().get(pk=quote.pk)
+
+    allowed = (Quote.Status.DRAFT, Quote.Status.SENT, Quote.Status.ACCEPTED)
+    if quote.status not in allowed:
+        raise ValueError("Ce devis ne peut pas etre annule dans son etat actuel.")
+
+    if not reason.strip():
+        raise ValueError("Une raison d'annulation est requise.")
+
+    previous_status = quote.status
+    quote.status = Quote.Status.CANCELLED
+    quote.cancelled_at = timezone.now()
+    quote.cancelled_by = actor
+    quote.cancellation_reason = reason.strip()
+    quote.save(update_fields=[
+        "status", "cancelled_at", "cancelled_by", "cancellation_reason", "updated_at",
+    ])
+
+    _create_audit_log(
+        actor=actor,
+        store=quote.store,
+        action="QUOTE_CANCELLED",
+        entity_type="Quote",
+        entity_id=str(quote.pk),
+        before={"status": previous_status},
+        after={"status": quote.status, "reason": reason},
+    )
+    logger.info("Quote %s cancelled by %s. Reason: %s", quote.pk, actor, reason)
+    return quote
 
 
 def duplicate_quote(quote: Quote, actor) -> Quote:

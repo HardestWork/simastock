@@ -64,6 +64,7 @@ export default function QuoteListPage() {
           <option value="REFUSED">Refuse</option>
           <option value="EXPIRED">Expire</option>
           <option value="CONVERTED">Converti</option>
+          <option value="CANCELLED">Annule</option>
         </select>
       </div>
 

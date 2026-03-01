@@ -74,10 +74,11 @@ def adjust_stock(
 
     # For outgoing movements, verify sufficient available stock (respects reservations)
     if qty_delta < 0 and (stock.available_qty + qty_delta) < 0:
-        raise ValueError(
-            f"Stock insuffisant pour {product} dans {store}. "
-            f"Disponible: {stock.available_qty}, demande: {abs(qty_delta)}."
-        )
+        if not getattr(store, "allow_negative_stock", False):
+            raise ValueError(
+                f"Stock insuffisant pour {product} dans {store}. "
+                f"Disponible: {stock.available_qty}, demande: {abs(qty_delta)}."
+            )
 
     stock.quantity += qty_delta
     stock.save(update_fields=["quantity", "updated_at"])

@@ -54,6 +54,7 @@ const quoteStatusMap: Record<QuoteStatus, { label: string; variant: BadgeVariant
   REFUSED: { label: 'Refuse', variant: 'danger' },
   EXPIRED: { label: 'Expire', variant: 'warning' },
   CONVERTED: { label: 'Converti', variant: 'success' },
+  CANCELLED: { label: 'Annule', variant: 'danger' },
 };
 
 interface StatusBadgeProps {

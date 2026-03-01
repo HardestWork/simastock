@@ -595,6 +595,7 @@ class StoreSerializer(serializers.ModelSerializer):
             'invoice_header', 'invoice_template', 'invoice_primary_color', 'invoice_secondary_color',
             'offer_validity_days', 'invoice_terms', 'invoice_footer',
             'analytics_feature_overrides', 'effective_feature_flags',
+            'stock_decrement_on', 'allow_negative_stock',
             'is_active',
         ]
         read_only_fields = ['id', 'enterprise']
@@ -958,20 +959,21 @@ class SaleSerializer(serializers.ModelSerializer):
     customer_is_default = serializers.SerializerMethodField()
     seller_name = serializers.SerializerMethodField()
     source_quote_number = serializers.SerializerMethodField()
+    payment_status = serializers.CharField(read_only=True)
 
     class Meta:
         model = Sale
         fields = [
             'id', 'store', 'seller', 'seller_name', 'customer', 'customer_name',
             'customer_is_default',
-            'invoice_number', 'status', 'subtotal', 'discount_amount',
+            'invoice_number', 'status', 'payment_status', 'subtotal', 'discount_amount',
             'discount_percent', 'tax_amount', 'total', 'amount_paid',
             'amount_due', 'items', 'is_credit_sale', 'notes',
             'source_quote', 'source_quote_number', 'submitted_at', 'created_at',
             'verification_token',
         ]
         read_only_fields = [
-            'id', 'invoice_number', 'subtotal', 'tax_amount', 'total',
+            'id', 'invoice_number', 'payment_status', 'subtotal', 'tax_amount', 'total',
             'amount_paid', 'amount_due', 'source_quote', 'source_quote_number',
             'submitted_at', 'created_at', 'verification_token',
         ]
@@ -1573,9 +1575,9 @@ class RefundSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'sale', 'store', 'amount', 'reason',
             'approved_by', 'processed_by', 'refund_method',
-            'reference', 'created_at',
+            'reference', 'credit_note_number', 'restore_stock', 'created_at',
         ]
-        read_only_fields = ['id', 'store', 'approved_by', 'processed_by', 'created_at']
+        read_only_fields = ['id', 'store', 'approved_by', 'processed_by', 'credit_note_number', 'created_at']
 
 
 class RefundCreateSerializer(serializers.Serializer):
@@ -1585,6 +1587,7 @@ class RefundCreateSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal('0.01'))
     reason = serializers.CharField()
     refund_method = serializers.ChoiceField(choices=Refund.Method.choices)
+    restore_stock = serializers.BooleanField(default=False, required=False)
 
     def validate_sale_id(self, value):
         try:
@@ -1638,11 +1641,12 @@ class QuoteSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'store', 'created_by', 'created_by_name',
             'customer', 'customer_name',
-            'quote_number', 'status',
+            'quote_number', 'status', 'document_type',
             'subtotal', 'discount_amount', 'discount_percent',
             'tax_amount', 'total',
             'valid_until', 'notes', 'conditions', 'refusal_reason',
             'sent_at', 'accepted_at', 'refused_at', 'converted_at',
+            'cancelled_at', 'cancellation_reason',
             'converted_sale_id', 'converted_sale_invoice',
             'is_expired', 'items',
             'created_at', 'updated_at',
@@ -1650,6 +1654,7 @@ class QuoteSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'quote_number', 'subtotal', 'tax_amount', 'total',
             'sent_at', 'accepted_at', 'refused_at', 'converted_at',
+            'cancelled_at',
             'created_at', 'updated_at',
         ]
 
@@ -1668,10 +1673,15 @@ class QuoteSerializer(serializers.ModelSerializer):
 
 
 class QuoteCreateSerializer(serializers.Serializer):
-    """Serializer for creating a new DRAFT quote."""
+    """Serializer for creating a new DRAFT quote or proforma."""
 
     store_id = serializers.UUIDField()
     customer_id = serializers.UUIDField(required=False, allow_null=True)
+    document_type = serializers.ChoiceField(
+        choices=Quote.DocumentType.choices,
+        required=False,
+        default='DEVIS',
+    )
     discount_percent = serializers.DecimalField(
         max_digits=5, decimal_places=2, required=False, default=Decimal('0.00'),
     )

@@ -3074,15 +3074,23 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"], url_path="invoice")
     def invoice(self, request, pk=None):
-        """Generate and return an invoice/proforma/quote PDF for a sale.
+        """Generate and return an invoice PDF for a sale.
 
         SPA-friendly endpoint that uses API authentication (JWT cookie/header).
 
         Query params:
-        - kind: invoice | proforma | quote (default: invoice)
+        - kind: invoice (default). Proforma/devis are now managed via Quotes.
         """
         sale = self.get_object()
         kind = (request.query_params.get("kind") or "invoice").strip().lower()
+        if kind in ("proforma", "quote"):
+            return Response(
+                {
+                    "detail": "Les proformas et devis sont desormais geres via le module Devis. "
+                    "Utilisez /api/v1/quotes/ pour creer un devis ou une facture proforma."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             return generate_invoice_pdf(sale=sale, store=sale.store, document_kind=kind)
         except Exception:
@@ -4641,7 +4649,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('create', 'add_item', 'remove_item', 'send', 'duplicate'):
             return [IsSales(), FeatureSalesPOSEnabled()]
-        if self.action in ('accept', 'refuse', 'convert'):
+        if self.action in ('accept', 'refuse', 'convert', 'cancel'):
             return [IsManagerOrAdmin(), FeatureSalesPOSEnabled()]
         return [IsAuthenticated(), FeatureSalesPOSEnabled()]
 
@@ -4709,10 +4717,12 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
         try:
             from sales.services import create_quote
+            document_type = serializer.validated_data.get('document_type', 'DEVIS')
             quote = create_quote(
                 store=store,
                 created_by=request.user,
                 customer=customer,
+                document_type=document_type,
             )
         except ValueError as e:
             return Response(
@@ -4898,6 +4908,26 @@ class QuoteViewSet(viewsets.ModelViewSet):
             )
         return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=['post'], url_path='cancel')
+    def cancel(self, request, pk=None):
+        """Cancel a quote. Requires manager or admin role."""
+        quote = self.get_object()
+        reason = (request.data.get('reason') or '').strip()
+        if not reason:
+            return Response(
+                {'detail': "Une raison d'annulation est requise."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            from sales.services import cancel_quote
+            quote = cancel_quote(quote, reason=reason, actor=request.user)
+        except ValueError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(QuoteSerializer(quote).data)
+
     @action(detail=True, methods=['post'], url_path='duplicate')
     def duplicate(self, request, pk=None):
         """Duplicate the quote."""
@@ -4990,6 +5020,7 @@ class RefundViewSet(
                     refund_method=serializer.validated_data['refund_method'],
                     approved_by=request.user,
                     processed_by=request.user,
+                    restore_stock=serializer.validated_data.get('restore_stock', False),
                 )
         except ValueError as exc:
             return Response(

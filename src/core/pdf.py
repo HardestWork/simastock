@@ -250,19 +250,30 @@ def generate_credit_payment_receipt_pdf(account, entry, store):
 
 
 def generate_quote_pdf(quote, store):
-    """Generate A4 PDF for a quote (devis)."""
+    """Generate A4 PDF for a quote (devis) or proforma."""
     from django.utils import timezone
     now = timezone.now()
     invoice_config = _build_invoice_config(store)
+
+    # Dynamic title based on document_type
+    doc_type = getattr(quote, "document_type", "DEVIS")
+    if doc_type == "PROFORMA":
+        document_title = "FACTURE PROFORMA"
+        fallback_prefix = "PRO"
+    else:
+        document_title = "DEVIS"
+        fallback_prefix = "DEV"
+
     context = {
         "quote": quote,
         "store": store,
         "invoice_config": invoice_config,
+        "document_title": document_title,
         "now": now,
         **_verification_context(quote),
     }
     filename = _safe_pdf_filename(
-        quote.quote_number or f"DEV-{quote.id}",
+        quote.quote_number or f"{fallback_prefix}-{quote.id}",
         fallback="devis",
     )
     return render_pdf("pdf/quote_a4.html", context, filename)
