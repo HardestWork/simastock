@@ -1458,6 +1458,28 @@ class UserViewSet(viewsets.ModelViewSet):
                 defaults={"is_default": True},
             )
 
+    def perform_update(self, serializer):
+        """Prevent managers from modifying admin accounts."""
+        target = self.get_object()
+        actor = self.request.user
+        if target.role == "ADMIN" and not getattr(actor, "is_superuser", False) and actor.pk != target.pk:
+            raise ValidationError("Seuls les superadmins peuvent modifier un compte administrateur.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """Enforce role hierarchy on deletion."""
+        actor = self.request.user
+        # Cannot delete yourself
+        if actor.pk == instance.pk:
+            raise ValidationError("Vous ne pouvez pas supprimer votre propre compte.")
+        # Only superusers can delete ADMIN users
+        if instance.role == "ADMIN" and not getattr(actor, "is_superuser", False):
+            raise ValidationError("Seuls les superadmins peuvent supprimer un compte administrateur.")
+        # Managers cannot delete other managers
+        if instance.role == "MANAGER" and getattr(actor, "role", None) == "MANAGER":
+            raise ValidationError("Un gestionnaire ne peut pas supprimer un autre gestionnaire.")
+        instance.delete()
+
 
 # ---------------------------------------------------------------------------
 # Category ViewSet

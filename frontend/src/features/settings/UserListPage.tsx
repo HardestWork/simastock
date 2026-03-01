@@ -236,33 +236,42 @@ export default function UserListPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/settings/users/${user.id}/edit`);
-                        }}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                        title="Modifier"
-                      >
-                        <Pencil size={15} className="text-gray-500" />
-                      </button>
-                      <button
-                        onClick={(e) => handleToggleActive(e, user)}
-                        className={`p-1.5 rounded-lg ${user.is_active ? 'hover:bg-red-50' : 'hover:bg-emerald-50'}`}
-                        title={
-                          user.is_active
-                            ? 'Desactiver le compte'
-                            : 'Activer le compte'
-                        }
-                        disabled={toggleActiveMutation.isPending}
-                      >
-                        {user.is_active ? (
-                          <UserX size={15} className="text-red-500" />
-                        ) : (
-                          <UserCheck size={15} className="text-emerald-500" />
-                        )}
-                      </button>
-                      {user.id !== currentUser?.id && (
+                      {/* Edit — managers cannot edit admins */}
+                      {!(user.role === 'ADMIN' && !currentUser?.is_superuser && user.id !== currentUser?.id) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/settings/users/${user.id}/edit`);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                          title="Modifier"
+                        >
+                          <Pencil size={15} className="text-gray-500" />
+                        </button>
+                      )}
+                      {/* Toggle active — managers cannot toggle admins */}
+                      {!(user.role === 'ADMIN' && !currentUser?.is_superuser && user.id !== currentUser?.id) && (
+                        <button
+                          onClick={(e) => handleToggleActive(e, user)}
+                          className={`p-1.5 rounded-lg ${user.is_active ? 'hover:bg-red-50' : 'hover:bg-emerald-50'}`}
+                          title={
+                            user.is_active
+                              ? 'Desactiver le compte'
+                              : 'Activer le compte'
+                          }
+                          disabled={toggleActiveMutation.isPending}
+                        >
+                          {user.is_active ? (
+                            <UserX size={15} className="text-red-500" />
+                          ) : (
+                            <UserCheck size={15} className="text-emerald-500" />
+                          )}
+                        </button>
+                      )}
+                      {/* Delete — cannot delete self, managers cannot delete admins or other managers */}
+                      {user.id !== currentUser?.id &&
+                        !(user.role === 'ADMIN' && !currentUser?.is_superuser) &&
+                        !(user.role === 'MANAGER' && currentUser?.role === 'MANAGER') && (
                         <button
                           onClick={(e) => handleDeleteClick(e, user)}
                           className="p-1.5 rounded-lg hover:bg-red-50"
