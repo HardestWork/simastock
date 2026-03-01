@@ -1,4 +1,4 @@
-# Runbook de deploiement - Systeme de gestion boutique
+# Runbook de deploiement - Système de Gestion Commerciale
 
 ## 1) Pre-deploiement (J-1 a J-0)
 

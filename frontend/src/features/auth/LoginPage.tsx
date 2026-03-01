@@ -60,7 +60,7 @@ export default function LoginPage() {
             alt="SimaStock"
             className="h-16 mx-auto mb-4"
           />
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Systeme de gestion de boutique</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Système de Gestion Commerciale</p>
         </div>
 
         {/* Form */}

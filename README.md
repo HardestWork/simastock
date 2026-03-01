@@ -1,6 +1,6 @@
-# Boutique Manager Pro — Système de Gestion de Boutique
+# Boutique Manager Pro — Système de Gestion Commerciale
 
-Système complet de gestion de boutique d'équipements électroniques et réseaux.
+Système complet de gestion commerciale d'équipements électroniques et réseaux.
 Multi-boutique, séparation vendeur/caissier, crédit client, statistiques, alertes intelligentes.
 
 ## Stack technique
@@ -216,7 +216,7 @@ curl http://localhost:8000/api/v1/products/ \
 |----------|----------|-------------|
 | `/api/v1/auth/token/` | POST | Obtenir JWT |
 | `/api/v1/auth/token/refresh/` | POST | Rafraîchir JWT |
-| `/api/v1/stores/` | CRUD | Gestion boutiques |
+| `/api/v1/stores/` | CRUD | Gestion magasins |
 | `/api/v1/users/` | CRUD | Gestion utilisateurs |
 | `/api/v1/products/` | CRUD | Catalogue produits |
 | `/api/v1/categories/` | CRUD | Catégories |

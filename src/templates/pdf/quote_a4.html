@@ -117,7 +117,7 @@
         <div class="party">
             <h3>Details</h3>
             <p>Cree par: {{ quote.created_by.get_full_name }}</p>
-            <p>Boutique: {{ store.name }}</p>
+            <p>Magasin: {{ store.name }}</p>
             {% if quote.sent_at %}<p>Envoye le: {{ quote.sent_at|date:"d/m/Y H:i" }}</p>{% endif %}
             {% if quote.accepted_at %}<p>Accepte le: {{ quote.accepted_at|date:"d/m/Y H:i" }}</p>{% endif %}
             {% if quote.converted_at %}<p>Converti le: {{ quote.converted_at|date:"d/m/Y H:i" }}</p>{% endif %}

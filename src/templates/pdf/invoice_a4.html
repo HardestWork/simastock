@@ -103,7 +103,7 @@
         <div class="party">
             <h3>Details</h3>
             <p>Vendeur: {{ sale.seller.get_full_name }}</p>
-            <p>Boutique: {{ store.name }}</p>
+            <p>Magasin: {{ store.name }}</p>
             {% if sale.paid_at %}<p>Payee le: {{ sale.paid_at|date:"d/m/Y H:i" }}</p>{% endif %}
         </div>
     </div>

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Boutique Manager{% endblock %}</title>
+    <title>{% block title %}SimaStock{% endblock %}</title>
     <!-- Tailwind CSS (Metronic-style) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -82,7 +82,7 @@
             <!-- Footer -->
             <footer class="bg-white border-t border-gray-200 px-6 py-3">
                 <div class="flex items-center justify-between text-sm text-gray-500">
-                    <span>&copy; 2024 Boutique Manager — Système de gestion</span>
+                    <span>&copy; {% now "Y" %} SimaStock — Système de Gestion Commerciale</span>
                     <span>{% get_currency %}</span>
                 </div>
             </footer>

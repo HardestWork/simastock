@@ -170,7 +170,7 @@ export default function VerifyDocumentPage() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-4">
-          SimaStock &mdash; Systeme de gestion de boutique
+          SimaStock &mdash; Système de Gestion Commerciale
         </p>
       </div>
     </div>
