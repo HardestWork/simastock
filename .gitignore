@@ -17,3 +17,5 @@ htmlcov/
 .coverage
 *.swp
 *.swo
+backups/*.sql.gz
+backups/*.sql

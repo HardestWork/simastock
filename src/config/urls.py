@@ -5,7 +5,10 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import RedirectView
 
+from core.views_health import health
+
 urlpatterns = [
+    path("health/", health, name="health-check"),
     path("accounts/", include("accounts.urls")),
     path("accounts/", include("allauth.urls")),
     path("stores/", include("stores.urls")),

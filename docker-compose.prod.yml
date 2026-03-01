@@ -1,3 +1,9 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   db:
     image: postgres:16-alpine
@@ -11,6 +17,7 @@ services:
       timeout: 5s
       retries: 6
     restart: unless-stopped
+    logging: *default-logging
 
   redis:
     image: redis:7-alpine
@@ -20,6 +27,7 @@ services:
       timeout: 5s
       retries: 6
     restart: unless-stopped
+    logging: *default-logging
 
   web:
     build:
@@ -35,7 +43,14 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=5)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
+    logging: *default-logging
 
   worker:
     build:
@@ -52,8 +67,9 @@ services:
       redis:
         condition: service_healthy
       web:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
+    logging: *default-logging
 
   beat:
     build:
@@ -70,8 +86,9 @@ services:
       redis:
         condition: service_healthy
       web:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
+    logging: *default-logging
 
   frontend:
     build:
@@ -80,8 +97,35 @@ services:
       - "3000:80"
     depends_on:
       web:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
+    logging: *default-logging
+
+  # --- Automated PostgreSQL backup: daily at 02:00, 14-day retention ---
+  db-backup:
+    image: postgres:16-alpine
+    env_file:
+      - .env.production
+    volumes:
+      - ./backups:/backups
+      - ./docker/backup.sh:/usr/local/bin/backup.sh:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Backup service started — running every day at 02:00"
+        while true; do
+          # sleep until next 02:00
+          now=$$(date +%s)
+          target=$$(date -d "tomorrow 02:00" +%s 2>/dev/null || date -d "02:00" +%s)
+          [ "$$target" -le "$$now" ] && target=$$(( target + 86400 ))
+          sleep $$(( target - now ))
+          sh /usr/local/bin/backup.sh
+        done
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
 
 volumes:
   postgres_data:
