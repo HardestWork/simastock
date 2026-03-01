@@ -62,7 +62,6 @@ export default function JournalEntriesPage() {
     setPage(1);
   }, [debouncedSearch, journalFilter, statusFilter, sourceFilter, fiscalYearFilter]);
 
-  // Fetch journals for the dropdown
   const { data: journalData } = useQuery({
     queryKey: ['accounting', 'journals', 'list-all'],
     queryFn: async () => {
@@ -74,7 +73,6 @@ export default function JournalEntriesPage() {
     enabled: !!currentStore,
   });
 
-  // Fetch fiscal years for the dropdown
   const { data: fiscalYearData } = useQuery({
     queryKey: ['accounting', 'fiscal-years', 'list-all'],
     queryFn: async () => {
@@ -122,20 +120,18 @@ export default function JournalEntriesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Ecritures comptables</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Journal des ecritures SYSCOHADA
-          </p>
-        </div>
+    <div className="space-y-4 sm:space-y-6">
+      <div>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Ecritures comptables</h1>
+        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Journal des ecritures SYSCOHADA
+        </p>
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <div className="md:col-span-2 relative">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
+          <div className="sm:col-span-2 relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -178,10 +174,15 @@ export default function JournalEntriesPage() {
               </option>
             ))}
           </select>
+        </div>
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+            {data?.count ?? 0} ecriture(s)
+          </span>
           <select
             value={fiscalYearFilter}
             onChange={(e) => setFiscalYearFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-xs dark:bg-gray-700 dark:text-gray-100 focus:outline-none"
           >
             <option value="">Tous exercices</option>
             {fiscalYearData?.results.map((fy) => (
@@ -191,171 +192,201 @@ export default function JournalEntriesPage() {
             ))}
           </select>
         </div>
-        <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          {data?.count ?? 0} ecriture(s)
-        </div>
       </div>
 
-      {/* Table */}
+      {/* Content */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+          <div className="flex items-center justify-center min-h-[300px]">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th className="w-10 px-2 py-3" />
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">
-                    Date
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">
-                    Journal
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">
-                    N. Sequence
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">
-                    Libelle
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">
-                    Reference
-                  </th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">
-                    Total Debit
-                  </th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">
-                    Total Credit
-                  </th>
-                  <th className="text-center px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">
-                    Statut
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">
-                    Source
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {data?.results.map((entry) => {
-                  const status = statusConfig[entry.status];
-                  const isExpanded = expandedId === entry.id;
-                  return (
-                    <Fragment key={entry.id}>
-                      <tr
-                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
-                        onClick={() => toggleExpand(entry.id)}
-                      >
-                        <td className="px-2 py-3 text-center">
-                          {isExpanded ? (
-                            <ChevronDown size={16} className="text-gray-400 inline" />
-                          ) : (
-                            <ChevronRight size={16} className="text-gray-400 inline" />
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                          {format(new Date(entry.entry_date), 'dd MMM yyyy', { locale: fr })}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className="font-mono font-medium text-gray-900 dark:text-gray-100">
-                            {entry.journal_code}
+          <>
+            {/* Mobile card list */}
+            <div className="divide-y divide-gray-100 dark:divide-gray-700 md:hidden">
+              {data?.results.map((entry) => {
+                const st = statusConfig[entry.status];
+                const isExpanded = expandedId === entry.id;
+                return (
+                  <div key={entry.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(entry.id)}
+                      className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isExpanded ? <ChevronDown size={14} className="text-gray-400 shrink-0" /> : <ChevronRight size={14} className="text-gray-400 shrink-0" />}
+                          <span className="font-mono text-xs font-medium text-gray-600 dark:text-gray-400">
+                            {entry.journal_code}-{entry.sequence_number}
                           </span>
-                          <span className="text-gray-500 dark:text-gray-400 ml-1 text-xs">
-                            {entry.journal_name}
+                          <span className="text-xs text-gray-400">
+                            {format(new Date(entry.entry_date), 'dd/MM/yy', { locale: fr })}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300">
-                          {entry.sequence_number}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 max-w-[200px] truncate">
-                          {entry.label}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                          {entry.reference || '-'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-gray-100">
+                        </div>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${st.classes}`}>
+                          {st.label}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-800 dark:text-gray-200 truncate pl-5">
+                        {entry.label}
+                      </p>
+                      <div className="flex items-center justify-between mt-1 pl-5">
+                        <span className="text-xs text-gray-500">{entry.reference || entry.source_type || ''}</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {formatCurrency(entry.total_debit)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-gray-100">
-                          {formatCurrency(entry.total_credit)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.classes}`}
-                          >
-                            {status.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                          {entry.source_type || '-'}
-                        </td>
-                      </tr>
+                        </span>
+                      </div>
+                    </button>
 
-                      {/* Expanded detail: lines of the journal entry */}
-                      {isExpanded && entry.lines && entry.lines.length > 0 && (
-                        <tr>
-                          <td colSpan={10} className="bg-gray-50 dark:bg-gray-700/30 px-6 py-4">
-                            <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase mb-2">
-                              Lignes d'ecriture
-                            </div>
-                            <table className="min-w-full text-sm">
-                              <thead>
-                                <tr className="text-xs text-gray-500 dark:text-gray-400 uppercase">
-                                  <th className="text-left py-1 pr-4">Compte</th>
-                                  <th className="text-left py-1 pr-4">Libelle</th>
-                                  <th className="text-right py-1 pr-4">Debit</th>
-                                  <th className="text-right py-1">Credit</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {entry.lines.map((line) => (
-                                  <tr key={line.id} className="border-t border-gray-200 dark:border-gray-600">
-                                    <td className="py-1.5 pr-4">
-                                      <span className="font-mono font-medium text-gray-900 dark:text-gray-100">
-                                        {line.account_code}
-                                      </span>
-                                      <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
-                                        {line.account_name}
-                                      </span>
-                                    </td>
-                                    <td className="py-1.5 pr-4 text-gray-600 dark:text-gray-400">
-                                      {line.label || '-'}
-                                    </td>
-                                    <td className="py-1.5 pr-4 text-right font-medium text-gray-900 dark:text-gray-100">
-                                      {parseFloat(line.debit) > 0 ? formatCurrency(line.debit) : '-'}
-                                    </td>
-                                    <td className="py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">
-                                      {parseFloat(line.credit) > 0 ? formatCurrency(line.credit) : '-'}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                            {!entry.is_balanced && (
-                              <div className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">
-                                Attention : cette ecriture n'est pas equilibree.
+                    {/* Expanded lines */}
+                    {isExpanded && entry.lines && entry.lines.length > 0 && (
+                      <div className="bg-gray-50 dark:bg-gray-700/30 px-3 pb-3">
+                        <div className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1.5 pl-2">
+                          Lignes
+                        </div>
+                        <div className="space-y-1">
+                          {entry.lines.map((line) => (
+                            <div key={line.id} className="flex items-center justify-between bg-white dark:bg-gray-800 rounded px-2.5 py-1.5 text-xs">
+                              <div className="min-w-0 flex-1">
+                                <span className="font-mono font-medium text-gray-900 dark:text-gray-100">{line.account_code}</span>
+                                <span className="text-gray-500 dark:text-gray-400 ml-1.5 truncate">{line.account_name}</span>
                               </div>
+                              <div className="shrink-0 ml-2 text-right">
+                                {parseFloat(line.debit) > 0 && (
+                                  <span className="text-blue-700 dark:text-blue-400 font-medium">D {formatCurrency(line.debit)}</span>
+                                )}
+                                {parseFloat(line.credit) > 0 && (
+                                  <span className="text-green-700 dark:text-green-400 font-medium">C {formatCurrency(line.credit)}</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {!entry.is_balanced && (
+                          <div className="mt-1.5 text-xs text-red-600 dark:text-red-400 font-medium pl-2">
+                            Ecriture non equilibree
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {data?.results.length === 0 && (
+                <div className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                  Aucune ecriture comptable trouvee.
+                </div>
+              )}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700/50">
+                  <tr>
+                    <th className="w-10 px-2 py-3" />
+                    <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">Date</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">Journal</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">N. Seq</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">Libelle</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm hidden lg:table-cell">Reference</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">Debit</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">Credit</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm">Statut</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-sm hidden lg:table-cell">Source</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {data?.results.map((entry) => {
+                    const status = statusConfig[entry.status];
+                    const isExpanded = expandedId === entry.id;
+                    return (
+                      <Fragment key={entry.id}>
+                        <tr
+                          className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                          onClick={() => toggleExpand(entry.id)}
+                        >
+                          <td className="px-2 py-3 text-center">
+                            {isExpanded ? (
+                              <ChevronDown size={16} className="text-gray-400 inline" />
+                            ) : (
+                              <ChevronRight size={16} className="text-gray-400 inline" />
                             )}
                           </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                            {format(new Date(entry.entry_date), 'dd MMM yyyy', { locale: fr })}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className="font-mono font-medium text-gray-900 dark:text-gray-100">{entry.journal_code}</span>
+                            <span className="text-gray-500 dark:text-gray-400 ml-1 text-xs">{entry.journal_name}</span>
+                          </td>
+                          <td className="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300">{entry.sequence_number}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 max-w-[200px] truncate">{entry.label}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">{entry.reference || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(entry.total_debit)}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(entry.total_credit)}</td>
+                          <td className="px-4 py-3 text-sm text-center">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.classes}`}>{status.label}</span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">{entry.source_type || '-'}</td>
                         </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
-                {data?.results.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={10}
-                      className="px-4 py-12 text-center text-gray-500 dark:text-gray-400"
-                    >
-                      Aucune ecriture comptable trouvee.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+
+                        {isExpanded && entry.lines && entry.lines.length > 0 && (
+                          <tr>
+                            <td colSpan={10} className="bg-gray-50 dark:bg-gray-700/30 px-6 py-4">
+                              <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase mb-2">
+                                Lignes d'ecriture
+                              </div>
+                              <table className="min-w-full text-sm">
+                                <thead>
+                                  <tr className="text-xs text-gray-500 dark:text-gray-400 uppercase">
+                                    <th className="text-left py-1 pr-4">Compte</th>
+                                    <th className="text-left py-1 pr-4">Libelle</th>
+                                    <th className="text-right py-1 pr-4">Debit</th>
+                                    <th className="text-right py-1">Credit</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {entry.lines.map((line) => (
+                                    <tr key={line.id} className="border-t border-gray-200 dark:border-gray-600">
+                                      <td className="py-1.5 pr-4">
+                                        <span className="font-mono font-medium text-gray-900 dark:text-gray-100">{line.account_code}</span>
+                                        <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">{line.account_name}</span>
+                                      </td>
+                                      <td className="py-1.5 pr-4 text-gray-600 dark:text-gray-400">{line.label || '-'}</td>
+                                      <td className="py-1.5 pr-4 text-right font-medium text-gray-900 dark:text-gray-100">
+                                        {parseFloat(line.debit) > 0 ? formatCurrency(line.debit) : '-'}
+                                      </td>
+                                      <td className="py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">
+                                        {parseFloat(line.credit) > 0 ? formatCurrency(line.credit) : '-'}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              {!entry.is_balanced && (
+                                <div className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">
+                                  Attention : cette ecriture n'est pas equilibree.
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                  {data?.results.length === 0 && (
+                    <tr>
+                      <td colSpan={10} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                        Aucune ecriture comptable trouvee.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

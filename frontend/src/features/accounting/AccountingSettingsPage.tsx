@@ -224,27 +224,25 @@ export default function AccountingSettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Parametres comptables</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Configuration des comptes par defaut et options de comptabilisation
-          </p>
-        </div>
+    <div className="space-y-4 sm:space-y-6">
+      <div>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Parametres comptables</h1>
+        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Configuration des comptes par defaut et options de comptabilisation
+        </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Default accounts */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">
             Comptes par defaut
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4 sm:mb-6">
             Ces comptes seront utilises automatiquement lors de la generation des ecritures comptables.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {ACCOUNT_FIELDS.map((field) => (
               <div key={field.name}>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -268,8 +266,8 @@ export default function AccountingSettingsPage() {
         </div>
 
         {/* Tax rate */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">
             Taux de taxe par defaut
           </h2>
           <div className="max-w-md">
@@ -294,8 +292,8 @@ export default function AccountingSettingsPage() {
         </div>
 
         {/* Auto-post toggle */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">
             Options de comptabilisation
           </h2>
           <label className="flex items-center gap-3 cursor-pointer">
@@ -317,14 +315,14 @@ export default function AccountingSettingsPage() {
         </div>
 
         {/* Save button */}
-        <div className="flex justify-end">
+        <div className="flex sm:justify-end">
           <button
             type="submit"
             disabled={!isDirty || isSubmitting || saveMutation.isPending}
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             <Save size={16} />
-            {saveMutation.isPending ? 'Enregistrement...' : 'Enregistrer les parametres'}
+            {saveMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
           </button>
         </div>
       </form>
