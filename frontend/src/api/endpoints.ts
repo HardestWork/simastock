@@ -116,6 +116,15 @@ import type {
   HrmEmployeeDocument,
   HrmHoliday,
   DocumentVerification,
+  AcctAccount,
+  AcctJournal,
+  FiscalYear,
+  AccountingPeriod,
+  JournalEntry,
+  TaxRate,
+  AccountingSettings,
+  BalanceGeneraleRow,
+  GrandLivreRow,
 } from './types';
 import type { Capability } from './types';
 
@@ -1363,4 +1372,66 @@ export const hrmApi = {
 export const documentApi = {
   verify: (token: string) =>
     apiClient.get<DocumentVerification>(`documents/verify/${token}/`).then(r => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// Accounting (SYSCOHADA)
+// ---------------------------------------------------------------------------
+
+export const accountingApi = {
+  // Accounts (Chart of Accounts)
+  getAccounts: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<AcctAccount>>('accounting/accounts/', { params }).then(r => r.data),
+  getAccount: (id: string) =>
+    apiClient.get<AcctAccount>(`accounting/accounts/${id}/`).then(r => r.data),
+  createAccount: (data: Partial<AcctAccount>) =>
+    apiClient.post<AcctAccount>('accounting/accounts/', data).then(r => r.data),
+  updateAccount: (id: string, data: Partial<AcctAccount>) =>
+    apiClient.patch<AcctAccount>(`accounting/accounts/${id}/`, data).then(r => r.data),
+  deleteAccount: (id: string) =>
+    apiClient.delete(`accounting/accounts/${id}/`),
+
+  // Journals
+  getJournals: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<AcctJournal>>('accounting/journals/', { params }).then(r => r.data),
+
+  // Fiscal Years
+  getFiscalYears: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<FiscalYear>>('accounting/fiscal-years/', { params }).then(r => r.data),
+  createFiscalYear: (data: Partial<FiscalYear>) =>
+    apiClient.post<FiscalYear>('accounting/fiscal-years/', data).then(r => r.data),
+  createPeriods: (id: string) =>
+    apiClient.post(`accounting/fiscal-years/${id}/create_periods/`).then(r => r.data),
+
+  // Periods
+  getPeriods: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<AccountingPeriod>>('accounting/periods/', { params }).then(r => r.data),
+
+  // Journal Entries
+  getEntries: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<JournalEntry>>('accounting/entries/', { params }).then(r => r.data),
+  getEntry: (id: string) =>
+    apiClient.get<JournalEntry>(`accounting/entries/${id}/`).then(r => r.data),
+  createEntry: (data: Record<string, unknown>) =>
+    apiClient.post<JournalEntry>('accounting/entries/', data).then(r => r.data),
+  validateEntry: (id: string) =>
+    apiClient.post<JournalEntry>(`accounting/entries/${id}/validate_entry/`).then(r => r.data),
+  postEntry: (id: string) =>
+    apiClient.post<JournalEntry>(`accounting/entries/${id}/post_entry/`).then(r => r.data),
+
+  // Reports
+  getBalanceGenerale: (params?: Record<string, string>) =>
+    apiClient.get<BalanceGeneraleRow[]>('accounting/entries/balance_generale/', { params }).then(r => r.data),
+  getGrandLivre: (params?: Record<string, string>) =>
+    apiClient.get<GrandLivreRow[]>('accounting/entries/grand_livre/', { params }).then(r => r.data),
+
+  // Tax Rates
+  getTaxRates: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<TaxRate>>('accounting/tax-rates/', { params }).then(r => r.data),
+
+  // Settings
+  getSettings: () =>
+    apiClient.get<AccountingSettings>('accounting/settings/').then(r => r.data),
+  updateSettings: (data: Partial<AccountingSettings>) =>
+    apiClient.patch<AccountingSettings>('accounting/settings/', data).then(r => r.data),
 };

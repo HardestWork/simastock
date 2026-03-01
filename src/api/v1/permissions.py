@@ -25,6 +25,7 @@ FEATURE_FLAG_TO_MODULE_CODE = {
     "sales_forecast": "ANALYTICS_MANAGER",
     "fraud_detection": "ANALYTICS_MANAGER",
     "enabled": "ANALYTICS_MANAGER",
+    "accounting": "ACCOUNTING",
 }
 
 
@@ -480,6 +481,10 @@ class FeatureReportsCenterEnabled(RequireStoreFeatureFlag):
 
 class FeatureAnalyticsEnabled(RequireStoreFeatureFlag):
     feature_key = "enabled"
+
+
+class FeatureAccountingEnabled(RequireStoreFeatureFlag):
+    feature_key = "accounting"
 
 
 class IsSuperAdmin(BasePermission):

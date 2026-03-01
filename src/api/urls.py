@@ -98,6 +98,15 @@ router.register(r'hrm/disciplinary-actions', hrm_api_views.DisciplinaryActionVie
 router.register(r'hrm/documents', hrm_api_views.EmployeeDocumentViewSet, basename='hrm-document')
 router.register(r'hrm/holidays', hrm_api_views.HolidayViewSet, basename='hrm-holiday')
 
+# Accounting (SYSCOHADA)
+router.register(r'accounting/accounts', v1_views.AccountViewSet, basename='acct-account')
+router.register(r'accounting/journals', v1_views.AcctJournalViewSet, basename='acct-journal')
+router.register(r'accounting/fiscal-years', v1_views.FiscalYearViewSet, basename='acct-fiscal-year')
+router.register(r'accounting/periods', v1_views.AccountingPeriodViewSet, basename='acct-period')
+router.register(r'accounting/entries', v1_views.JournalEntryViewSet, basename='acct-entry')
+router.register(r'accounting/tax-rates', v1_views.TaxRateViewSet, basename='acct-tax-rate')
+router.register(r'accounting/settings', v1_views.AccountingSettingsViewSet, basename='acct-settings')
+
 
 app_name = 'api'
 urlpatterns = [

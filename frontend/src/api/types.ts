@@ -85,7 +85,8 @@ export type FeatureFlagKey =
   | 'credit_scoring'
   | 'sales_forecast'
   | 'fraud_detection'
-  | 'advanced_permissions';
+  | 'advanced_permissions'
+  | 'accounting';
 
 export type FeatureFlags = Partial<Record<FeatureFlagKey, boolean>>;
 
@@ -105,7 +106,8 @@ export type ModuleCode =
   | 'ANALYTICS_STOCK'
   | 'ANALYTICS_DG'
   | 'CLIENT_INTEL'
-  | 'ALERTS';
+  | 'ALERTS'
+  | 'ACCOUNTING';
 
 export type ModuleMatrix = Record<ModuleCode, boolean>;
 
@@ -2445,4 +2447,160 @@ export interface DocumentVerification {
   hash: string;
   customer: string;
   items: DocumentVerificationItem[];
+}
+
+// =====================================================================
+// Accounting (SYSCOHADA)
+// =====================================================================
+
+export interface AcctAccount {
+  id: string;
+  enterprise: string;
+  code: string;
+  name: string;
+  account_type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'INCOME' | 'EXPENSE';
+  parent: string | null;
+  parent_code: string | null;
+  is_system: boolean;
+  allow_entries: boolean;
+  is_active: boolean;
+  children_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AcctJournal {
+  id: string;
+  enterprise: string;
+  code: string;
+  name: string;
+  journal_type: 'VE' | 'AC' | 'CA' | 'BQ' | 'MM' | 'OD' | 'AN';
+  default_debit_account: string | null;
+  default_credit_account: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiscalYear {
+  id: string;
+  enterprise: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  status: 'OPEN' | 'CLOSED';
+  closed_at: string | null;
+  closed_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountingPeriod {
+  id: string;
+  fiscal_year: string;
+  fiscal_year_name: string;
+  period_number: number;
+  start_date: string;
+  end_date: string;
+  status: 'OPEN' | 'CLOSED';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JournalEntryLine {
+  id: string;
+  account: string;
+  account_code: string;
+  account_name: string;
+  debit: string;
+  credit: string;
+  label: string;
+  partner_type: string;
+  partner_id: string | null;
+}
+
+export interface JournalEntry {
+  id: string;
+  enterprise: string;
+  journal: string;
+  journal_code: string;
+  journal_name: string;
+  fiscal_year: string;
+  period: string;
+  period_display: string;
+  store: string | null;
+  sequence_number: number;
+  entry_date: string;
+  label: string;
+  reference: string;
+  status: 'DRAFT' | 'VALIDATED' | 'POSTED';
+  source_type: string;
+  source_id: string | null;
+  created_by: string;
+  created_by_name: string | null;
+  validated_by: string | null;
+  is_reversal: boolean;
+  reversed_entry: string | null;
+  total_debit: string;
+  total_credit: string;
+  is_balanced: boolean;
+  lines: JournalEntryLine[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaxRate {
+  id: string;
+  enterprise: string;
+  name: string;
+  rate: string;
+  is_exempt: boolean;
+  collected_account: string | null;
+  deductible_account: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountingSettings {
+  id: string;
+  enterprise: string;
+  default_sales_account: string | null;
+  default_purchase_account: string | null;
+  default_cash_account: string | null;
+  default_bank_account: string | null;
+  default_mobile_money_account: string | null;
+  default_customer_account: string | null;
+  default_supplier_account: string | null;
+  default_vat_collected_account: string | null;
+  default_vat_deductible_account: string | null;
+  default_discount_account: string | null;
+  default_refund_account: string | null;
+  default_stock_account: string | null;
+  default_stock_variation_account: string | null;
+  default_other_income_account: string | null;
+  auto_post_entries: boolean;
+  default_tax_rate: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BalanceGeneraleRow {
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  total_debit: string;
+  total_credit: string;
+  solde: string;
+}
+
+export interface GrandLivreRow {
+  entry_date: string;
+  journal_code: string;
+  sequence_number: number;
+  label: string;
+  reference: string;
+  debit: string;
+  credit: string;
+  solde: string;
 }

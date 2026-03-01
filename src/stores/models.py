@@ -48,6 +48,7 @@ FEATURE_FLAG_LABELS = {
   "sales_forecast": "Prevision ventes (moyenne mobile)",
   "fraud_detection": "Detection fraude/anomalies",
   "advanced_permissions": "Permissions avancees (capacites)",
+  "accounting": "Comptabilite SYSCOHADA",
 }
 
 FEATURE_FLAG_DEFAULTS = {
@@ -76,6 +77,7 @@ FEATURE_FLAG_DEFAULTS = {
   "sales_forecast": True,
   "fraud_detection": True,
   "advanced_permissions": True,
+  "accounting": False,
 }
 
 # Backward-compatible aliases used in existing analytics code.
@@ -105,6 +107,7 @@ MODULE_DEFAULT_ORDER = [
     "ANALYTICS_DG",
     "CLIENT_INTEL",
     "ALERTS",
+    "ACCOUNTING",
 ]
 
 MODULE_CODE_LABELS = {
@@ -124,6 +127,7 @@ MODULE_CODE_LABELS = {
     "ANALYTICS_DG": "DG Analytics",
     "CLIENT_INTEL": "Client Intelligence",
     "ALERTS": "Alerts Center",
+    "ACCOUNTING": "Comptabilite",
 }
 
 

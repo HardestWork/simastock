@@ -25,6 +25,7 @@ export const FEATURE_FLAG_KEYS: FeatureFlagKey[] = [
   'sales_forecast',
   'fraud_detection',
   'advanced_permissions',
+  'accounting',
 ];
 
 export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
@@ -52,6 +53,7 @@ export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
   sales_forecast: 'Prevision ventes (moyenne mobile)',
   fraud_detection: 'Detection fraude/anomalies',
   advanced_permissions: 'Permissions avancees (capacites)',
+  accounting: 'Comptabilite SYSCOHADA',
 };
 
 export type OverrideMode = 'inherit' | 'enabled' | 'disabled';

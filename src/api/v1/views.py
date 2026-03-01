@@ -5247,3 +5247,389 @@ class DocumentVerifyView(APIView):
             "customer": "",
             "items": items,
         }
+
+
+# =====================================================================
+# Accounting (SYSCOHADA)
+# =====================================================================
+
+from accounting.models import (  # noqa: E402
+    Account as AcctAccount,
+    AccountingPeriod as AcctPeriod,
+    AccountingSettings as AcctSettings,
+    FiscalYear as AcctFiscalYear,
+    Journal as AcctJournal,
+    JournalEntry as AcctJournalEntry,
+    TaxRate as AcctTaxRate,
+)
+from api.v1.serializers import (  # noqa: E402
+    AccountSerializer,
+    AccountingPeriodSerializer,
+    AccountingSettingsSerializer,
+    AcctJournalSerializer,
+    FiscalYearSerializer,
+    JournalEntryCreateSerializer,
+    JournalEntrySerializer,
+    TaxRateSerializer,
+)
+from api.v1.permissions import FeatureAccountingEnabled  # noqa: E402
+
+
+class AccountViewSet(viewsets.ModelViewSet):
+    """CRUD for Chart of Accounts (Plan comptable PCGO)."""
+
+    serializer_class = AccountSerializer
+    queryset = AcctAccount.objects.select_related("parent", "enterprise").all()
+    permission_classes = [IsManagerOrAdmin, FeatureAccountingEnabled]
+    filterset_fields = ["account_type", "is_active", "is_system", "allow_entries", "parent"]
+    search_fields = ["code", "name"]
+    ordering_fields = ["code", "name", "created_at"]
+    ordering = ["code"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return _filter_queryset_by_enterprise(qs, self.request.user)
+
+    def perform_create(self, serializer):
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        serializer.save(enterprise_id=enterprise_id)
+
+    def perform_destroy(self, instance):
+        if instance.is_system:
+            raise ValidationError("Les comptes systeme ne peuvent pas etre supprimes.")
+        if instance.entry_lines.exists():
+            raise ValidationError("Ce compte a des ecritures — impossible de le supprimer.")
+        instance.delete()
+
+
+class AcctJournalViewSet(viewsets.ModelViewSet):
+    """CRUD for Accounting Journals."""
+
+    serializer_class = AcctJournalSerializer
+    queryset = AcctJournal.objects.select_related("enterprise").all()
+    permission_classes = [IsManagerOrAdmin, FeatureAccountingEnabled]
+    filterset_fields = ["journal_type", "is_active"]
+    search_fields = ["code", "name"]
+    ordering_fields = ["code", "name"]
+    ordering = ["code"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return _filter_queryset_by_enterprise(qs, self.request.user)
+
+    def perform_create(self, serializer):
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        serializer.save(enterprise_id=enterprise_id)
+
+
+class FiscalYearViewSet(viewsets.ModelViewSet):
+    """CRUD for Fiscal Years."""
+
+    serializer_class = FiscalYearSerializer
+    queryset = AcctFiscalYear.objects.select_related("enterprise").all()
+    permission_classes = [IsManagerOrAdmin, FeatureAccountingEnabled]
+    filterset_fields = ["status"]
+    search_fields = ["name"]
+    ordering_fields = ["start_date", "name"]
+    ordering = ["-start_date"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return _filter_queryset_by_enterprise(qs, self.request.user)
+
+    def perform_create(self, serializer):
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        serializer.save(enterprise_id=enterprise_id)
+
+    @action(detail=True, methods=["post"])
+    def create_periods(self, request, pk=None):
+        """Auto-create monthly periods for this fiscal year."""
+        import calendar
+        fy = self.get_object()
+        if fy.periods.exists():
+            return Response(
+                {"detail": "Les periodes existent deja."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        year = fy.start_date.year
+        from datetime import date as dt_date
+        # Period 0 — Opening
+        AcctPeriod.objects.create(
+            fiscal_year=fy, period_number=0,
+            start_date=fy.start_date, end_date=fy.start_date,
+        )
+        # Periods 1-12
+        for month in range(1, 13):
+            last_day = calendar.monthrange(year, month)[1]
+            AcctPeriod.objects.create(
+                fiscal_year=fy, period_number=month,
+                start_date=dt_date(year, month, 1),
+                end_date=dt_date(year, month, last_day),
+            )
+        # Period 13 — Closing
+        AcctPeriod.objects.create(
+            fiscal_year=fy, period_number=13,
+            start_date=fy.end_date, end_date=fy.end_date,
+        )
+        return Response(
+            {"detail": f"14 periodes creees pour {fy.name}."},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class AccountingPeriodViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only access to Accounting Periods."""
+
+    serializer_class = AccountingPeriodSerializer
+    queryset = AcctPeriod.objects.select_related("fiscal_year").all()
+    permission_classes = [IsManagerOrAdmin, FeatureAccountingEnabled]
+    filterset_fields = ["fiscal_year", "status"]
+    ordering_fields = ["period_number"]
+    ordering = ["fiscal_year", "period_number"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        enterprise_id = _user_enterprise_id(self.request.user)
+        if enterprise_id is None:
+            return qs.none()
+        return qs.filter(fiscal_year__enterprise_id=enterprise_id)
+
+
+class JournalEntryViewSet(viewsets.ModelViewSet):
+    """CRUD for Journal Entries with nested lines."""
+
+    serializer_class = JournalEntrySerializer
+    queryset = (
+        AcctJournalEntry.objects
+        .select_related("journal", "fiscal_year", "period", "store", "created_by", "enterprise")
+        .prefetch_related("lines", "lines__account")
+        .all()
+    )
+    permission_classes = [IsManagerOrAdmin, FeatureAccountingEnabled]
+    filterset_fields = ["journal", "period", "status", "source_type", "store", "fiscal_year"]
+    search_fields = ["label", "reference"]
+    ordering_fields = ["entry_date", "sequence_number", "created_at"]
+    ordering = ["-entry_date", "-sequence_number"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return _filter_queryset_by_enterprise(qs, self.request.user)
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return JournalEntryCreateSerializer
+        return JournalEntrySerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        enterprise_id = _require_user_enterprise_id(request.user)
+
+        # Resolve accounts
+        lines_data = []
+        for line in data["lines"]:
+            try:
+                account = AcctAccount.objects.get(
+                    pk=line["account_id"], enterprise_id=enterprise_id,
+                )
+            except AcctAccount.DoesNotExist:
+                return Response(
+                    {"detail": f"Compte introuvable: {line['account_id']}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            lines_data.append({
+                "account": account,
+                "debit": line["debit"],
+                "credit": line["credit"],
+                "label": line.get("label", ""),
+            })
+
+        from accounting.services import create_journal_entry
+        from stores.models import Enterprise, Store
+
+        enterprise = Enterprise.objects.get(pk=enterprise_id)
+        store = None
+        if data.get("store"):
+            store = Store.objects.filter(pk=data["store"]).first()
+
+        entry = create_journal_entry(
+            enterprise=enterprise,
+            store=store,
+            journal_code=data["journal_code"],
+            lines_data=lines_data,
+            label=data["label"],
+            reference=data.get("reference", ""),
+            entry_date=data["entry_date"],
+            created_by=request.user,
+            auto_post=False,
+        )
+        if not entry:
+            return Response(
+                {"detail": "Impossible de creer l'ecriture. Verifiez journal et periode."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        out = JournalEntrySerializer(entry).data
+        return Response(out, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def validate_entry(self, request, pk=None):
+        """Validate a draft entry."""
+        entry = self.get_object()
+        if entry.status != AcctJournalEntry.Status.DRAFT:
+            return Response(
+                {"detail": "Seules les ecritures en brouillon peuvent etre validees."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        entry.status = AcctJournalEntry.Status.VALIDATED
+        entry.validated_by = request.user
+        entry.save(update_fields=["status", "validated_by", "updated_at"])
+        return Response(JournalEntrySerializer(entry).data)
+
+    @action(detail=True, methods=["post"])
+    def post_entry(self, request, pk=None):
+        """Post (comptabiliser) a validated entry."""
+        entry = self.get_object()
+        if entry.status not in (
+            AcctJournalEntry.Status.DRAFT,
+            AcctJournalEntry.Status.VALIDATED,
+        ):
+            return Response(
+                {"detail": "Cette ecriture est deja comptabilisee."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not entry.is_balanced:
+            return Response(
+                {"detail": "L'ecriture n'est pas equilibree."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        entry.status = AcctJournalEntry.Status.POSTED
+        if not entry.validated_by:
+            entry.validated_by = request.user
+        entry.save(update_fields=["status", "validated_by", "updated_at"])
+        return Response(JournalEntrySerializer(entry).data)
+
+    @action(detail=False, methods=["get"])
+    def balance_generale(self, request):
+        """Return balance generale: debit/credit/solde per account."""
+        from django.db.models import Sum
+        enterprise_id = _user_enterprise_id(request.user)
+        if not enterprise_id:
+            return Response([])
+
+        filters = {"entry__enterprise_id": enterprise_id, "entry__status": "POSTED"}
+        fiscal_year_id = request.query_params.get("fiscal_year")
+        if fiscal_year_id:
+            filters["entry__fiscal_year_id"] = fiscal_year_id
+
+        from accounting.models import JournalEntryLine
+        qs = (
+            JournalEntryLine.objects
+            .filter(**filters)
+            .values("account__code", "account__name", "account__account_type")
+            .annotate(total_debit=Sum("debit"), total_credit=Sum("credit"))
+            .order_by("account__code")
+        )
+        results = []
+        for row in qs:
+            solde = (row["total_debit"] or Decimal("0")) - (row["total_credit"] or Decimal("0"))
+            results.append({
+                "account_code": row["account__code"],
+                "account_name": row["account__name"],
+                "account_type": row["account__account_type"],
+                "total_debit": row["total_debit"] or Decimal("0"),
+                "total_credit": row["total_credit"] or Decimal("0"),
+                "solde": solde,
+            })
+        return Response(results)
+
+    @action(detail=False, methods=["get"])
+    def grand_livre(self, request):
+        """Return grand livre: all entries for a given account."""
+        enterprise_id = _user_enterprise_id(request.user)
+        if not enterprise_id:
+            return Response([])
+
+        account_id = request.query_params.get("account")
+        if not account_id:
+            return Response(
+                {"detail": "Le parametre 'account' est requis."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from accounting.models import JournalEntryLine
+        qs = (
+            JournalEntryLine.objects
+            .filter(
+                account_id=account_id,
+                entry__enterprise_id=enterprise_id,
+                entry__status="POSTED",
+            )
+            .select_related("entry", "entry__journal", "account")
+            .order_by("entry__entry_date", "entry__sequence_number")
+        )
+
+        fiscal_year_id = request.query_params.get("fiscal_year")
+        if fiscal_year_id:
+            qs = qs.filter(entry__fiscal_year_id=fiscal_year_id)
+
+        results = []
+        running_balance = Decimal("0")
+        for line in qs:
+            running_balance += line.debit - line.credit
+            results.append({
+                "entry_date": line.entry.entry_date,
+                "journal_code": line.entry.journal.code,
+                "sequence_number": line.entry.sequence_number,
+                "label": line.label or line.entry.label,
+                "reference": line.entry.reference,
+                "debit": line.debit,
+                "credit": line.credit,
+                "solde": running_balance,
+            })
+        return Response(results)
+
+
+class TaxRateViewSet(viewsets.ModelViewSet):
+    """CRUD for Tax Rates."""
+
+    serializer_class = TaxRateSerializer
+    queryset = AcctTaxRate.objects.select_related("enterprise").all()
+    permission_classes = [IsManagerOrAdmin, FeatureAccountingEnabled]
+    filterset_fields = ["is_active", "is_exempt"]
+    search_fields = ["name"]
+    ordering = ["rate"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return _filter_queryset_by_enterprise(qs, self.request.user)
+
+    def perform_create(self, serializer):
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        serializer.save(enterprise_id=enterprise_id)
+
+
+class AccountingSettingsViewSet(viewsets.GenericViewSet):
+    """Retrieve and update accounting settings for the user's enterprise."""
+
+    serializer_class = AccountingSettingsSerializer
+    permission_classes = [IsManagerOrAdmin, FeatureAccountingEnabled]
+
+    def get_object(self):
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        obj, _ = AcctSettings.objects.get_or_create(enterprise_id=enterprise_id)
+        return obj
+
+    def list(self, request, *args, **kwargs):
+        obj = self.get_object()
+        serializer = self.get_serializer(obj)
+        return Response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        obj = self.get_object()
+        serializer = self.get_serializer(obj, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)

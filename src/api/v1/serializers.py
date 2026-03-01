@@ -1731,3 +1731,171 @@ class AuditLogSerializer(serializers.ModelSerializer):
         if obj.actor:
             return obj.actor.get_full_name()
         return None
+
+
+# =====================================================================
+# Accounting (SYSCOHADA)
+# =====================================================================
+
+from accounting.models import (  # noqa: E402
+    Account as AcctAccount,
+    AccountingPeriod as AcctPeriod,
+    AccountingSettings as AcctSettings,
+    FiscalYear as AcctFiscalYear,
+    Journal as AcctJournal,
+    JournalEntry as AcctJournalEntry,
+    JournalEntryLine as AcctJournalEntryLine,
+    TaxRate as AcctTaxRate,
+)
+
+
+class AccountSerializer(serializers.ModelSerializer):
+    parent_code = serializers.CharField(source="parent.code", read_only=True, default=None)
+    children_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AcctAccount
+        fields = [
+            "id", "enterprise", "code", "name", "account_type",
+            "parent", "parent_code", "is_system", "allow_entries",
+            "is_active", "children_count", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "enterprise", "created_at", "updated_at"]
+
+    def get_children_count(self, obj):
+        return obj.children.count()
+
+
+class AcctJournalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AcctJournal
+        fields = [
+            "id", "enterprise", "code", "name", "journal_type",
+            "default_debit_account", "default_credit_account",
+            "is_active", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "enterprise", "created_at", "updated_at"]
+
+
+class FiscalYearSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AcctFiscalYear
+        fields = [
+            "id", "enterprise", "name", "start_date", "end_date",
+            "status", "closed_at", "closed_by", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "enterprise", "closed_at", "closed_by", "created_at", "updated_at"]
+
+
+class AccountingPeriodSerializer(serializers.ModelSerializer):
+    fiscal_year_name = serializers.CharField(source="fiscal_year.name", read_only=True)
+
+    class Meta:
+        model = AcctPeriod
+        fields = [
+            "id", "fiscal_year", "fiscal_year_name", "period_number",
+            "start_date", "end_date", "status", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class JournalEntryLineSerializer(serializers.ModelSerializer):
+    account_code = serializers.CharField(source="account.code", read_only=True)
+    account_name = serializers.CharField(source="account.name", read_only=True)
+
+    class Meta:
+        model = AcctJournalEntryLine
+        fields = [
+            "id", "account", "account_code", "account_name",
+            "debit", "credit", "label", "partner_type", "partner_id",
+        ]
+        read_only_fields = ["id"]
+
+
+class JournalEntrySerializer(serializers.ModelSerializer):
+    lines = JournalEntryLineSerializer(many=True, read_only=True)
+    journal_code = serializers.CharField(source="journal.code", read_only=True)
+    journal_name = serializers.CharField(source="journal.name", read_only=True)
+    period_display = serializers.CharField(source="period.__str__", read_only=True)
+    total_debit = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    total_credit = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    is_balanced = serializers.BooleanField(read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AcctJournalEntry
+        fields = [
+            "id", "enterprise", "journal", "journal_code", "journal_name",
+            "fiscal_year", "period", "period_display", "store",
+            "sequence_number", "entry_date", "label", "reference",
+            "status", "source_type", "source_id",
+            "created_by", "created_by_name", "validated_by",
+            "is_reversal", "reversed_entry",
+            "total_debit", "total_credit", "is_balanced",
+            "lines", "created_at", "updated_at",
+        ]
+        read_only_fields = [
+            "id", "enterprise", "sequence_number", "created_by",
+            "validated_by", "created_at", "updated_at",
+        ]
+
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            return obj.created_by.get_full_name()
+        return None
+
+
+class _JournalEntryLineInputSerializer(serializers.Serializer):
+    account_id = serializers.UUIDField()
+    debit = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.00"))
+    credit = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.00"))
+    label = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class JournalEntryCreateSerializer(serializers.Serializer):
+    store = serializers.UUIDField(required=False, allow_null=True)
+    journal_code = serializers.CharField(max_length=10)
+    entry_date = serializers.DateField()
+    label = serializers.CharField(max_length=255)
+    reference = serializers.CharField(required=False, allow_blank=True, default="")
+    lines = _JournalEntryLineInputSerializer(many=True)
+
+    def validate_lines(self, value):
+        if not value:
+            raise serializers.ValidationError("Au moins une ligne est requise.")
+        total_d = sum(l["debit"] for l in value)
+        total_c = sum(l["credit"] for l in value)
+        if total_d != total_c:
+            raise serializers.ValidationError(
+                f"L'ecriture n'est pas equilibree: debit={total_d}, credit={total_c}."
+            )
+        return value
+
+
+class TaxRateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AcctTaxRate
+        fields = [
+            "id", "enterprise", "name", "rate", "is_exempt",
+            "collected_account", "deductible_account",
+            "is_active", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "enterprise", "created_at", "updated_at"]
+
+
+class AccountingSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AcctSettings
+        fields = [
+            "id", "enterprise",
+            "default_sales_account", "default_purchase_account",
+            "default_cash_account", "default_bank_account",
+            "default_mobile_money_account", "default_customer_account",
+            "default_supplier_account", "default_vat_collected_account",
+            "default_vat_deductible_account", "default_discount_account",
+            "default_refund_account", "default_stock_account",
+            "default_stock_variation_account", "default_other_income_account",
+            "auto_post_entries", "default_tax_rate",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "enterprise", "created_at", "updated_at"]

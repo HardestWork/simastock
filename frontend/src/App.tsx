@@ -105,6 +105,13 @@ const HrmAttendanceListPage = lazyRetry(() => import('@/features/hrm/AttendanceL
 const HrmPayrollPage = lazyRetry(() => import('@/features/hrm/PayrollPage'));
 const VerifyDocumentPage = lazyRetry(() => import('@/features/verify/VerifyDocumentPage'));
 
+// Accounting (SYSCOHADA)
+const ChartOfAccountsPage = lazyRetry(() => import('@/features/accounting/ChartOfAccountsPage'));
+const JournalEntriesPage = lazyRetry(() => import('@/features/accounting/JournalEntriesPage'));
+const BalanceGeneralePage = lazyRetry(() => import('@/features/accounting/BalanceGeneralePage'));
+const GrandLivrePage = lazyRetry(() => import('@/features/accounting/GrandLivrePage'));
+const AccountingSettingsPage = lazyRetry(() => import('@/features/accounting/AccountingSettingsPage'));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -276,6 +283,16 @@ export default function App() {
                 </Route>
                 <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['EXPENSE']} />}>
                   <Route path="/expenses/settings" element={<Suspense fallback={<PageLoader />}><ExpenseSettingsPage /></Suspense>} />
+                </Route>
+
+                {/* Accounting (SYSCOHADA) */}
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['ACCOUNTING']} />}>
+                  <Route path="/accounting" element={<Navigate to="/accounting/chart" replace />} />
+                  <Route path="/accounting/chart" element={<Suspense fallback={<PageLoader />}><ChartOfAccountsPage /></Suspense>} />
+                  <Route path="/accounting/entries" element={<Suspense fallback={<PageLoader />}><JournalEntriesPage /></Suspense>} />
+                  <Route path="/accounting/balance" element={<Suspense fallback={<PageLoader />}><BalanceGeneralePage /></Suspense>} />
+                  <Route path="/accounting/ledger" element={<Suspense fallback={<PageLoader />}><GrandLivrePage /></Suspense>} />
+                  <Route path="/accounting/settings" element={<Suspense fallback={<PageLoader />}><AccountingSettingsPage /></Suspense>} />
                 </Route>
 
                 {/* Purchases */}

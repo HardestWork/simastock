@@ -140,6 +140,7 @@ def _derive_module_matrix_from_feature_flags(store: Store | None) -> dict[str, b
         and flags.get("credit_management", True)
     )
     modules["ALERTS"] = bool(flags.get("alerts_center", True))
+    modules["ACCOUNTING"] = bool(flags.get("accounting", False))
     return modules
 
 
