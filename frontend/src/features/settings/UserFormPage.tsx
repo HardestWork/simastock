@@ -4,9 +4,16 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi, roleApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
-import { ArrowLeft, Save, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, AlertCircle, Copy, Check, X } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { extractApiError } from '@/lib/api-error';
+
+interface CreatedCredentials {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+}
 
 const SYSTEM_ROLE_OPTIONS = [
   { value: 'ADMIN', label: 'Administrateur' },
@@ -35,6 +42,8 @@ export default function UserFormPage() {
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<CreatedCredentials | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // ---- Fetch custom roles ----
   const { data: rolesData } = useQuery({
@@ -77,10 +86,17 @@ export default function UserFormPage() {
       password: string;
       password_confirm: string;
     }) => userApi.create(data),
-    onSuccess: () => {
-      toast.success(`Utilisateur cree: ${firstName.trim()} ${lastName.trim()}`);
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      navigate('/settings/users');
+      const roleName = customRoles.find((r) => r.id === customRoleId)?.name
+        ?? SYSTEM_ROLE_OPTIONS.find((r) => r.value === role)?.label
+        ?? role;
+      setCreatedCredentials({
+        name: `${variables.first_name} ${variables.last_name}`,
+        email: variables.email,
+        password: variables.password,
+        role: roleName,
+      });
     },
     onError: (err: unknown) => {
       toast.error(extractApiError(err));
@@ -147,6 +163,29 @@ export default function UserFormPage() {
         password_confirm: passwordConfirm,
       } as Parameters<typeof userApi.create>[0]);
     }
+  };
+
+  // ---- Copy credentials to clipboard ----
+  const handleCopyCredentials = () => {
+    if (!createdCredentials) return;
+    const text = [
+      `Informations de connexion`,
+      `---`,
+      `Nom: ${createdCredentials.name}`,
+      `Role: ${createdCredentials.role}`,
+      `Email: ${createdCredentials.email}`,
+      `Mot de passe: ${createdCredentials.password}`,
+    ].join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      toast.success('Informations copiees dans le presse-papier');
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleCloseCredentials = () => {
+    setCreatedCredentials(null);
+    navigate('/settings/users');
   };
 
   // ---- Loading spinner for edit mode ----
@@ -374,6 +413,87 @@ export default function UserFormPage() {
           </div>
         </div>
       </form>
+
+      {/* Credentials modal after successful creation */}
+      {createdCredentials && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 pt-5 pb-3">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Utilisateur cree avec succes
+              </h2>
+              <button
+                onClick={handleCloseCredentials}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="px-6 pb-2">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Voici les informations de connexion. Copiez-les pour les transmettre a l'utilisateur.
+              </p>
+            </div>
+
+            {/* Credentials card */}
+            <div className="mx-6 my-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Nom</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {createdCredentials.name}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Role</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {createdCredentials.role}
+                </span>
+              </div>
+              <hr className="border-gray-200 dark:border-gray-700" />
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Email</span>
+                <span className="font-mono font-medium text-gray-900 dark:text-gray-100">
+                  {createdCredentials.email}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Mot de passe</span>
+                <span className="font-mono font-medium text-gray-900 dark:text-gray-100">
+                  {createdCredentials.password}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 pb-5 pt-2 flex items-center gap-3">
+              <button
+                onClick={handleCopyCredentials}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                {copied ? (
+                  <>
+                    <Check size={16} />
+                    Copie !
+                  </>
+                ) : (
+                  <>
+                    <Copy size={16} />
+                    Copier les identifiants
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleCloseCredentials}
+                className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,1942 @@
+openapi: "3.0.3"
+info:
+  title: Systeme de Gestion Commerciale API
+  description: |
+    API REST complete pour le systeme de gestion commerciale.
+    Authentification via JWT cookies HttpOnly.
+    Multi-tenant : Enterprise > Store.
+    Roles : ADMIN, MANAGER, SALES, COMMERCIAL, HR, CASHIER, STOCKER.
+  version: "1.0.0"
+  contact:
+    name: Equipe Technique
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Auth
+    description: Authentification et gestion de session
+  - name: Enterprises
+    description: Gestion des entreprises
+  - name: Subscriptions
+    description: Abonnements et facturation
+  - name: Stores
+    description: Gestion des magasins
+  - name: Users
+    description: Gestion des utilisateurs et roles
+  - name: Catalog
+    description: Produits, categories, marques
+  - name: Stock
+    description: Stock, mouvements, transferts, inventaires
+  - name: Customers
+    description: Gestion des clients
+  - name: Sales
+    description: Ventes (POS)
+  - name: Quotes
+    description: Devis et factures proforma
+  - name: Payments
+    description: Paiements
+  - name: CashShifts
+    description: Sessions de caisse
+  - name: Credits
+    description: Comptes credit et echeanciers
+  - name: Refunds
+    description: Remboursements et avoirs
+  - name: Purchases
+    description: Fournisseurs et bons de commande
+  - name: Alerts
+    description: Centre d'alertes
+  - name: AuditLogs
+    description: Journal d'audit
+  - name: Reports
+    description: Rapports et KPIs
+  - name: Analytics
+    description: Analytics avancees
+  - name: AnalyticsCustomers
+    description: Analytics clients
+  - name: AnalyticsCashier
+    description: Analytics caissier
+  - name: AnalyticsStock
+    description: Analytics stock
+  - name: DG
+    description: Dashboard direction generale
+  - name: Expenses
+    description: Gestion des depenses
+  - name: Objectives
+    description: Objectifs vendeurs
+  - name: Commercial
+    description: CRM commercial
+  - name: HRM
+    description: Gestion des ressources humaines
+  - name: Documents
+    description: Verification de documents
+
+security:
+  - cookieAuth: []
+
+paths:
+  # ─── AUTH ────────────────────────────────────────────
+  /auth/token/:
+    post:
+      tags: [Auth]
+      summary: Obtenir JWT tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Tokens definis en cookies HttpOnly
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/MeUser" }
+
+  /auth/token/refresh/:
+    post:
+      tags: [Auth]
+      summary: Rafraichir le token d'acces
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh: { type: string, description: "Optionnel si cookie present" }
+      responses:
+        "200":
+          description: Token rafraichi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail: { type: string }
+
+  /auth/logout/:
+    post:
+      tags: [Auth]
+      summary: Supprimer cookies auth
+      security: []
+      responses:
+        "204": { description: Deconnecte }
+
+  /auth/csrf/:
+    get:
+      tags: [Auth]
+      summary: Obtenir token CSRF
+      security: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  csrfToken: { type: string }
+
+  /auth/me/:
+    get:
+      tags: [Auth]
+      summary: Profil utilisateur connecte
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeUser" }
+    patch:
+      tags: [Auth]
+      summary: Mettre a jour le profil
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name: { type: string }
+                last_name: { type: string }
+                phone: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeUser" }
+
+  /auth/module-matrix/:
+    get:
+      tags: [Auth]
+      summary: Matrice modules/fonctionnalites du store
+      parameters:
+        - name: store
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  store_id: { type: string, format: uuid }
+                  modules: { type: object }
+                  features: { type: object }
+                  capabilities: { type: array, items: { type: string } }
+
+  /auth/password/change/:
+    post:
+      tags: [Auth]
+      summary: Changer son mot de passe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [old_password, new_password]
+              properties:
+                old_password: { type: string }
+                new_password: { type: string, minLength: 8 }
+      responses:
+        "200": { description: Mot de passe change }
+
+  /auth/password/reset/:
+    post:
+      tags: [Auth]
+      summary: Demander reinitialisation mot de passe
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail: { type: string }
+
+  /auth/password/reset/confirm/:
+    post:
+      tags: [Auth]
+      summary: Confirmer reinitialisation
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uid, token, new_password1, new_password2]
+              properties:
+                uid: { type: string }
+                token: { type: string }
+                new_password1: { type: string }
+                new_password2: { type: string }
+      responses:
+        "200": { description: Mot de passe reinitialise }
+
+  # ─── ENTERPRISES ─────────────────────────────────────
+  /enterprises/:
+    get:
+      tags: [Enterprises]
+      summary: Lister les entreprises
+      parameters:
+        - { name: is_active, in: query, schema: { type: boolean } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: ordering, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Enterprises]
+      summary: Creer une entreprise
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Enterprise" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Enterprise" }
+
+  /enterprises/{id}/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [Enterprises]
+      summary: Detail entreprise
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Enterprise" }
+    patch:
+      tags: [Enterprises]
+      summary: Modifier entreprise
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Enterprise" }
+    delete:
+      tags: [Enterprises]
+      summary: Supprimer entreprise
+      responses:
+        "204": { description: Supprimee }
+
+  /enterprises/{id}/setup/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Enterprises]
+      summary: Configuration initiale (entreprise + magasin + admin)
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EnterpriseSetup" }
+      responses:
+        "201": { description: Configuration terminee }
+
+  /enterprises/{id}/toggle-active/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Enterprises]
+      summary: Activer/desactiver
+      responses:
+        "200": { description: Statut modifie }
+
+  # ─── STORES ──────────────────────────────────────────
+  /stores/:
+    get:
+      tags: [Stores]
+      summary: Lister les magasins
+      parameters:
+        - { name: is_active, in: query, schema: { type: boolean } }
+        - { name: search, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Stores]
+      summary: Creer un magasin
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Store" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Store" }
+
+  /stores/{id}/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [Stores]
+      summary: Detail magasin
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Store" }
+    patch:
+      tags: [Stores]
+      summary: Modifier magasin
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Store" }
+
+  /stores/my-stores/:
+    get:
+      tags: [Stores]
+      summary: Magasins de l'utilisateur
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MyStore" }
+
+  # ─── USERS ──────────────────────────────────────────
+  /users/:
+    get:
+      tags: [Users]
+      summary: Lister les utilisateurs
+      parameters:
+        - { name: role, in: query, schema: { type: string, enum: [ADMIN, MANAGER, SALES, COMMERCIAL, HR, CASHIER, STOCKER] } }
+        - { name: is_active, in: query, schema: { type: boolean } }
+        - { name: search, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Users]
+      summary: Creer un utilisateur
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserCreate" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+
+  /users/{id}/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [Users]
+      summary: Detail utilisateur
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+    patch:
+      tags: [Users]
+      summary: Modifier utilisateur
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+
+  /users/{id}/toggle-active/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Users]
+      summary: Activer/desactiver
+      responses:
+        "200": { description: Statut modifie }
+
+  # ─── PRODUCTS ────────────────────────────────────────
+  /products/:
+    get:
+      tags: [Catalog]
+      summary: Lister les produits
+      parameters:
+        - { name: category, in: query, schema: { type: string, format: uuid } }
+        - { name: brand, in: query, schema: { type: string, format: uuid } }
+        - { name: is_active, in: query, schema: { type: boolean } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: ordering, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Catalog]
+      summary: Creer un produit
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Product" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+
+  /products/{id}/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [Catalog]
+      summary: Detail produit
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+    patch:
+      tags: [Catalog]
+      summary: Modifier produit
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+    delete:
+      tags: [Catalog]
+      summary: Supprimer produit
+      responses:
+        "204": { description: Supprime }
+
+  /products/pos/:
+    get:
+      tags: [Catalog]
+      summary: Produits optimises POS
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProductPOS" }
+
+  /products/import-csv/:
+    post:
+      tags: [Catalog]
+      summary: Import produits CSV
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200": { description: Import termine }
+
+  /products/export-csv/:
+    get:
+      tags: [Catalog]
+      summary: Export produits CSV
+      responses:
+        "200":
+          content:
+            text/csv:
+              schema: { type: string }
+
+  /categories/:
+    get:
+      tags: [Catalog]
+      summary: Lister les categories
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Catalog]
+      summary: Creer une categorie
+      responses:
+        "201": { description: Creee }
+
+  /brands/:
+    get:
+      tags: [Catalog]
+      summary: Lister les marques
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Catalog]
+      summary: Creer une marque
+      responses:
+        "201": { description: Creee }
+
+  # ─── STOCK ──────────────────────────────────────────
+  /stock/:
+    get:
+      tags: [Stock]
+      summary: Niveaux de stock
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: product, in: query, schema: { type: string, format: uuid } }
+        - { name: search, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+
+  /stock/bulk-entry/:
+    post:
+      tags: [Stock]
+      summary: Entree de stock en masse
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulkStockEntry" }
+      responses:
+        "200": { description: Stock mis a jour }
+
+  /stock/bulk-adjust/:
+    post:
+      tags: [Stock]
+      summary: Ajustement de stock en masse
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulkStockAdjust" }
+      responses:
+        "200": { description: Stock ajuste }
+
+  /stock-movements/:
+    get:
+      tags: [Stock]
+      summary: Historique mouvements de stock
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: product, in: query, schema: { type: string, format: uuid } }
+        - { name: movement_type, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+
+  /stock-transfers/:
+    get:
+      tags: [Stock]
+      summary: Lister les transferts
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Stock]
+      summary: Creer un transfert
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StockTransferCreate" }
+      responses:
+        "201": { description: Transfert cree }
+
+  /stock-transfers/{id}/approve/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Stock]
+      summary: Approuver un transfert
+      responses:
+        "200": { description: Approuve }
+
+  /stock-transfers/{id}/receive/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Stock]
+      summary: Recevoir un transfert
+      responses:
+        "200": { description: Recu }
+
+  # ─── CUSTOMERS ───────────────────────────────────────
+  /customers/:
+    get:
+      tags: [Customers]
+      summary: Lister les clients
+      parameters:
+        - { name: is_active, in: query, schema: { type: boolean } }
+        - { name: search, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Customers]
+      summary: Creer un client
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Customer" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Customer" }
+
+  /customers/{id}/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [Customers]
+      summary: Detail client
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Customer" }
+
+  /customers/{id}/purchase-history/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [Customers]
+      summary: Historique achats client
+      responses:
+        "200": { description: Liste des ventes }
+
+  # ─── SALES ──────────────────────────────────────────
+  /sales/:
+    get:
+      tags: [Sales]
+      summary: Lister les ventes
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, enum: [DRAFT, PENDING_PAYMENT, PAID, PARTIALLY_PAID, CANCELLED, REFUNDED] } }
+        - { name: seller, in: query, schema: { type: string, format: uuid } }
+        - { name: customer, in: query, schema: { type: string, format: uuid } }
+        - { name: is_credit_sale, in: query, schema: { type: boolean } }
+        - { name: search, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Sales]
+      summary: Creer une vente
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SaleCreate" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sale" }
+
+  /sales/{id}/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [Sales]
+      summary: Detail vente
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sale" }
+
+  /sales/{id}/add-item/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Sales]
+      summary: Ajouter un article
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SaleAddItem" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sale" }
+
+  /sales/{id}/submit/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Sales]
+      summary: Soumettre la vente en caisse
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sale" }
+
+  /sales/{id}/cancel/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Sales]
+      summary: Annuler la vente
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sale" }
+
+  /sales/{id}/invoice/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [Sales]
+      summary: Telecharger facture PDF
+      responses:
+        "200":
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  /sales/{id}/receipt/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [Sales]
+      summary: Telecharger recu PDF
+      responses:
+        "200":
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  # ─── QUOTES ─────────────────────────────────────────
+  /quotes/:
+    get:
+      tags: [Quotes]
+      summary: Lister les devis/proformas
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, enum: [DRAFT, SENT, ACCEPTED, REFUSED, CONVERTED, CANCELLED] } }
+        - { name: search, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Quotes]
+      summary: Creer un devis/proforma
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuoteCreate" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+
+  /quotes/{id}/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [Quotes]
+      summary: Detail devis
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+
+  /quotes/{id}/send/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Quotes]
+      summary: Envoyer au client
+      responses:
+        "200": { description: Envoye }
+
+  /quotes/{id}/accept/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Quotes]
+      summary: Marquer comme accepte
+      responses:
+        "200": { description: Accepte }
+
+  /quotes/{id}/convert/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Quotes]
+      summary: Convertir en vente
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sale" }
+
+  /quotes/{id}/cancel/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Quotes]
+      summary: Annuler le devis
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        "200": { description: Annule }
+
+  /quotes/{id}/pdf/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [Quotes]
+      summary: Telecharger PDF
+      responses:
+        "200":
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  # ─── PAYMENTS ────────────────────────────────────────
+  /payments/:
+    get:
+      tags: [Payments]
+      summary: Lister les paiements
+      parameters:
+        - { name: sale, in: query, schema: { type: string, format: uuid } }
+        - { name: method, in: query, schema: { type: string } }
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Payments]
+      summary: Enregistrer un paiement
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaymentCreate" }
+      responses:
+        "201": { description: Paiement enregistre }
+
+  # ─── CASH SHIFTS ─────────────────────────────────────
+  /cash-shifts/:
+    get:
+      tags: [CashShifts]
+      summary: Lister les sessions
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+
+  /cash-shifts/open/:
+    post:
+      tags: [CashShifts]
+      summary: Ouvrir session de caisse
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [store, opening_float]
+              properties:
+                store: { type: string, format: uuid }
+                opening_float: { type: number, minimum: 0 }
+      responses:
+        "201": { description: Session ouverte }
+
+  /cash-shifts/current/:
+    get:
+      tags: [CashShifts]
+      summary: Session active
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CashShift" }
+
+  /cash-shifts/{id}/close/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [CashShifts]
+      summary: Fermer session
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [closing_cash]
+              properties:
+                closing_cash: { type: number, minimum: 0 }
+                notes: { type: string }
+      responses:
+        "200": { description: Session fermee }
+
+  # ─── CREDIT ACCOUNTS ────────────────────────────────
+  /credit-accounts/:
+    get:
+      tags: [Credits]
+      summary: Comptes credit
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: customer, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+
+  /credit-accounts/{id}/pay/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Credits]
+      summary: Paiement credit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, method]
+              properties:
+                amount: { type: number }
+                method: { type: string }
+                reference: { type: string }
+      responses:
+        "200": { description: Paiement enregistre }
+
+  # ─── REFUNDS ─────────────────────────────────────────
+  /refunds/:
+    get:
+      tags: [Refunds]
+      summary: Lister les remboursements
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Refunds]
+      summary: Creer un remboursement
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefundCreate" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Refund" }
+
+  # ─── SUPPLIERS & PURCHASES ──────────────────────────
+  /suppliers/:
+    get:
+      tags: [Purchases]
+      summary: Lister les fournisseurs
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Purchases]
+      summary: Creer un fournisseur
+      responses:
+        "201": { description: Cree }
+
+  /purchase-orders/:
+    get:
+      tags: [Purchases]
+      summary: Lister les bons de commande
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Purchases]
+      summary: Creer un bon de commande
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PurchaseOrderCreate" }
+      responses:
+        "201": { description: BC cree }
+
+  /purchase-orders/{id}/submit/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Purchases]
+      summary: Soumettre un BC
+      responses:
+        "200": { description: Soumis }
+
+  /purchase-orders/{id}/cancel/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Purchases]
+      summary: Annuler un BC
+      responses:
+        "200": { description: Annule }
+
+  /goods-receipts/:
+    get:
+      tags: [Purchases]
+      summary: Lister les receptions
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Purchases]
+      summary: Enregistrer une reception
+      responses:
+        "201": { description: Reception enregistree }
+
+  # ─── ALERTS ──────────────────────────────────────────
+  /alerts/:
+    get:
+      tags: [Alerts]
+      summary: Lister les alertes
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: is_read, in: query, schema: { type: boolean } }
+        - { name: severity, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+
+  /alerts/{id}/mark-read/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Alerts]
+      summary: Marquer lue
+      responses:
+        "200": { description: Lue }
+
+  /alerts/mark-all-read/:
+    post:
+      tags: [Alerts]
+      summary: Tout marquer lu
+      responses:
+        "200": { description: Fait }
+
+  # ─── AUDIT LOGS ──────────────────────────────────────
+  /audit-logs/:
+    get:
+      tags: [AuditLogs]
+      summary: Journal d'audit
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: action, in: query, schema: { type: string } }
+        - { name: entity_type, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+
+  # ─── REPORTS ─────────────────────────────────────────
+  /reports/kpis/:
+    get:
+      tags: [Reports]
+      summary: KPIs tableau de bord
+      parameters:
+        - { name: store, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KPIs" }
+
+  /reports/sales/:
+    get:
+      tags: [Reports]
+      summary: Rapport de ventes
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Rapport de ventes }
+
+  /reports/daily-statistics/:
+    get:
+      tags: [Reports]
+      summary: Statistiques quotidiennes
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: date, in: query, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Statistiques du jour }
+
+  # ─── ANALYTICS ───────────────────────────────────────
+  /analytics/strategic-kpis/:
+    get:
+      tags: [Analytics]
+      summary: KPIs strategiques
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: period, in: query, schema: { type: string, pattern: "^\\d{4}-\\d{2}$" } }
+      responses:
+        "200": { description: KPIs strategiques }
+
+  /analytics/abc/:
+    get:
+      tags: [Analytics]
+      summary: Analyse ABC produits
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Classification ABC }
+
+  /analytics/forecast/:
+    get:
+      tags: [Analytics]
+      summary: Previsions de ventes
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Previsions }
+
+  /analytics/customers/insights/:
+    get:
+      tags: [AnalyticsCustomers]
+      summary: Insights clients
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Metriques clients }
+
+  /analytics/customers/top/:
+    get:
+      tags: [AnalyticsCustomers]
+      summary: Top clients
+      responses:
+        "200": { description: Top clients du mois }
+
+  /analytics/customers/{customer_id}/score/:
+    parameters:
+      - name: customer_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [AnalyticsCustomers]
+      summary: Score client
+      responses:
+        "200": { description: Score detaille }
+
+  # ─── CASHIER ANALYTICS ──────────────────────────────
+  /cashier-analytics/dashboard/:
+    get:
+      tags: [AnalyticsCashier]
+      summary: Dashboard caissier
+      parameters:
+        - { name: store, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: period, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Score, KPIs, anomalies, shifts }
+
+  /cashier-analytics/team/:
+    get:
+      tags: [AnalyticsCashier]
+      summary: Vue equipe caissiers
+      parameters:
+        - { name: store, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: period, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Team analytics }
+
+  # ─── STOCK ANALYTICS ────────────────────────────────
+  /stock-analytics/dashboard/:
+    get:
+      tags: [AnalyticsStock]
+      summary: Dashboard stock
+      parameters:
+        - { name: store, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: period, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Sante stock, rotation, ruptures }
+
+  /stock-analytics/alerts/:
+    get:
+      tags: [AnalyticsStock]
+      summary: Alertes stock
+      parameters:
+        - { name: store, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Ruptures critiques et warnings }
+
+  # ─── DG DASHBOARD ───────────────────────────────────
+  /dg/dashboard/:
+    get:
+      tags: [DG]
+      summary: Dashboard direction generale
+      parameters:
+        - { name: store, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: period, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Vue executive consolidee }
+
+  # ─── EXPENSES ────────────────────────────────────────
+  /expenses/:
+    get:
+      tags: [Expenses]
+      summary: Lister les depenses
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: category, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Expenses]
+      summary: Creer une depense
+      responses:
+        "201": { description: Depense creee }
+
+  /expenses/{id}/void/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Expenses]
+      summary: Annuler une depense
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        "200": { description: Annulee }
+
+  /expenses/dashboard/:
+    get:
+      tags: [Expenses]
+      summary: Dashboard depenses
+      parameters:
+        - { name: store, in: query, schema: { type: string, format: uuid } }
+        - { name: period, in: query, schema: { type: string } }
+      responses:
+        "200": { description: KPIs et budgets depenses }
+
+  # ─── OBJECTIVES ──────────────────────────────────────
+  /objectives/seller/dashboard/:
+    get:
+      tags: [Objectives]
+      summary: Dashboard vendeur
+      parameters:
+        - { name: period, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Score 360, projection, ranking }
+
+  /objectives/leaderboard/:
+    get:
+      tags: [Objectives]
+      summary: Classement vendeurs
+      parameters:
+        - { name: period, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Leaderboard avec masquage visibilite }
+
+  /objectives/recompute/:
+    post:
+      tags: [Objectives]
+      summary: Relancer calcul objectifs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                period: { type: string }
+                seller_id: { type: string, format: uuid }
+      responses:
+        "200": { description: Calcul lance }
+
+  # ─── COMMERCIAL ──────────────────────────────────────
+  /commercial/prospects/:
+    get:
+      tags: [Commercial]
+      summary: Lister les prospects
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Commercial]
+      summary: Creer un prospect
+      responses:
+        "201": { description: Prospect cree }
+
+  /commercial/opportunities/:
+    get:
+      tags: [Commercial]
+      summary: Lister les opportunites
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [Commercial]
+      summary: Creer une opportunite
+      responses:
+        "201": { description: Opportunite creee }
+
+  /commercial/opportunities/{id}/mark-won/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Commercial]
+      summary: Marquer gagnee
+      responses:
+        "200": { description: Gagnee }
+
+  /commercial/opportunities/{id}/mark-lost/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [Commercial]
+      summary: Marquer perdue
+      responses:
+        "200": { description: Perdue }
+
+  # ─── HRM ─────────────────────────────────────────────
+  /hrm/employees/:
+    get:
+      tags: [HRM]
+      summary: Lister les employes
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [HRM]
+      summary: Creer un employe
+      responses:
+        "201": { description: Employe cree }
+
+  /hrm/payroll-periods/{id}/generate-payslips/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [HRM]
+      summary: Generer les bulletins de paie
+      responses:
+        "200": { description: Bulletins generes }
+
+  /hrm/payslips/{id}/pdf/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    get:
+      tags: [HRM]
+      summary: Telecharger bulletin PDF
+      responses:
+        "200":
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  /hrm/leave-requests/:
+    get:
+      tags: [HRM]
+      summary: Lister les demandes de conges
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedResponse" }
+    post:
+      tags: [HRM]
+      summary: Creer une demande de conge
+      responses:
+        "201": { description: Demande creee }
+
+  /hrm/leave-requests/{id}/approve/:
+    parameters:
+      - { $ref: "#/components/parameters/ResourceId" }
+    post:
+      tags: [HRM]
+      summary: Approuver conge
+      responses:
+        "200": { description: Approuve }
+
+  # ─── DOCUMENT VERIFICATION ─────────────────────────
+  /documents/verify/{token}/:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Documents]
+      summary: Verifier authenticite d'un document
+      security: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid: { type: boolean }
+                  document_type: { type: string }
+                  number: { type: string }
+                  date: { type: string, format: date }
+                  store: { type: string }
+                  total: { type: number }
+        "404":
+          description: Document introuvable
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: JWT access token en cookie HttpOnly
+
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+
+  schemas:
+    PaginatedResponse:
+      type: object
+      properties:
+        count: { type: integer }
+        next: { type: string, nullable: true }
+        previous: { type: string, nullable: true }
+        results: { type: array, items: {} }
+
+    MeUser:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        first_name: { type: string }
+        last_name: { type: string }
+        phone: { type: string }
+        role: { type: string, enum: [ADMIN, MANAGER, SALES, COMMERCIAL, HR, CASHIER, STOCKER] }
+        is_active: { type: boolean }
+        is_superuser: { type: boolean }
+
+    Enterprise:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        name: { type: string }
+        code: { type: string }
+        legal_name: { type: string }
+        currency: { type: string, default: FCFA }
+        vat_enabled: { type: boolean }
+        vat_rate: { type: number }
+        email: { type: string }
+        phone: { type: string }
+        is_active: { type: boolean }
+        subscription_start: { type: string, format: date }
+        subscription_end: { type: string, format: date }
+        subscription_status: { type: string, readOnly: true }
+
+    EnterpriseSetup:
+      type: object
+      required: [enterprise_name, enterprise_code, store_name, store_code, user_email, user_password, user_password_confirm]
+      properties:
+        enterprise_name: { type: string }
+        enterprise_code: { type: string }
+        enterprise_currency: { type: string }
+        store_name: { type: string }
+        store_code: { type: string }
+        user_email: { type: string, format: email }
+        user_first_name: { type: string }
+        user_last_name: { type: string }
+        user_password: { type: string, minLength: 8 }
+        user_password_confirm: { type: string, minLength: 8 }
+
+    Store:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        enterprise: { type: string, format: uuid, readOnly: true }
+        name: { type: string }
+        code: { type: string }
+        address: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        currency: { type: string }
+        stock_decrement_on: { type: string, enum: [PAYMENT, VALIDATION] }
+        allow_negative_stock: { type: boolean }
+        is_active: { type: boolean }
+
+    MyStore:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        enterprise: { type: string, format: uuid }
+        enterprise_name: { type: string }
+        name: { type: string }
+        code: { type: string }
+        is_default: { type: boolean }
+        my_capabilities: { type: array, items: { type: string } }
+        effective_feature_flags: { type: object }
+
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        email: { type: string, format: email }
+        first_name: { type: string }
+        last_name: { type: string }
+        phone: { type: string }
+        role: { type: string, readOnly: true }
+        custom_role: { type: string, format: uuid, nullable: true }
+        custom_role_name: { type: string, readOnly: true }
+        is_active: { type: boolean }
+
+    UserCreate:
+      type: object
+      required: [email, role, password, password_confirm]
+      properties:
+        email: { type: string, format: email }
+        first_name: { type: string }
+        last_name: { type: string }
+        phone: { type: string }
+        role: { type: string, enum: [ADMIN, MANAGER, SALES, COMMERCIAL, HR, CASHIER, STOCKER] }
+        custom_role: { type: string, format: uuid, nullable: true }
+        password: { type: string, minLength: 8 }
+        password_confirm: { type: string, minLength: 8 }
+
+    Product:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        enterprise: { type: string, format: uuid, readOnly: true }
+        name: { type: string }
+        sku: { type: string }
+        barcode: { type: string }
+        description: { type: string }
+        category: { type: string, format: uuid }
+        category_name: { type: string, readOnly: true }
+        brand: { type: string, format: uuid, nullable: true }
+        brand_name: { type: string, readOnly: true }
+        product_type: { type: string, enum: [PHYSICAL, SERVICE] }
+        track_stock: { type: boolean }
+        cost_price: { type: number }
+        selling_price: { type: number }
+        is_active: { type: boolean }
+        images:
+          type: array
+          readOnly: true
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              image: { type: string }
+              is_primary: { type: boolean }
+
+    ProductPOS:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        sku: { type: string }
+        barcode: { type: string }
+        selling_price: { type: number }
+        product_type: { type: string }
+        track_stock: { type: boolean }
+        available_qty: { type: integer }
+        has_stock: { type: boolean }
+
+    Customer:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        enterprise: { type: string, format: uuid, readOnly: true }
+        first_name: { type: string }
+        last_name: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        address: { type: string }
+        company: { type: string }
+        full_name: { type: string, readOnly: true }
+        is_default: { type: boolean, readOnly: true }
+
+    SaleItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        product: { type: string, format: uuid }
+        product_name: { type: string }
+        unit_price: { type: number }
+        quantity: { type: integer }
+        discount_amount: { type: number }
+        line_total: { type: number, readOnly: true }
+
+    Sale:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        store: { type: string, format: uuid }
+        seller: { type: string, format: uuid }
+        seller_name: { type: string, readOnly: true }
+        customer: { type: string, format: uuid, nullable: true }
+        customer_name: { type: string, readOnly: true }
+        invoice_number: { type: string, readOnly: true }
+        status: { type: string, enum: [DRAFT, PENDING_PAYMENT, PAID, PARTIALLY_PAID, CANCELLED, REFUNDED] }
+        payment_status: { type: string, enum: [N/A, UNPAID, PARTIAL, PAID], readOnly: true }
+        subtotal: { type: number, readOnly: true }
+        discount_amount: { type: number }
+        discount_percent: { type: number }
+        tax_amount: { type: number, readOnly: true }
+        total: { type: number, readOnly: true }
+        amount_paid: { type: number, readOnly: true }
+        amount_due: { type: number, readOnly: true }
+        is_credit_sale: { type: boolean }
+        notes: { type: string }
+        items:
+          type: array
+          readOnly: true
+          items: { $ref: "#/components/schemas/SaleItem" }
+        created_at: { type: string, format: date-time, readOnly: true }
+
+    SaleCreate:
+      type: object
+      properties:
+        customer_id: { type: string, format: uuid, nullable: true }
+        store_id: { type: string, format: uuid }
+        discount_percent: { type: number, default: 0 }
+        notes: { type: string }
+
+    SaleAddItem:
+      type: object
+      required: [product_id, quantity]
+      properties:
+        product_id: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1 }
+        discount_amount: { type: number, default: 0 }
+        unit_price_override: { type: number, nullable: true }
+
+    Quote:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        store: { type: string, format: uuid }
+        quote_number: { type: string, readOnly: true }
+        status: { type: string, enum: [DRAFT, SENT, ACCEPTED, REFUSED, CONVERTED, CANCELLED] }
+        document_type: { type: string, enum: [DEVIS, PROFORMA] }
+        customer: { type: string, format: uuid, nullable: true }
+        customer_name: { type: string, readOnly: true }
+        subtotal: { type: number, readOnly: true }
+        total: { type: number, readOnly: true }
+        valid_until: { type: string, format: date, nullable: true }
+        notes: { type: string }
+        conditions: { type: string }
+        cancelled_at: { type: string, format: date-time, readOnly: true, nullable: true }
+        cancellation_reason: { type: string }
+        converted_sale_id: { type: string, format: uuid, readOnly: true, nullable: true }
+        is_expired: { type: boolean, readOnly: true }
+        items:
+          type: array
+          readOnly: true
+          items: { $ref: "#/components/schemas/SaleItem" }
+
+    QuoteCreate:
+      type: object
+      properties:
+        store_id: { type: string, format: uuid }
+        customer_id: { type: string, format: uuid, nullable: true }
+        document_type: { type: string, enum: [DEVIS, PROFORMA], default: DEVIS }
+        discount_percent: { type: number, default: 0 }
+        notes: { type: string }
+        conditions: { type: string }
+        valid_until: { type: string, format: date }
+
+    PaymentCreate:
+      type: object
+      required: [sale_id, payments]
+      properties:
+        sale_id: { type: string, format: uuid }
+        payments:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [method, amount]
+            properties:
+              method: { type: string, enum: [CASH, CARD, MOBILE_MONEY, BANK_TRANSFER, CHECK] }
+              amount: { type: number }
+              reference: { type: string }
+
+    CashShift:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        store: { type: string, format: uuid }
+        cashier: { type: string, format: uuid }
+        status: { type: string, enum: [OPEN, CLOSED] }
+        opened_at: { type: string, format: date-time }
+        closed_at: { type: string, format: date-time, nullable: true }
+        opening_float: { type: number }
+        expected_cash: { type: number }
+        closing_cash: { type: number, nullable: true }
+        variance: { type: number, nullable: true }
+
+    Refund:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        sale: { type: string, format: uuid }
+        store: { type: string, format: uuid, readOnly: true }
+        amount: { type: number }
+        reason: { type: string }
+        refund_method: { type: string }
+        credit_note_number: { type: string, readOnly: true }
+        restore_stock: { type: boolean }
+        created_at: { type: string, format: date-time, readOnly: true }
+
+    RefundCreate:
+      type: object
+      required: [sale_id, amount, reason, refund_method]
+      properties:
+        sale_id: { type: string, format: uuid }
+        amount: { type: number, minimum: 0.01 }
+        reason: { type: string }
+        refund_method: { type: string, enum: [CASH, CARD, MOBILE_MONEY, BANK_TRANSFER] }
+        restore_stock: { type: boolean, default: false }
+
+    PurchaseOrderCreate:
+      type: object
+      required: [store, supplier, lines]
+      properties:
+        store: { type: string, format: uuid }
+        supplier: { type: string, format: uuid }
+        notes: { type: string }
+        submit_now: { type: boolean, default: false }
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [product_id, quantity_ordered, unit_cost]
+            properties:
+              product_id: { type: string, format: uuid }
+              quantity_ordered: { type: integer, minimum: 1 }
+              unit_cost: { type: number, minimum: 0 }
+
+    BulkStockEntry:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [product_id, quantity]
+            properties:
+              product_id: { type: string, format: uuid }
+              quantity: { type: integer, minimum: 1 }
+        reference: { type: string }
+        reason: { type: string }
+
+    BulkStockAdjust:
+      type: object
+      required: [adjustments]
+      properties:
+        adjustments:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [product_id, quantity]
+            properties:
+              product_id: { type: string, format: uuid }
+              quantity: { type: integer }
+        reason: { type: string }
+
+    StockTransferCreate:
+      type: object
+      required: [to_store, lines]
+      properties:
+        to_store: { type: string, format: uuid }
+        notes: { type: string }
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [product_id, quantity]
+            properties:
+              product_id: { type: string, format: uuid }
+              quantity: { type: integer, minimum: 1 }
+
+    KPIs:
+      type: object
+      properties:
+        total_sales: { type: number }
+        total_orders: { type: integer }
+        average_basket: { type: number }
+        gross_margin: { type: number }
+        total_discounts: { type: number }
+        total_refunds: { type: number }
+        net_sales: { type: number }
+        credit_outstanding: { type: number }
+        stock_value: { type: number }
+        top_products: { type: array, items: { type: object } }
+        sales_trend: { type: array, items: { type: object } }
+
+    Error:
+      type: object
+      properties:
+        detail: { type: string }
