@@ -5027,3 +5027,122 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         qs = super().get_queryset()
         store_ids = _user_store_ids(self.request.user)
         return qs.filter(store_id__in=store_ids)
+
+
+# ---------------------------------------------------------------------------
+# Public document verification
+# ---------------------------------------------------------------------------
+
+class DocumentVerifyView(APIView):
+    """
+    Public endpoint to verify the authenticity of a document by its token.
+    No authentication required – throttled to prevent abuse.
+    """
+
+    permission_classes = []
+    authentication_classes = []
+    throttle_scope = "document_verify"
+
+    def get(self, request, token):
+        # 1) Sale (invoice / receipt)
+        sale = Sale.objects.filter(verification_token=token).select_related("store").first()
+        if sale:
+            return Response(self._sale_payload(sale))
+
+        # 2) Quote
+        quote = Quote.objects.filter(verification_token=token).select_related("store").first()
+        if quote:
+            return Response(self._quote_payload(quote))
+
+        # 3) Credit ledger entry
+        entry = (
+            CreditLedgerEntry.objects.filter(verification_token=token)
+            .select_related("account__customer", "account__store")
+            .first()
+        )
+        if entry:
+            return Response(self._credit_payload(entry))
+
+        # 4) Stock movement batch
+        if token.startswith("batch-"):
+            batch_id = token[6:]
+            movement = (
+                InventoryMovement.objects.filter(batch_id=batch_id)
+                .select_related("store")
+                .first()
+            )
+            if movement:
+                return Response(self._stock_payload(movement))
+
+        return Response({"found": False}, status=status.HTTP_404_NOT_FOUND)
+
+    # -- payload builders -----------------------------------------------------
+
+    @staticmethod
+    def _sale_payload(sale):
+        store = sale.store
+        return {
+            "found": True,
+            "document_type": "INVOICE",
+            "number": sale.invoice_number or f"FAC-{str(sale.pk).split('-')[0].upper()}",
+            "date": sale.created_at.isoformat() if sale.created_at else "",
+            "total": str(sale.total_amount),
+            "currency": "FCFA",
+            "status": sale.status,
+            "enterprise": getattr(store, "enterprise", None) and store.enterprise.name or "",
+            "store": store.name,
+            "hash": sale.verification_hash,
+            "customer": str(sale.customer) if sale.customer else "Client comptoir",
+        }
+
+    @staticmethod
+    def _quote_payload(quote):
+        store = quote.store
+        return {
+            "found": True,
+            "document_type": "QUOTE",
+            "number": quote.quote_number or f"DEV-{str(quote.pk).split('-')[0].upper()}",
+            "date": quote.created_at.isoformat() if quote.created_at else "",
+            "total": str(quote.total_amount),
+            "currency": "FCFA",
+            "status": quote.status,
+            "enterprise": getattr(store, "enterprise", None) and store.enterprise.name or "",
+            "store": store.name,
+            "hash": quote.verification_hash,
+            "customer": str(quote.customer) if quote.customer else "",
+        }
+
+    @staticmethod
+    def _credit_payload(entry):
+        account = entry.account
+        store = account.store
+        return {
+            "found": True,
+            "document_type": "CREDIT_PAYMENT",
+            "number": f"RCR-{str(entry.pk).split('-')[0].upper()}",
+            "date": entry.created_at.isoformat() if entry.created_at else "",
+            "total": str(abs(entry.amount)),
+            "currency": "FCFA",
+            "status": "PAID",
+            "enterprise": getattr(store, "enterprise", None) and store.enterprise.name or "",
+            "store": store.name,
+            "hash": entry.verification_hash,
+            "customer": str(account.customer) if account.customer else "",
+        }
+
+    @staticmethod
+    def _stock_payload(movement):
+        store = movement.store
+        return {
+            "found": True,
+            "document_type": "STOCK_MOVEMENT",
+            "number": f"MVT-{str(movement.batch_id).split('-')[0].upper()}",
+            "date": movement.created_at.isoformat() if movement.created_at else "",
+            "total": "",
+            "currency": "FCFA",
+            "status": movement.movement_type,
+            "enterprise": getattr(store, "enterprise", None) and store.enterprise.name or "",
+            "store": store.name,
+            "hash": "",
+            "customer": "",
+        }

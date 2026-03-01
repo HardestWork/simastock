@@ -167,4 +167,7 @@ urlpatterns = [
 
     # DG Dashboard
     path('dg/dashboard/', dg_views.DGDashboardView.as_view(), name='dg-dashboard'),
+
+    # Public document verification (no auth required)
+    path('documents/verify/<str:token>/', v1_views.DocumentVerifyView.as_view(), name='document-verify'),
 ]

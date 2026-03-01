@@ -307,6 +307,7 @@ REST_FRAMEWORK = {
         "user": env("DRF_THROTTLE_USER", default="600/min"),
         "auth_burst": env("DRF_THROTTLE_AUTH_BURST", default="20/min"),
         "auth_sustained": env("DRF_THROTTLE_AUTH_SUSTAINED", default="200/day"),
+        "document_verify": "15/min",
     },
 }
 

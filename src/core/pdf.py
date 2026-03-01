@@ -124,6 +124,21 @@ def _build_document_meta(sale, invoice_config, document_kind, now):
     }
 
 
+def _verification_context(obj):
+    """Build verification context (QR data URI, hash, URL) for a model instance."""
+    from core.verification import build_verify_url, generate_qr_data_uri
+    token = getattr(obj, "verification_token", None)
+    vhash = getattr(obj, "verification_hash", "")
+    if not token:
+        return {}
+    url = build_verify_url(token)
+    return {
+        "verify_url": url,
+        "verify_hash": vhash,
+        "qr_data_uri": generate_qr_data_uri(url),
+    }
+
+
 def generate_invoice_pdf(sale, store, document_kind="invoice"):
     """Generate A4 invoice PDF for a sale."""
     from django.utils import timezone
@@ -143,6 +158,7 @@ def generate_invoice_pdf(sale, store, document_kind="invoice"):
         "invoice_config": invoice_config,
         "document": document,
         "now": now,
+        **_verification_context(sale),
     }
     filename = _safe_pdf_filename(
         document.get("number") or sale.invoice_number or f"FACTURE-{sale.id}",
@@ -162,6 +178,7 @@ def generate_receipt_pdf(sale, store, payments=None, change=0, cashier_name=""):
         "change": change,
         "cashier_name": cashier_name,
         "now": timezone.now(),
+        **_verification_context(sale),
     }
     sale_ref = sale.invoice_number or str(sale.id).split("-")[0].upper()
     filename = _safe_pdf_filename(f"REC-{sale_ref}", fallback="recu")
@@ -225,6 +242,7 @@ def generate_credit_payment_receipt_pdf(account, entry, store):
         "store": store,
         "invoice_config": _build_invoice_config(store),
         "now": timezone.now(),
+        **_verification_context(entry),
     }
     entry_ref = str(entry.pk).split("-")[0].upper()
     filename = _safe_pdf_filename(f"RCR-{entry_ref}", fallback="remboursement-credit")
@@ -241,6 +259,7 @@ def generate_quote_pdf(quote, store):
         "store": store,
         "invoice_config": invoice_config,
         "now": now,
+        **_verification_context(quote),
     }
     filename = _safe_pdf_filename(
         quote.quote_number or f"DEV-{quote.id}",

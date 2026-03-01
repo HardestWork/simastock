@@ -327,5 +327,16 @@
         {% if invoice_config.footer %}{{ invoice_config.footer }}<br>{% endif %}
         Genere le {{ now|date:"d/m/Y a H:i" }}
     </div>
+
+    {% if verify_url %}
+    <div style="margin-top: 24px; border-top: 1px solid #ddd; padding-top: 12px; display: flex; align-items: center; gap: 12px;">
+      <img src="{{ qr_data_uri }}" style="width: 64px; height: 64px;" alt="QR verification" />
+      <div style="font-size: 8px; color: #888; line-height: 1.5;">
+        <div>Code d'authenticite: <strong style="color: #333; font-size: 9px;">{{ verify_hash }}</strong></div>
+        <div>Verifier ce document: <span style="color: #555;">{{ verify_url }}</span></div>
+        <div style="margin-top: 2px;">Scannez le QR code ou visitez le lien pour verifier l'authenticite.</div>
+      </div>
+    </div>
+    {% endif %}
 </body>
 </html>

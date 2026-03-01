@@ -103,6 +103,7 @@ const HrmEmployeeFormPage = lazyRetry(() => import('@/features/hrm/EmployeeFormP
 const HrmLeaveRequestListPage = lazyRetry(() => import('@/features/hrm/LeaveRequestListPage'));
 const HrmAttendanceListPage = lazyRetry(() => import('@/features/hrm/AttendanceListPage'));
 const HrmPayrollPage = lazyRetry(() => import('@/features/hrm/PayrollPage'));
+const VerifyDocumentPage = lazyRetry(() => import('@/features/verify/VerifyDocumentPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -134,6 +135,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/forgot-password" element={<Suspense fallback={<PageLoader />}><ForgotPasswordPage /></Suspense>} />
             <Route path="/reset-password" element={<Suspense fallback={<PageLoader />}><ResetPasswordPage /></Suspense>} />
+            <Route path="/verify/:token" element={<Suspense fallback={<PageLoader />}><VerifyDocumentPage /></Suspense>} />
 
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>

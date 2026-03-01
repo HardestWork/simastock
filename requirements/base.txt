@@ -20,6 +20,7 @@ django-celery-results>=2.5
 
 # PDF
 WeasyPrint>=62.0
+qrcode[pil]>=7.4
 
 # Excel
 openpyxl>=3.1

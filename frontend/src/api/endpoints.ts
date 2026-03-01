@@ -115,6 +115,7 @@ import type {
   HrmDisciplinaryAction,
   HrmEmployeeDocument,
   HrmHoliday,
+  DocumentVerification,
 } from './types';
 import type { Capability } from './types';
 
@@ -1350,4 +1351,13 @@ export const hrmApi = {
     delete: (id: string) =>
       apiClient.delete(`hrm/holidays/${id}/`),
   },
+};
+
+// ---------------------------------------------------------------------------
+// Public document verification (no auth required)
+// ---------------------------------------------------------------------------
+
+export const documentApi = {
+  verify: (token: string) =>
+    apiClient.get<DocumentVerification>(`documents/verify/${token}/`).then(r => r.data),
 };

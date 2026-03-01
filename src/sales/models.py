@@ -151,6 +151,25 @@ class Sale(TimeStampedModel):
         default="",
     )
 
+    # ------------------------------------------------------------------
+    # Document verification
+    # ------------------------------------------------------------------
+    verification_token = models.CharField(
+        "jeton de verification",
+        max_length=32,
+        unique=True,
+        editable=False,
+        null=True,
+        db_index=True,
+    )
+    verification_hash = models.CharField(
+        "hash de verification",
+        max_length=16,
+        editable=False,
+        blank=True,
+        default="",
+    )
+
     class Meta:
         verbose_name = "vente"
         verbose_name_plural = "ventes"
@@ -166,6 +185,14 @@ class Sale(TimeStampedModel):
     def __str__(self):
         label = self.invoice_number or f"DRAFT-{str(self.pk)[:8]}"
         return f"Vente {label}"
+
+    def save(self, *args, **kwargs):
+        if not self.verification_token:
+            from core.verification import generate_verification_token, generate_verification_hash
+            self.verification_token = generate_verification_token()
+            created_iso = self.created_at.isoformat() if self.created_at else ""
+            self.verification_hash = generate_verification_hash(str(self.pk), created_iso)
+        super().save(*args, **kwargs)
 
     # ------------------------------------------------------------------
     # Calculation helpers
@@ -479,6 +506,25 @@ class Quote(TimeStampedModel):
     conditions = models.TextField("conditions particulieres", blank=True, default="")
     refusal_reason = models.TextField("raison du refus", blank=True, default="")
 
+    # ------------------------------------------------------------------
+    # Document verification
+    # ------------------------------------------------------------------
+    verification_token = models.CharField(
+        "jeton de verification",
+        max_length=32,
+        unique=True,
+        editable=False,
+        null=True,
+        db_index=True,
+    )
+    verification_hash = models.CharField(
+        "hash de verification",
+        max_length=16,
+        editable=False,
+        blank=True,
+        default="",
+    )
+
     class Meta:
         verbose_name = "devis"
         verbose_name_plural = "devis"
@@ -494,6 +540,14 @@ class Quote(TimeStampedModel):
     def __str__(self):
         label = self.quote_number or f"DRAFT-{str(self.pk)[:8]}"
         return f"Devis {label}"
+
+    def save(self, *args, **kwargs):
+        if not self.verification_token:
+            from core.verification import generate_verification_token, generate_verification_hash
+            self.verification_token = generate_verification_token()
+            created_iso = self.created_at.isoformat() if self.created_at else ""
+            self.verification_hash = generate_verification_hash(str(self.pk), created_iso)
+        super().save(*args, **kwargs)
 
     # ------------------------------------------------------------------
     # Calculation helpers

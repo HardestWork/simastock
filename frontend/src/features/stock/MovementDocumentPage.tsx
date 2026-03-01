@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ArrowLeft, Printer } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import type { MovementType } from '@/api/types';
@@ -239,6 +240,23 @@ export default function MovementDocumentPage() {
             </div>
           </div>
         </div>
+
+        {/* Verification QR */}
+        {data.batch_id && (
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3 print:border-gray-300">
+            <QRCodeSVG
+              value={`${window.location.origin}/verify/batch-${data.batch_id}`}
+              size={60}
+              level="M"
+            />
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              <div>Verifier ce document :</div>
+              <div className="font-mono text-[10px] mt-0.5 break-all">
+                {window.location.origin}/verify/batch-{data.batch_id}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

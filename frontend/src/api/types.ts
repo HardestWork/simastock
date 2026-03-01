@@ -2411,3 +2411,21 @@ export interface HrmHoliday {
   created_at: string;
   updated_at: string;
 }
+
+// ---------------------------------------------------------------------------
+// Document verification (public)
+// ---------------------------------------------------------------------------
+
+export interface DocumentVerification {
+  found: boolean;
+  document_type: string;
+  number: string;
+  date: string;
+  total: string;
+  currency: string;
+  status: string;
+  enterprise: string;
+  store: string;
+  hash: string;
+  customer: string;
+}
