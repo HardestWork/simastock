@@ -86,7 +86,15 @@ export default function MovementDocumentPage() {
     );
   }
 
-  const dateFormatted = format(new Date(data.date), 'dd/MM/yyyy HH:mm');
+  let dateFormatted = '';
+  try {
+    dateFormatted = format(new Date(data.date), 'dd/MM/yyyy HH:mm');
+  } catch {
+    dateFormatted = String(data.date ?? '—');
+  }
+
+  // Debug: log full data for troubleshooting (check browser console)
+  console.log('[MovementDocument] data:', JSON.stringify(data, null, 2));
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -113,7 +121,7 @@ export default function MovementDocumentPage() {
         {/* Document title */}
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
-            {data.doc_type}
+            {String(data.doc_type ?? '')}
           </h1>
         </div>
 
@@ -123,7 +131,7 @@ export default function MovementDocumentPage() {
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Magasin
             </span>
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{data.store_name}</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{String(data.store_name ?? '')}</p>
           </div>
           <div>
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
@@ -135,15 +143,15 @@ export default function MovementDocumentPage() {
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Lot (Batch)
             </span>
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5 font-mono">{data.batch_id}</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5 font-mono">{String(data.batch_id ?? '')}</p>
           </div>
           <div>
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Reference
             </span>
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{data.reference || '\u2014'}</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-0.5">{data.reference ? String(data.reference) : '\u2014'}</p>
           </div>
-          {data.reason && (
+          {typeof data.reason === 'string' && data.reason.length > 0 && (
             <div className="col-span-2">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Motif
@@ -177,7 +185,7 @@ export default function MovementDocumentPage() {
                   >
                     {/* Product */}
                     <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">
-                      {movement.product_name}
+                      {String(movement.product_name ?? '')}
                     </td>
 
                     {/* Quantity — color-coded */}
@@ -193,16 +201,16 @@ export default function MovementDocumentPage() {
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium print:bg-transparent print:text-gray-700 ${
-                          MOVEMENT_TYPE_COLORS[movement.movement_type]
+                          MOVEMENT_TYPE_COLORS[movement.movement_type] ?? ''
                         }`}
                       >
-                        {MOVEMENT_TYPE_LABELS[movement.movement_type]}
+                        {MOVEMENT_TYPE_LABELS[movement.movement_type] ?? String(movement.movement_type)}
                       </span>
                     </td>
 
                     {/* Actor */}
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {movement.actor_name || '\u2014'}
+                      {movement.actor_name ? String(movement.actor_name) : '\u2014'}
                     </td>
                   </tr>
                 );
@@ -223,11 +231,11 @@ export default function MovementDocumentPage() {
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-w-[220px] print:border-gray-300">
             <div className="flex justify-between items-center gap-8 py-1 border-b border-gray-100 dark:border-gray-700 text-sm">
               <span className="text-gray-600 dark:text-gray-400">Nombre de lignes</span>
-              <span className="font-semibold text-gray-800 dark:text-gray-200">{data.total_lines}</span>
+              <span className="font-semibold text-gray-800 dark:text-gray-200">{String(data.total_lines)}</span>
             </div>
             <div className="flex justify-between items-center gap-8 py-1 text-sm">
               <span className="text-gray-600 dark:text-gray-400">Quantite totale</span>
-              <span className="font-bold text-gray-900 dark:text-gray-100">{data.total_qty}</span>
+              <span className="font-bold text-gray-900 dark:text-gray-100">{String(data.total_qty)}</span>
             </div>
           </div>
         </div>
