@@ -50,6 +50,17 @@ export default function MovementDocumentPage() {
     enabled: !!batchId,
   });
 
+  // useEffect MUST be called before any early return (Rules of Hooks)
+  useEffect(() => {
+    if (!data) return;
+    const previousTitle = document.title;
+    const reference = data.reference || data.batch_id;
+    document.title = sanitizePrintTitle(`${data.doc_type}-${reference}`);
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [data]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -76,15 +87,6 @@ export default function MovementDocumentPage() {
   }
 
   const dateFormatted = format(new Date(data.date), 'dd/MM/yyyy HH:mm');
-
-  useEffect(() => {
-    const previousTitle = document.title;
-    const reference = data.reference || data.batch_id;
-    document.title = sanitizePrintTitle(`${data.doc_type}-${reference}`);
-    return () => {
-      document.title = previousTitle;
-    };
-  }, [data.batch_id, data.doc_type, data.reference]);
 
   return (
     <div className="max-w-4xl mx-auto">
