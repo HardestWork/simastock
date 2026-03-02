@@ -141,7 +141,7 @@ export default function DashboardPage() {
       icon: <DollarSign size={24} />,
       color: 'bg-blue-500',
       trend: revenueGrowth,
-      roles: ['ADMIN', 'MANAGER', 'SALES', 'CASHIER'],
+      roles: ['ADMIN', 'MANAGER', 'SALES', 'CASHIER', 'SALES_CASHIER'],
     },
     {
       key: 'net_sales',
@@ -159,7 +159,7 @@ export default function DashboardPage() {
       icon: <ShoppingBag size={24} />,
       color: 'bg-emerald-500',
       trend: pctChange(kpis?.total_orders, prevKpis?.total_orders),
-      roles: ['ADMIN', 'MANAGER', 'SALES', 'CASHIER'],
+      roles: ['ADMIN', 'MANAGER', 'SALES', 'CASHIER', 'SALES_CASHIER'],
     },
     {
       key: 'basket',
@@ -168,7 +168,7 @@ export default function DashboardPage() {
       icon: <ShoppingCart size={24} />,
       color: 'bg-amber-500',
       trend: pctChange(kpis?.average_basket, prevKpis?.average_basket),
-      roles: ['ADMIN', 'MANAGER', 'SALES'],
+      roles: ['ADMIN', 'MANAGER', 'SALES', 'SALES_CASHIER'],
     },
     {
       key: 'margin',

@@ -79,9 +79,10 @@ def _validate_user_role_transition(*, request, target_role, current_role=None):
         "HR",
         "CASHIER",
         "STOCKER",
+        "SALES_CASHIER",
     ):
         raise serializers.ValidationError(
-            "Les managers ne peuvent creer/gerer que des utilisateurs SALES, COMMERCIAL, HR, CASHIER ou STOCKER."
+            "Les managers ne peuvent creer/gerer que des utilisateurs SALES, COMMERCIAL, HR, CASHIER, STOCKER ou SALES_CASHIER."
         )
 
 

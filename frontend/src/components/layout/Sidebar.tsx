@@ -103,7 +103,7 @@ const navItems: NavItem[] = [
     label: 'Tableau de bord',
     icon: <LayoutDashboard size={20} />,
     module: 'CORE',
-    roles: ['ADMIN', 'MANAGER', 'HR', 'COMMERCIAL', 'SALES', 'CASHIER', 'STOCKER'],
+    roles: ['ADMIN', 'MANAGER', 'HR', 'COMMERCIAL', 'SALES', 'CASHIER', 'SALES_CASHIER', 'STOCKER'],
   },
   {
     section: '',
@@ -111,7 +111,7 @@ const navItems: NavItem[] = [
     label: 'Alertes',
     icon: <Bell size={20} />,
     module: 'ALERTS',
-    roles: ['ADMIN', 'MANAGER', 'HR', 'COMMERCIAL', 'SALES', 'CASHIER', 'STOCKER'],
+    roles: ['ADMIN', 'MANAGER', 'HR', 'COMMERCIAL', 'SALES', 'CASHIER', 'SALES_CASHIER', 'STOCKER'],
   },
 
   {
@@ -120,7 +120,7 @@ const navItems: NavItem[] = [
     label: 'Point de Vente',
     icon: <ShoppingCart size={20} />,
     module: 'SELL',
-    roles: ['SALES', 'MANAGER', 'ADMIN'],
+    roles: ['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     capability: 'CAN_SELL',
   },
   {
@@ -129,7 +129,7 @@ const navItems: NavItem[] = [
     label: 'Devis',
     icon: <FileText size={20} />,
     module: 'SELL',
-    roles: ['SALES', 'MANAGER', 'ADMIN'],
+    roles: ['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     capability: 'CAN_SELL',
   },
   {
@@ -138,21 +138,21 @@ const navItems: NavItem[] = [
     label: 'Clients & Credit',
     icon: <Users size={20} />,
     module: 'CUSTOMER',
-    roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER'],
+    roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER'],
     children: [
       {
         path: '/customers',
         label: 'Clients',
         icon: <Users size={15} />,
         module: 'CUSTOMER',
-        roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER'],
+        roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER'],
       },
       {
         path: '/credits',
         label: 'Credits',
         icon: <CreditCard size={15} />,
         module: 'CUSTOMER',
-        roles: ['MANAGER', 'ADMIN', 'CASHIER'],
+        roles: ['MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER'],
       },
       {
         path: '/customers/intelligence',
@@ -169,14 +169,14 @@ const navItems: NavItem[] = [
     label: 'Commercial CRM',
     icon: <Target size={20} />,
     module: 'COMMERCIAL',
-    roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
+    roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     children: [
       {
         path: '/commercial',
         label: 'Pipeline',
         icon: <Target size={15} />,
         module: 'COMMERCIAL',
-        roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
+        roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_MANAGE_OPPORTUNITIES',
       },
       {
@@ -184,7 +184,7 @@ const navItems: NavItem[] = [
         label: 'Prospects',
         icon: <Users size={15} />,
         module: 'COMMERCIAL',
-        roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
+        roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_MANAGE_LEADS',
       },
       {
@@ -192,7 +192,7 @@ const navItems: NavItem[] = [
         label: 'Relances',
         icon: <ClipboardList size={15} />,
         module: 'COMMERCIAL',
-        roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
+        roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_LOG_ACTIVITY',
       },
       {
@@ -200,7 +200,7 @@ const navItems: NavItem[] = [
         label: 'Primes',
         icon: <Wallet size={15} />,
         module: 'COMMERCIAL',
-        roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
+        roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_APPROVE_COMMERCIAL_BONUS',
       },
     ],
@@ -211,14 +211,14 @@ const navItems: NavItem[] = [
     label: 'Caisse',
     icon: <Banknote size={20} />,
     module: 'CASH',
-    roles: ['CASHIER', 'MANAGER', 'ADMIN'],
+    roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     children: [
       {
         path: '/cashier',
         label: 'Tableau de bord',
         icon: <Banknote size={15} />,
         module: 'CASH',
-        roles: ['CASHIER', 'MANAGER', 'ADMIN'],
+        roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_CASH',
       },
       {
@@ -226,7 +226,7 @@ const navItems: NavItem[] = [
         label: 'Mon Analyse',
         icon: <Shield size={15} />,
         module: 'ANALYTICS_CASHIER',
-        roles: ['CASHIER', 'MANAGER', 'ADMIN'],
+        roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_CASH',
       },
       {
@@ -244,7 +244,7 @@ const navItems: NavItem[] = [
     label: 'Depenses',
     icon: <Wallet size={20} />,
     module: 'EXPENSE',
-    roles: ['CASHIER', 'MANAGER', 'ADMIN'],
+    roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     capability: 'CAN_VIEW_EXPENSE_REPORTS',
     children: [
       {
@@ -252,7 +252,7 @@ const navItems: NavItem[] = [
         label: 'Liste',
         icon: <Wallet size={15} />,
         module: 'EXPENSE',
-        roles: ['CASHIER', 'MANAGER', 'ADMIN'],
+        roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_VIEW_EXPENSE_REPORTS',
       },
       {
@@ -260,7 +260,7 @@ const navItems: NavItem[] = [
         label: 'Dashboard',
         icon: <PieChart size={15} />,
         module: 'EXPENSE',
-        roles: ['CASHIER', 'MANAGER', 'ADMIN'],
+        roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_VIEW_EXPENSE_REPORTS',
       },
       {
@@ -324,7 +324,7 @@ const navItems: NavItem[] = [
     label: 'Catalogue',
     icon: <Package size={20} />,
     module: 'SELL',
-    roles: ['SALES', 'MANAGER', 'ADMIN', 'STOCKER'],
+    roles: ['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN', 'STOCKER'],
     children: [
       { path: '/catalog', label: 'Produits', icon: <Package size={15} />, module: 'SELL' },
       {
@@ -432,14 +432,14 @@ const navItems: NavItem[] = [
     label: 'Objectifs',
     icon: <Target size={20} />,
     module: 'SELLER_PERF',
-    roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
+    roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     children: [
       {
         path: '/objectives/my-goal',
         label: 'Mon Objectif',
         icon: <Target size={15} />,
         module: 'SELLER_PERF',
-        roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN'],
+        roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
       },
       {
         path: '/objectives/admin',

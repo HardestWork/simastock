@@ -22,6 +22,7 @@ const SYSTEM_ROLE_OPTIONS = [
   { value: 'COMMERCIAL', label: 'Commercial' },
   { value: 'SALES', label: 'Vendeur' },
   { value: 'CASHIER', label: 'Caissier' },
+  { value: 'SALES_CASHIER', label: 'Vendeur-Caissier' },
   { value: 'STOCKER', label: 'Magasinier' },
 ] as const;
 

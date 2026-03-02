@@ -153,7 +153,7 @@ export default function App() {
                 <Route
                   element={
                     <ProtectedRoute
-                      allowedRoles={['SALES', 'MANAGER', 'ADMIN']}
+                      allowedRoles={['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN']}
                       allowedCapabilities={['CAN_SELL']}
                       requiredModules={['SELL']}
                     />
@@ -167,7 +167,7 @@ export default function App() {
                 <Route
                   element={
                     <ProtectedRoute
-                      allowedRoles={['SALES', 'MANAGER', 'ADMIN']}
+                      allowedRoles={['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN']}
                       allowedCapabilities={['CAN_SELL']}
                       requiredModules={['SELL']}
                     />
@@ -183,7 +183,7 @@ export default function App() {
                 <Route
                   element={
                     <ProtectedRoute
-                      allowedRoles={['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN']}
+                      allowedRoles={['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN']}
                       requiredModules={['COMMERCIAL']}
                       allowedCapabilities={['CAN_MANAGE_LEADS', 'CAN_MANAGE_OPPORTUNITIES', 'CAN_LOG_ACTIVITY', 'CAN_APPROVE_COMMERCIAL_BONUS']}
                     />
@@ -199,7 +199,7 @@ export default function App() {
                 <Route
                   element={
                     <ProtectedRoute
-                      allowedRoles={['CASHIER', 'MANAGER', 'ADMIN']}
+                      allowedRoles={['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN']}
                       allowedCapabilities={['CAN_CASH']}
                       requiredModules={['CASH']}
                     />
@@ -212,7 +212,7 @@ export default function App() {
                 <Route
                   element={
                     <ProtectedRoute
-                      allowedRoles={['CASHIER', 'MANAGER', 'ADMIN']}
+                      allowedRoles={['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN']}
                       allowedCapabilities={['CAN_CASH']}
                       requiredModules={['ANALYTICS_CASHIER']}
                     />
@@ -225,7 +225,7 @@ export default function App() {
                 </Route>
 
                 {/* Catalog (read) */}
-                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN', 'STOCKER']} requiredModules={['SELL']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN', 'STOCKER']} requiredModules={['SELL']} />}>
                   <Route path="/catalog" element={<Suspense fallback={<PageLoader />}><ProductListPage /></Suspense>} />
                   <Route path="/catalog/:id" element={<Suspense fallback={<PageLoader />}><ProductDetailPage /></Suspense>} />
                 </Route>
@@ -260,7 +260,7 @@ export default function App() {
                 </Route>
 
                 {/* Customers */}
-                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN', 'CASHIER']} requiredModules={['CUSTOMER']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER']} requiredModules={['CUSTOMER']} />}>
                   <Route path="/customers" element={<Suspense fallback={<PageLoader />}><CustomerListPage /></Suspense>} />
                   <Route path="/customers/new" element={<Suspense fallback={<PageLoader />}><CustomerFormPage /></Suspense>} />
                   <Route path="/customers/:id" element={<Suspense fallback={<PageLoader />}><CustomerDetailPage /></Suspense>} />
@@ -271,13 +271,13 @@ export default function App() {
                 </Route>
 
                 {/* Credits */}
-                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN', 'CASHIER']} requiredModules={['CUSTOMER']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER']} requiredModules={['CUSTOMER']} />}>
                   <Route path="/credits" element={<Suspense fallback={<PageLoader />}><CreditListPage /></Suspense>} />
                   <Route path="/credits/:id" element={<Suspense fallback={<PageLoader />}><CreditDetailPage /></Suspense>} />
                 </Route>
 
                 {/* Expenses */}
-                <Route element={<ProtectedRoute allowedRoles={['CASHIER', 'MANAGER', 'ADMIN']} requiredModules={['EXPENSE']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN']} requiredModules={['EXPENSE']} />}>
                   <Route path="/expenses" element={<Suspense fallback={<PageLoader />}><ExpenseListPage /></Suspense>} />
                   <Route path="/expenses/dashboard" element={<Suspense fallback={<PageLoader />}><ExpenseDashboardPage /></Suspense>} />
                 </Route>
@@ -307,7 +307,7 @@ export default function App() {
                 </Route>
 
                 {/* Objectives — seller view */}
-                <Route element={<ProtectedRoute allowedRoles={['SALES', 'MANAGER', 'ADMIN']} requiredModules={['SELLER_PERF']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN']} requiredModules={['SELLER_PERF']} />}>
                   <Route path="/objectives/my-goal" element={<Suspense fallback={<PageLoader />}><SellerObjectivePage /></Suspense>} />
                 </Route>
 

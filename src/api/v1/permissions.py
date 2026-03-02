@@ -577,13 +577,13 @@ class _CapabilityPermission(BasePermission):
 class IsCashier(_CapabilityPermission):
     """Allow access to cashiers, managers, and admins (or users with CAN_CASH)."""
     capability = "CAN_CASH"
-    allowed_roles = ("CASHIER", "ADMIN", "MANAGER")
+    allowed_roles = ("CASHIER", "SALES_CASHIER", "ADMIN", "MANAGER")
 
 
 class IsSales(_CapabilityPermission):
     """Allow access to sales staff, managers, and admins (or users with CAN_SELL)."""
     capability = "CAN_SELL"
-    allowed_roles = ("SALES", "ADMIN", "MANAGER")
+    allowed_roles = ("SALES", "SALES_CASHIER", "ADMIN", "MANAGER")
 
 
 class IsStoreMember(BasePermission):
@@ -659,7 +659,7 @@ class IsStoreMember(BasePermission):
 class CanProcessPayment(_CapabilityPermission):
     """Allow cashiers, managers, and admins to process payments."""
     capability = "CAN_CASH"
-    allowed_roles = ("CASHIER", "MANAGER", "ADMIN")
+    allowed_roles = ("CASHIER", "SALES_CASHIER", "MANAGER", "ADMIN")
 
 
 class CanApproveRefund(_CapabilityPermission):
@@ -677,7 +677,7 @@ class CanOverridePrice(_CapabilityPermission):
 class CanCreateExpense(_CapabilityPermission):
     """Allow cashier/manager/admin to create expenses."""
     capability = "CAN_CREATE_EXPENSE"
-    allowed_roles = ("CASHIER", "MANAGER", "ADMIN")
+    allowed_roles = ("CASHIER", "SALES_CASHIER", "MANAGER", "ADMIN")
 
 
 class CanEditExpense(_CapabilityPermission):
@@ -695,7 +695,7 @@ class CanVoidExpense(_CapabilityPermission):
 class CanViewExpenseReports(_CapabilityPermission):
     """Allow cashier/manager/admin to view expense analytics and lists."""
     capability = "CAN_VIEW_EXPENSE_REPORTS"
-    allowed_roles = ("CASHIER", "MANAGER", "ADMIN")
+    allowed_roles = ("CASHIER", "SALES_CASHIER", "MANAGER", "ADMIN")
 
 
 class CanManageExpenseCategories(_CapabilityPermission):
@@ -719,19 +719,19 @@ class CanSetExpenseBudgets(_CapabilityPermission):
 class CanManageLeads(_CapabilityPermission):
     """Allow sales/manager/admin to manage leads and prospects."""
     capability = "CAN_MANAGE_LEADS"
-    allowed_roles = ("SALES", "COMMERCIAL", "MANAGER", "ADMIN")
+    allowed_roles = ("SALES", "SALES_CASHIER", "COMMERCIAL", "MANAGER", "ADMIN")
 
 
 class CanManageOpportunities(_CapabilityPermission):
     """Allow sales/manager/admin to manage opportunities."""
     capability = "CAN_MANAGE_OPPORTUNITIES"
-    allowed_roles = ("SALES", "COMMERCIAL", "MANAGER", "ADMIN")
+    allowed_roles = ("SALES", "SALES_CASHIER", "COMMERCIAL", "MANAGER", "ADMIN")
 
 
 class CanLogCommercialActivity(_CapabilityPermission):
     """Allow sales/manager/admin to log activities and follow-up tasks."""
     capability = "CAN_LOG_ACTIVITY"
-    allowed_roles = ("SALES", "COMMERCIAL", "MANAGER", "ADMIN")
+    allowed_roles = ("SALES", "SALES_CASHIER", "COMMERCIAL", "MANAGER", "ADMIN")
 
 
 class CanViewCommercialTeam(_CapabilityPermission):

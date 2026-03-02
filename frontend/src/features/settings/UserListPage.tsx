@@ -23,6 +23,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   COMMERCIAL: 'Commercial',
   SALES: 'Vendeur',
   CASHIER: 'Caissier',
+  SALES_CASHIER: 'Vendeur-Caissier',
   STOCKER: 'Magasinier',
 };
 
@@ -33,6 +34,7 @@ const ROLE_BADGE_CLASSES: Record<UserRole, string> = {
   COMMERCIAL: 'bg-indigo-100 text-indigo-700',
   SALES: 'bg-emerald-100 text-emerald-700',
   CASHIER: 'bg-amber-100 text-amber-700',
+  SALES_CASHIER: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
   STOCKER: 'bg-gray-100 text-gray-700',
 };
 
@@ -44,6 +46,7 @@ const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'COMMERCIAL', label: 'Commercial' },
   { value: 'SALES', label: 'Vendeur' },
   { value: 'CASHIER', label: 'Caissier' },
+  { value: 'SALES_CASHIER', label: 'Vendeur-Caissier' },
   { value: 'STOCKER', label: 'Magasinier' },
 ];
 

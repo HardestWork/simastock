@@ -17,6 +17,7 @@ const BASE_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'COMMERCIAL', label: 'Commercial' },
   { value: 'SALES', label: 'Vendeur' },
   { value: 'CASHIER', label: 'Caissier' },
+  { value: 'SALES_CASHIER', label: 'Vendeur-Caissier' },
   { value: 'STOCKER', label: 'Magasinier' },
 ];
 
@@ -27,6 +28,7 @@ const BASE_ROLE_LABELS: Record<UserRole, string> = {
   COMMERCIAL: 'Commercial',
   SALES: 'Vendeur',
   CASHIER: 'Caissier',
+  SALES_CASHIER: 'Vendeur-Caissier',
   STOCKER: 'Magasinier',
 };
 

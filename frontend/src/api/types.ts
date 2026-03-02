@@ -27,7 +27,7 @@ export interface CustomRole {
   created_at: string;
 }
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'HR' | 'COMMERCIAL' | 'SALES' | 'CASHIER' | 'STOCKER';
+export type UserRole = 'ADMIN' | 'MANAGER' | 'HR' | 'COMMERCIAL' | 'SALES' | 'CASHIER' | 'SALES_CASHIER' | 'STOCKER';
 
 export type Capability =
   | 'CAN_MANAGE_USERS'
