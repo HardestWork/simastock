@@ -214,23 +214,23 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Tableau de bord</h1>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Tableau de bord</h1>
           <button
             onClick={openConfig}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shrink-0"
           >
             <SlidersHorizontal size={16} />
-            Personnaliser
+            <span className="hidden sm:inline">Personnaliser</span>
           </button>
-          <PeriodSelector
-            value={period}
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            onChange={handlePeriodChange}
-          />
         </div>
+        <PeriodSelector
+          value={period}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onChange={handlePeriodChange}
+        />
       </div>
 
       {/* Section 1 — KPI Cards */}
@@ -251,7 +251,7 @@ export default function DashboardPage() {
 
       {/* Section 2 — Charts (Admin/Manager) */}
       {showAdvanced && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {isVisible('salesTrend') && kpis?.sales_trend && kpis.sales_trend.length > 0 && (
             <SalesTrendChart data={kpis.sales_trend} />
           )}

@@ -322,6 +322,7 @@ class JournalEntry(TimeStampedModel):
         related_name="validated_journal_entries",
         verbose_name="valide par",
     )
+    validated_at = models.DateTimeField("date de validation", null=True, blank=True)
     is_reversal = models.BooleanField("contre-passation", default=False)
     reversed_entry = models.ForeignKey(
         "self",

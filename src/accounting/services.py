@@ -10,7 +10,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Max
+from django.utils import timezone
 
 from accounting.models import (
     Account,
@@ -37,6 +37,7 @@ def _get_settings(enterprise):
     try:
         return enterprise.accounting_settings
     except AccountingSettings.DoesNotExist:
+        logger.warning("Paramètres comptables non trouvés pour %s", enterprise)
         return None
 
 
@@ -61,12 +62,20 @@ def _get_active_period(enterprise, entry_date: date):
 
 
 def _next_sequence(journal, fiscal_year):
-    """Return the next continuous sequence number for a journal in a fiscal year."""
-    current_max = JournalEntry.objects.filter(
-        journal=journal,
-        fiscal_year=fiscal_year,
-    ).aggregate(m=Max("sequence_number"))["m"]
-    return (current_max or 0) + 1
+    """Return the next continuous sequence number for a journal in a fiscal year.
+
+    Uses select_for_update() to prevent duplicate sequence numbers under
+    concurrent load. Must be called inside a transaction.atomic() block.
+    """
+    last = (
+        JournalEntry.objects
+        .select_for_update()
+        .filter(journal=journal, fiscal_year=fiscal_year)
+        .order_by("-sequence_number")
+        .only("sequence_number")
+        .first()
+    )
+    return (last.sequence_number if last else 0) + 1
 
 
 def _get_journal(enterprise, journal_code):
@@ -142,12 +151,12 @@ def create_journal_entry(
 
     journal = _get_journal(enterprise, journal_code)
     if not journal:
-        logger.warning("Journal %s introuvable pour %s", journal_code, enterprise)
+        logger.warning("Journal '%s' introuvable pour %s.", journal_code, enterprise)
         return None
 
     fy, period = _get_active_period(enterprise, entry_date)
     if not fy or not period:
-        logger.warning("Pas de periode ouverte pour %s au %s", enterprise, entry_date)
+        logger.warning("Pas de période comptable ouverte pour %s à la date du %s.", enterprise, entry_date)
         return None
 
     # Validate balance
@@ -155,13 +164,19 @@ def create_journal_entry(
     total_credit = sum(l.get("credit", ZERO) for l in lines_data)
     if total_debit != total_credit:
         logger.error(
-            "Ecriture desequilibree: D=%s C=%s label=%s",
+            "Ecriture déséquilibrée: D=%s C=%s (label=%s)",
             total_debit, total_credit, label,
         )
         return None
 
     seq = _next_sequence(journal, fy)
     status = JournalEntry.Status.POSTED if auto_post else JournalEntry.Status.DRAFT
+
+    validated_at = None
+    validated_by = None
+    if status in [JournalEntry.Status.POSTED, JournalEntry.Status.VALIDATED]:
+        validated_at = timezone.now()
+        validated_by = created_by
 
     entry = JournalEntry.objects.create(
         enterprise=enterprise,
@@ -177,22 +192,24 @@ def create_journal_entry(
         source_type=source_type,
         source_id=source_id,
         created_by=created_by,
+        validated_by=validated_by,
+        validated_at=validated_at,
         is_reversal=False,
     )
 
-    for line in lines_data:
+    for line_data in lines_data:
         JournalEntryLine.objects.create(
             entry=entry,
-            account=line["account"],
-            debit=line.get("debit", ZERO),
-            credit=line.get("credit", ZERO),
-            label=line.get("label", ""),
-            partner_type=line.get("partner_type", ""),
-            partner_id=line.get("partner_id"),
+            account=line_data["account"],
+            debit=line_data.get("debit", ZERO),
+            credit=line_data.get("credit", ZERO),
+            label=line_data.get("label", ""),
+            partner_type=line_data.get("partner_type", ""),
+            partner_id=line_data.get("partner_id"),
         )
 
     logger.info(
-        "Ecriture %s-%06d creee: %s (source=%s/%s)",
+        "Ecriture %s-%06d créée: %s (source=%s/%s)",
         journal.code, seq, label, source_type, source_id,
     )
     return entry
@@ -206,7 +223,7 @@ def post_sale_entry(sale):
     """
     Generate a VE journal entry when a sale is PAID.
 
-    D: 411 Clients (if credit) or 571/585/521 (if direct)  = total TTC
+    D: 411 Clients                                          = total TTC
     C: 701 Ventes                                           = subtotal - discount
     C: 4431 TVA collectee                                   = tax_amount
     D: 673 Escomptes accordes                               = discount_amount (if any)
@@ -230,6 +247,7 @@ def post_sale_entry(sale):
             "debit": ZERO,
             "credit": net_sales,
             "label": f"Vente {sale.invoice_number or ''}".strip(),
+            "partner_id": None, "partner_type": "",
         })
 
     # Credit: TVA collectee
@@ -239,6 +257,7 @@ def post_sale_entry(sale):
             "debit": ZERO,
             "credit": sale.tax_amount,
             "label": "TVA collectee",
+            "partner_id": None, "partner_type": "",
         })
 
     # Debit: Escomptes accordes (if discount)
@@ -248,29 +267,21 @@ def post_sale_entry(sale):
             "debit": sale.discount_amount,
             "credit": ZERO,
             "label": "Remise accordee",
+            "partner_id": None, "partner_type": "",
         })
 
-    # Debit: Client (credit sale) or Treasury (paid directly)
-    if sale.is_credit_sale:
-        lines.append({
-            "account": settings.default_customer_account,
-            "debit": total,
-            "credit": ZERO,
-            "label": f"Client — {sale.invoice_number or ''}".strip(),
-            "partner_type": "customer",
-            "partner_id": sale.customer_id,
-        })
-    else:
-        # For direct sales, we'll debit the customer account too.
-        # The actual treasury debit is handled by post_payment_entry.
-        lines.append({
-            "account": settings.default_customer_account,
-            "debit": total,
-            "credit": ZERO,
-            "label": f"Client — {sale.invoice_number or ''}".strip(),
-            "partner_type": "customer",
-            "partner_id": sale.customer_id,
-        })
+    # Debit: This entry always debits the customer account.
+    # For direct (non-credit) sales, a subsequent `post_payment_entry` call
+    # will credit the customer account and debit the treasury account,
+    # effectively balancing the customer's account to zero.
+    lines.append({
+        "account": settings.default_customer_account,
+        "debit": total,
+        "credit": ZERO,
+        "label": f"Client — {sale.invoice_number or ''}".strip(),
+        "partner_type": "customer",
+        "partner_id": sale.customer_id,
+    })
 
     actor = getattr(sale, "seller", None)
     return create_journal_entry(
@@ -316,7 +327,7 @@ def post_payment_entry(payment):
     journal_code = _payment_method_to_journal_code(method)
     treasury_account = _payment_method_to_account(settings, method)
     if not treasury_account:
-        logger.warning("Pas de compte tresorerie pour method=%s", method)
+        logger.warning("Pas de compte de trésorerie pour la méthode de paiement '%s'", method)
         return None
 
     lines = [
@@ -325,12 +336,13 @@ def post_payment_entry(payment):
             "debit": payment.amount,
             "credit": ZERO,
             "label": f"Encaissement {sale.invoice_number or ''}".strip(),
+            "partner_id": None, "partner_type": "",
         },
         {
             "account": settings.default_customer_account,
             "debit": ZERO,
             "credit": payment.amount,
-            "label": f"Reglement client — {sale.invoice_number or ''}".strip(),
+            "label": f"Règlement client — {sale.invoice_number or ''}".strip(),
             "partner_type": "customer",
             "partner_id": sale.customer_id,
         },
@@ -394,6 +406,7 @@ def post_refund_entry(refund):
             "debit": refund_ht,
             "credit": ZERO,
             "label": "RRR accorde — remboursement",
+            "partner_id": None, "partner_type": "",
         },
     ]
     if refund_vat > ZERO:
@@ -402,6 +415,7 @@ def post_refund_entry(refund):
             "debit": refund_vat,
             "credit": ZERO,
             "label": "TVA collectee — remboursement",
+            "partner_id": None, "partner_type": "",
         })
     ve_lines.append({
         "account": settings.default_customer_account,
@@ -450,7 +464,8 @@ def post_refund_entry(refund):
             "account": treasury_account,
             "debit": ZERO,
             "credit": refund.amount,
-            "label": f"Sortie tresorerie — remboursement",
+            "label": "Sortie tresorerie — remboursement",
+            "partner_id": None, "partner_type": "",
         },
     ]
 
@@ -494,7 +509,9 @@ def post_purchase_entry(goods_receipt):
     if subtotal <= ZERO:
         return None
 
-    # Check if enterprise has a default tax rate for purchases
+    # NOTE: Tax is estimated based on the enterprise's default tax rate,
+    # as the PurchaseOrder model does not currently store tax information.
+    # This might lead to inaccuracies if purchase-specific tax differs from the default.
     vat_amount = ZERO
     if settings.default_tax_rate and not settings.default_tax_rate.is_exempt:
         vat_amount = (subtotal * settings.default_tax_rate.rate / 100).quantize(Decimal("0.01"))
@@ -507,6 +524,7 @@ def post_purchase_entry(goods_receipt):
             "debit": subtotal,
             "credit": ZERO,
             "label": f"Achat {po.po_number or ''}".strip(),
+            "partner_id": None, "partner_type": "",
         },
     ]
     if vat_amount > ZERO:
@@ -515,12 +533,13 @@ def post_purchase_entry(goods_receipt):
             "debit": vat_amount,
             "credit": ZERO,
             "label": "TVA deductible sur achats",
+            "partner_id": None, "partner_type": "",
         })
     lines.append({
         "account": settings.default_supplier_account,
         "debit": ZERO,
         "credit": total,
-        "label": f"Fournisseur — {po.supplier.company_name if po.supplier else ''}".strip(),
+        "label": f"Fournisseur — {po.supplier.name if po.supplier else ''}".strip(),
         "partner_type": "supplier",
         "partner_id": po.supplier_id,
     })
@@ -576,12 +595,14 @@ def post_expense_entry(expense):
             "debit": expense.amount,
             "credit": ZERO,
             "label": expense.description[:255] if expense.description else "",
+            "partner_id": None, "partner_type": "",
         },
         {
             "account": treasury_account,
             "debit": ZERO,
             "credit": expense.amount,
             "label": f"Depense {expense.expense_number}",
+            "partner_id": None, "partner_type": "",
         },
     ]
 
@@ -625,12 +646,14 @@ def post_expense_void_entry(expense):
             "debit": expense.amount,
             "credit": ZERO,
             "label": f"Annulation depense {expense.expense_number}",
+            "partner_id": None, "partner_type": "",
         },
         {
             "account": expense_account,
             "debit": ZERO,
             "credit": expense.amount,
             "label": f"Contre-passation {expense.expense_number}",
+            "partner_id": None, "partner_type": "",
         },
     ]
 
@@ -697,6 +720,7 @@ def _map_expense_category_to_account(category, enterprise):
             if acct:
                 return acct
 
+    # Fallback to 605 (Autres achats)
     return Account.objects.filter(enterprise=enterprise, code="605").first()
 
 
@@ -747,12 +771,13 @@ def post_credit_payment_entry(ledger_entry):
             "debit": amount,
             "credit": ZERO,
             "label": f"Paiement credit — {ledger_entry.reference or ''}".strip(),
+            "partner_id": None, "partner_type": "",
         },
         {
             "account": settings.default_customer_account,
             "debit": ZERO,
             "credit": amount,
-            "label": f"Reglement credit client",
+            "label": "Reglement credit client",
             "partner_type": "customer",
             "partner_id": customer_id,
         },

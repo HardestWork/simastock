@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; color: #333; background-color: #fdfdfd; }
+        h1 { color: #0F4C9A; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1.5em; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+        th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; font-weight: 600; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .number { text-align: right; font-family: monospace; }
+        tfoot { border-top: 2px solid #0F4C9A; }
+        .total-row td { font-weight: bold; background-color: #e9f2fc; }
+        .header-info { background-color: #fff; padding: 1em; border-radius: 8px; margin-bottom: 1.5em; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+    <div class="header-info">
+        <h1>{{ page_title }}</h1>
+        <p><strong>Entreprise:</strong> {{ enterprise.name }}</p>
+        {% if fiscal_year %}
+            <p><strong>Exercice fiscal:</strong> {{ fiscal_year.name }} ({{ fiscal_year.start_date|date:"d/m/Y" }} - {{ fiscal_year.end_date|date:"d/m/Y" }})</p>
+        {% endif %}
+    </div>
+
+    {% if balance_data %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Code Compte</th>
+                    <th>Libellé du Compte</th>
+                    <th class="number">Mouvements Débit</th>
+                    <th class="number">Mouvements Crédit</th>
+                    <th class="number">Solde Débit</th>
+                    <th class="number">Solde Crédit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in balance_data %}
+                <tr>
+                    <td>{{ item.account_code }}</td>
+                    <td>{{ item.account_name }}</td>
+                    <td class="number">{{ item.total_debit|floatformat:2 }}</td>
+                    <td class="number">{{ item.total_credit|floatformat:2 }}</td>
+                    <td class="number">{{ item.final_balance_debit|floatformat:2 }}</td>
+                    <td class="number">{{ item.final_balance_credit|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="2">TOTAL GÉNÉRAL</td>
+                    <td class="number">{{ totals.total_debit_sum|floatformat:2 }}</td>
+                    <td class="number">{{ totals.total_credit_sum|floatformat:2 }}</td>
+                    <td class="number">{{ totals.final_balance_debit_sum|floatformat:2 }}</td>
+                    <td class="number">{{ totals.final_balance_credit_sum|floatformat:2 }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    {% else %}
+        <p>Aucune donnée comptable à afficher pour cet exercice.</p>
+    {% endif %}
+
+</body>
+</html>

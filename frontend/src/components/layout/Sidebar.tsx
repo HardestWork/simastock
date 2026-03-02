@@ -585,7 +585,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen bg-sidebar text-white transition-all duration-200 z-30 flex flex-col print:hidden ${
+      className={`h-full bg-sidebar text-white transition-all duration-200 flex flex-col print:hidden ${
         collapsed ? 'w-16' : 'w-60'
       }`}
     >

@@ -56,12 +56,24 @@ export default function PeriodSelector({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {/* Mobile: compact select */}
+      <select
+        value={value}
+        onChange={(e) => handlePreset(e.target.value as PeriodKey)}
+        className="sm:hidden px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+      >
+        {presets.map((preset) => (
+          <option key={preset.key} value={preset.key}>{preset.label}</option>
+        ))}
+      </select>
+
+      {/* Desktop: pill buttons */}
       {presets.map((preset) => (
         <button
           key={preset.key}
           type="button"
           onClick={() => handlePreset(preset.key)}
-          className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+          className={`hidden sm:inline-flex px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
             value === preset.key
               ? 'bg-primary text-white'
               : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -72,7 +84,7 @@ export default function PeriodSelector({
       ))}
 
       {value === 'custom' && (
-        <div className="flex items-center gap-2 ml-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input
             type="date"
             value={dateFrom}

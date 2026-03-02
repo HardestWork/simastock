@@ -23,6 +23,7 @@ urlpatterns = [
     path("reports/", include("reports.urls")),
     path("analytics/", include("analytics.urls")),
     path("alerts/", include("alerts.urls")),
+    path("accounting/", include("accounting.urls")),
     path("settings/", include("stores.urls_settings")),
     # API
     path("api/v1/", include("api.urls")),

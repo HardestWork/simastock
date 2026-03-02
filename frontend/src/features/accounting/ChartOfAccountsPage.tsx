@@ -6,7 +6,7 @@ import apiClient from '@/api/client';
 import type { AcctAccount, PaginatedResponse } from '@/api/types';
 import { useStoreStore } from '@/store-context/store-store';
 import { useDebounce } from '@/hooks/use-debounce';
-import Pagination from '@/components/shared/Pagination';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const PAGE_SIZE = 25;
 
@@ -113,8 +113,8 @@ export default function ChartOfAccountsPage() {
           </div>
         ) : (
           <>
-            {/* Mobile card list */}
-            <div className="divide-y divide-gray-100 dark:divide-gray-700 md:hidden">
+            {/* Mobile card list (shown below lg) */}
+            <div className="divide-y divide-gray-100 dark:divide-gray-700 lg:hidden">
               {data?.results.map((account) => {
                 const badge = accountTypeBadge[account.account_type];
                 return (
@@ -143,8 +143,8 @@ export default function ChartOfAccountsPage() {
               )}
             </div>
 
-            {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
+            {/* Desktop table (shown from lg) */}
+            <div className="hidden lg:block overflow-x-auto" id="chart-table">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700/50">
                   <tr>
@@ -202,11 +202,38 @@ export default function ChartOfAccountsPage() {
                 </tbody>
               </table>
             </div>
+            {/* Pagination footer — always visible */}
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                {data && data.count > 0
+                  ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, data.count)} sur ${data.count}`
+                  : '0 compte'}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => p - 1)}
+                  disabled={page <= 1}
+                  className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Page precedente"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 px-2">
+                  {page} / {totalPages || 1}
+                </span>
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page >= totalPages}
+                  className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Page suivante"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
           </>
         )}
       </div>
-
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   );
 }

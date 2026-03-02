@@ -38,7 +38,7 @@ export default function AppLayout() {
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
   return (
-    <div className="min-h-screen bg-canvas dark:bg-gray-900">
+    <div className="min-h-screen bg-canvas dark:bg-gray-900 md:flex">
       {/* Mobile backdrop */}
       {mobileOpen && (
         <div
@@ -47,12 +47,12 @@ export default function AppLayout() {
         />
       )}
 
-      {/* Sidebar: overlay drawer on mobile, fixed push on desktop */}
+      {/* Sidebar: fixed overlay on mobile, static flex item on desktop */}
       <div
         className={`
-          fixed inset-y-0 left-0 z-50
+          fixed inset-y-0 left-0 z-50 flex flex-col shrink-0
           transition-transform duration-200 ease-in-out
-          md:translate-x-0 md:transition-none
+          md:static md:z-auto md:translate-x-0 md:transition-none
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
@@ -62,12 +62,8 @@ export default function AppLayout() {
         />
       </div>
 
-      {/* Main content: no left margin on mobile, sidebar margin on desktop */}
-      <div
-        className={`transition-all duration-200 print:ml-0 ${
-          sidebarCollapsed ? 'md:ml-16' : 'md:ml-60'
-        }`}
-      >
+      {/* Main content: full width on mobile, flex-1 on desktop */}
+      <div className="flex-1 min-w-0">
         <Topbar onMenuToggle={toggleMobile} />
         <main className="p-3 sm:p-4 md:p-6 dark:text-gray-100">
           <Outlet />

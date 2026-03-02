@@ -130,8 +130,8 @@ export default function BalanceGeneralePage() {
           </div>
         ) : (
           <>
-            {/* Mobile card list */}
-            <div className="divide-y divide-gray-100 dark:divide-gray-700 md:hidden">
+            {/* Mobile card list (shown below lg) */}
+            <div className="divide-y divide-gray-100 dark:divide-gray-700 lg:hidden">
               {data?.map((row, idx) => {
                 const soldeNum = parseFloat(row.solde || '0');
                 return (
@@ -164,8 +164,8 @@ export default function BalanceGeneralePage() {
               )}
             </div>
 
-            {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
+            {/* Desktop table (shown from lg) */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700/50">
                   <tr>
