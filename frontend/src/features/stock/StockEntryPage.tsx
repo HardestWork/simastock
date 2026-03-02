@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Minus, X, PackagePlus, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, X, PackagePlus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { useStoreStore } from '@/store-context/store-store';
@@ -34,11 +34,15 @@ export default function StockEntryPage() {
   // Search state with debounce
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchPage, setSearchPage] = useState(1);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // Reset to page 1 when search changes
+  useEffect(() => { setSearchPage(1); }, [debouncedSearch]);
 
   // Entry lines state
   const [lines, setLines] = useState<EntryLine[]>([]);
@@ -51,9 +55,12 @@ export default function StockEntryPage() {
   // Queries
   // ---------------------------------------------------------------------------
 
+  const SEARCH_PAGE_SIZE = 10;
+
   const searchParams: Record<string, string> = {
     store: currentStore?.id ?? '',
-    page_size: '10',
+    page: String(searchPage),
+    page_size: String(SEARCH_PAGE_SIZE),
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
   };
 
@@ -197,7 +204,7 @@ export default function StockEntryPage() {
           </div>
 
           {/* Results */}
-          <div className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-260px)]">
+          <div className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-320px)]">
             {searchLoading && (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
@@ -241,6 +248,34 @@ export default function StockEntryPage() {
                 );
               })}
           </div>
+
+          {/* Pagination for search results */}
+          {searchData && searchData.count > SEARCH_PAGE_SIZE && (
+            <div className={'flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-700'}>
+              <span className={'text-xs text-gray-500 dark:text-gray-400'}>
+                {(searchPage - 1) * SEARCH_PAGE_SIZE + 1}-{Math.min(searchPage * SEARCH_PAGE_SIZE, searchData.count)} / {searchData.count}
+              </span>
+              <div className={'flex items-center gap-1'}>
+                <button
+                  onClick={() => setSearchPage((p) => p - 1)}
+                  disabled={searchPage <= 1}
+                  className={'p-1 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed'}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className={'text-xs text-gray-600 dark:text-gray-400 px-1'}>
+                  {searchPage} / {Math.ceil(searchData.count / SEARCH_PAGE_SIZE)}
+                </span>
+                <button
+                  onClick={() => setSearchPage((p) => p + 1)}
+                  disabled={searchPage >= Math.ceil(searchData.count / SEARCH_PAGE_SIZE)}
+                  className={'p-1 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed'}
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ------------------------------------------------------------------ */}
