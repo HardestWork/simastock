@@ -1,7 +1,7 @@
 /** Stock levels page — shows stock per product in current store. */
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   Search,
   Package,
@@ -35,10 +35,11 @@ export default function StockLevelsPage() {
   if (debouncedSearch) params.search = debouncedSearch;
   if (ordering) params.ordering = ordering;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: queryKeys.stockLevels.list(params),
     queryFn: () => stockApi.levels(params),
     enabled: !!currentStore,
+    placeholderData: keepPreviousData,
   });
 
   const totalPages = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
@@ -119,6 +120,11 @@ export default function StockLevelsPage() {
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {isFetching && !isLoading && (
+          <div className="h-1 bg-primary/20 overflow-hidden">
+            <div className="h-full bg-primary animate-pulse" />
+          </div>
+        )}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />

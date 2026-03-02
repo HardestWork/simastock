@@ -1,6 +1,6 @@
 /** Ecritures comptables — liste des ecritures avec filtres, details expandables. */
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import apiClient from '@/api/client';
 import type {
@@ -97,7 +97,7 @@ export default function JournalEntriesPage() {
     return p;
   }, [currentStore, page, debouncedSearch, journalFilter, statusFilter, sourceFilter, fiscalYearFilter]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ['accounting', 'journal-entries', 'list', params],
     queryFn: async () => {
       const { data } = await apiClient.get<PaginatedResponse<JournalEntry>>('accounting/journal-entries/', {
@@ -106,6 +106,7 @@ export default function JournalEntriesPage() {
       return data;
     },
     enabled: !!currentStore,
+    placeholderData: keepPreviousData,
   });
 
   const totalPages = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
@@ -201,6 +202,12 @@ export default function JournalEntriesPage() {
           </div>
         ) : (
           <>
+            {/* Subtle fetching indicator */}
+            {isFetching && (
+              <div className="h-1 bg-primary/20 overflow-hidden">
+                <div className="h-full bg-primary animate-pulse" />
+              </div>
+            )}
             {/* Mobile card list (shown below lg) */}
             <div className="divide-y divide-gray-100 dark:divide-gray-700 lg:hidden">
               {data?.results.map((entry) => {

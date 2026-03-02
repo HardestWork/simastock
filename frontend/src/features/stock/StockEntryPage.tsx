@@ -1,7 +1,7 @@
 ﻿/** Stock entry page â€” bulk IN movements for the current store. */
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Plus, Minus, X, PackagePlus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
@@ -68,6 +68,7 @@ export default function StockEntryPage() {
     queryKey: queryKeys.stockLevels.list(searchParams),
     queryFn: () => stockApi.levels(searchParams),
     enabled: !!currentStore,
+    placeholderData: keepPreviousData,
   });
 
   // ---------------------------------------------------------------------------

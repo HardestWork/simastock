@@ -1,6 +1,6 @@
 /** Plan comptable SYSCOHADA — liste des comptes avec recherche et filtres. */
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import apiClient from '@/api/client';
 import type { AcctAccount, PaginatedResponse } from '@/api/types';
@@ -51,13 +51,14 @@ export default function ChartOfAccountsPage() {
     return p;
   }, [page, debouncedSearch, typeFilter]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ['accounting', 'accounts', 'list', params],
     queryFn: async () => {
       const { data } = await apiClient.get<PaginatedResponse<AcctAccount>>('accounting/accounts/', { params });
       return data;
     },
     enabled: !!currentStore,
+    placeholderData: keepPreviousData,
   });
 
   const totalPages = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
@@ -113,6 +114,11 @@ export default function ChartOfAccountsPage() {
           </div>
         ) : (
           <>
+            {isFetching && (
+              <div className="h-1 bg-primary/20 overflow-hidden">
+                <div className="h-full bg-primary animate-pulse" />
+              </div>
+            )}
             {/* Mobile card list (shown below lg) */}
             <div className="divide-y divide-gray-100 dark:divide-gray-700 lg:hidden">
               {data?.results.map((account) => {
