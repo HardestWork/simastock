@@ -38,7 +38,7 @@ export default function AppLayout() {
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
   return (
-    <div className="min-h-screen bg-canvas dark:bg-gray-900 md:flex">
+    <div className="h-screen bg-canvas dark:bg-gray-900 md:flex overflow-hidden">
       {/* Mobile backdrop */}
       {mobileOpen && (
         <div
@@ -62,8 +62,8 @@ export default function AppLayout() {
         />
       </div>
 
-      {/* Main content: full width on mobile, flex-1 on desktop */}
-      <div className="flex-1 min-w-0">
+      {/* Main content: full width on mobile, flex-1 + scrollable on desktop */}
+      <div className="flex-1 min-w-0 overflow-y-auto">
         <Topbar onMenuToggle={toggleMobile} />
         <main className="p-3 sm:p-4 md:p-6 dark:text-gray-100">
           <Outlet />
