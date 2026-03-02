@@ -2115,6 +2115,7 @@ class ProductStockViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ['product__name', 'product__sku', 'product__barcode']
     ordering_fields = ['quantity', 'product__name', 'reserved_qty', 'min_qty']
     permission_classes = [IsAuthenticated, FeatureStockManagementEnabled]
+    pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         qs = super().get_queryset()
