@@ -51,7 +51,7 @@ export default function ChartOfAccountsPage() {
     return p;
   }, [page, debouncedSearch, typeFilter]);
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isFetching } = useQuery({
     queryKey: ['accounting', 'accounts', 'list', params],
     queryFn: async () => {
       const { data } = await apiClient.get<PaginatedResponse<AcctAccount>>('accounting/accounts/', { params });
@@ -108,7 +108,7 @@ export default function ChartOfAccountsPage() {
 
       {/* Mobile cards + Desktop table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {isLoading ? (
+        {!data ? (
           <div className="flex items-center justify-center min-h-[300px]">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
           </div>

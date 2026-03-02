@@ -35,7 +35,7 @@ export default function StockLevelsPage() {
   if (debouncedSearch) params.search = debouncedSearch;
   if (ordering) params.ordering = ordering;
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isFetching } = useQuery({
     queryKey: queryKeys.stockLevels.list(params),
     queryFn: () => stockApi.levels(params),
     enabled: !!currentStore,
@@ -120,12 +120,12 @@ export default function StockLevelsPage() {
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {isFetching && !isLoading && (
+        {isFetching && data && (
           <div className="h-1 bg-primary/20 overflow-hidden">
             <div className="h-full bg-primary animate-pulse" />
           </div>
         )}
-        {isLoading ? (
+        {!data ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>

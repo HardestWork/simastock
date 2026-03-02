@@ -64,7 +64,7 @@ export default function StockEntryPage() {
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
   };
 
-  const { data: searchData, isLoading: searchLoading } = useQuery({
+  const { data: searchData, isLoading: searchLoading, isFetching: searchFetching } = useQuery({
     queryKey: queryKeys.stockLevels.list(searchParams),
     queryFn: () => stockApi.levels(searchParams),
     enabled: !!currentStore,
@@ -206,18 +206,23 @@ export default function StockEntryPage() {
 
           {/* Results */}
           <div className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-320px)]">
-            {searchLoading && (
+            {searchLoading && !searchData && (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
               </div>
             )}
 
-            {!searchLoading && searchData?.results.length === 0 && (
+            {searchFetching && searchData && (
+              <div className="h-1 bg-primary/20 rounded overflow-hidden">
+                <div className="h-full bg-primary animate-pulse" />
+              </div>
+            )}
+
+            {searchData?.results.length === 0 && !searchLoading && (
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">Aucun produit trouve.</p>
             )}
 
-            {!searchLoading &&
-              searchData?.results.map((stock) => {
+            {searchData?.results.map((stock) => {
                 const alreadyAdded = lines.some((l) => l.product_id === stock.product);
                 return (
                   <button

@@ -97,7 +97,7 @@ export default function JournalEntriesPage() {
     return p;
   }, [currentStore, page, debouncedSearch, journalFilter, statusFilter, sourceFilter, fiscalYearFilter]);
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isFetching } = useQuery({
     queryKey: ['accounting', 'journal-entries', 'list', params],
     queryFn: async () => {
       const { data } = await apiClient.get<PaginatedResponse<JournalEntry>>('accounting/journal-entries/', {
@@ -196,7 +196,7 @@ export default function JournalEntriesPage() {
 
       {/* Content */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {isLoading ? (
+        {!data ? (
           <div className="flex items-center justify-center min-h-[300px]">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
           </div>
