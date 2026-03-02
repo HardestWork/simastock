@@ -138,7 +138,7 @@ class UserSerializer(serializers.ModelSerializer):
             'phone', 'role', 'custom_role', 'custom_role_name',
             'is_active',
         ]
-        read_only_fields = ['id', 'role']
+        read_only_fields = ['id']
 
     def update(self, instance, validated_data):
         request = self.context.get("request")
