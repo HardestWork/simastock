@@ -1,139 +1,223 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <style>
-        @page { size: 80mm auto; margin: 5mm; }
+        @page { size: 80mm auto; margin: 4mm 5mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: "Courier New", monospace; font-size: 9pt; color: #000; width: 70mm; }
-        .header { text-align: center; margin-bottom: 8px; }
-        .header h1 { font-size: 13pt; margin-bottom: 2px; }
-        .header p { font-size: 8pt; }
-        .divider { border-top: 1px dashed #000; margin: 6px 0; }
-        .bold { font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; }
-        td { padding: 2px 0; vertical-align: top; font-size: 9pt; }
-        td.right { text-align: right; }
-        td.qty { width: 30px; text-align: center; }
-        .total-row td { font-weight: bold; font-size: 11pt; padding-top: 5px; }
-        .footer { text-align: center; margin-top: 10px; font-size: 8pt; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 8.5pt; color: #000; width: 70mm; }
+
+        /* ---- Header ---- */
+        .header { text-align: center; margin-bottom: 6px; }
+        .header img { height: 32px; width: auto; margin-bottom: 4px; }
+        .header .business-name { font-size: 13pt; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase; }
+        .header .tagline { font-size: 7pt; color: #444; margin-top: 1px; }
+        .header .contact { font-size: 7.5pt; margin-top: 3px; }
+        .header .contact span { display: block; }
+
+        /* ---- Dividers ---- */
+        .divider      { border-top: 1px solid #000; margin: 5px 0; }
+        .divider-dash { border-top: 1px dashed #666; margin: 4px 0; }
+
+        /* ---- Document title ---- */
+        .doc-title { text-align: center; margin: 5px 0; }
+        .doc-title h2 { font-size: 10pt; font-weight: bold; letter-spacing: 1px; border: 1.5px solid #000; display: inline-block; padding: 2px 8px; }
+
+        /* ---- Meta info ---- */
+        .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+        .meta-table td { font-size: 8pt; padding: 1.5px 0; vertical-align: top; }
+        .meta-table td.label { color: #444; width: 38%; }
+        .meta-table td.value { font-weight: bold; text-align: right; }
+
+        /* ---- Items table ---- */
+        .items-table { width: 100%; border-collapse: collapse; }
+        .items-table thead tr { border-bottom: 1.5px solid #000; }
+        .items-table th { font-size: 7.5pt; font-weight: bold; padding: 2px 0; text-transform: uppercase; }
+        .items-table th.r { text-align: right; }
+        .items-table th.c { text-align: center; }
+        .items-table tbody tr { border-bottom: 0.5px dashed #ccc; }
+        .items-table td { font-size: 8pt; padding: 2.5px 0; vertical-align: top; }
+        .items-table td.r { text-align: right; white-space: nowrap; }
+        .items-table td.c { text-align: center; }
+        .items-table td.product { max-width: 32mm; }
+        .items-table .product-name { font-weight: bold; display: block; }
+
+        /* ---- Totals ---- */
+        .totals-table { width: 100%; border-collapse: collapse; margin-top: 2px; }
+        .totals-table td { font-size: 8.5pt; padding: 2px 0; }
+        .totals-table td.r { text-align: right; }
+        .totals-table .total-net td { font-size: 12pt; font-weight: bold; padding-top: 4px; border-top: 1.5px solid #000; }
+        .totals-table .total-net td.r { font-size: 12pt; }
+
+        /* ---- Payment ---- */
+        .payment-line { font-size: 8.5pt; margin: 4px 0 2px; }
+        .payment-label { font-weight: bold; }
+
+        /* ---- QR + verification ---- */
+        .qr-section { text-align: center; margin-top: 8px; }
+        .qr-section img { width: 64px; height: 64px; display: block; margin: 0 auto; }
+        .qr-label { font-size: 6.5pt; color: #555; margin-top: 3px; }
+        .verify-hash { font-size: 7.5pt; font-weight: bold; letter-spacing: 1px; margin-top: 2px; }
+        .verify-url { font-size: 6pt; color: #666; word-break: break-all; margin-top: 1px; }
+
+        /* ---- Footer ---- */
+        .footer { text-align: center; font-size: 7.5pt; margin-top: 8px; padding-top: 5px; border-top: 1px solid #000; }
+        .footer .thanks { font-size: 8.5pt; font-weight: bold; margin-bottom: 2px; }
     </style>
 </head>
 <body>
+
+    <!-- HEADER -->
     <div class="header">
         {% if invoice_config.logo_uri %}
-        <p><img src="{{ invoice_config.logo_uri }}" alt="Logo" style="height:28px; width:auto;"></p>
+        <img src="{{ invoice_config.logo_uri }}" alt="Logo">
         {% endif %}
-        <h1>{{ invoice_config.business_name }}</h1>
-        {% if store.address %}<p>{{ store.address }}</p>{% endif %}
-        {% if store.phone %}<p>Tel: {{ store.phone }}</p>{% endif %}
-        {% if invoice_config.tax_id %}<p>NIF: {{ invoice_config.tax_id }}</p>{% endif %}
+        <div class="business-name">{{ invoice_config.business_name }}</div>
+        {% if invoice_config.registration_number or invoice_config.tax_id %}
+        <div class="tagline">
+            {% if invoice_config.registration_number %}RCCM : {{ invoice_config.registration_number }}{% endif %}
+            {% if invoice_config.registration_number and invoice_config.tax_id %} &bull; {% endif %}
+            {% if invoice_config.tax_id %}NIF : {{ invoice_config.tax_id }}{% endif %}
+        </div>
+        {% endif %}
+        <div class="contact">
+            {% if store.address %}<span>{{ store.address }}</span>{% endif %}
+            {% if store.phone %}<span>{{ store.phone }}</span>{% endif %}
+        </div>
     </div>
 
     <div class="divider"></div>
 
-    <table>
+    <!-- TITLE -->
+    <div class="doc-title">
+        <h2>RECU DE PAIEMENT</h2>
+    </div>
+
+    <!-- META -->
+    <table class="meta-table">
         <tr>
-            <td>Ticket No</td>
-            <td class="right bold">{{ sale.invoice_number }}</td>
+            <td class="label">N&deg;</td>
+            <td class="value">{{ sale.invoice_number }}</td>
         </tr>
         <tr>
-            <td>Date</td>
-            <td class="right">{{ sale.created_at|date:"d/m/Y H:i" }}</td>
+            <td class="label">Date</td>
+            <td class="value">{{ sale.created_at|date:"d/m/Y" }} &ndash; {{ sale.created_at|date:"H:i" }}</td>
         </tr>
         <tr>
-            <td>Vendeur</td>
-            <td class="right">{{ sale.seller.get_full_name }}</td>
+            <td class="label">Vendeur</td>
+            <td class="value">{{ sale.seller.get_full_name }}</td>
         </tr>
+        {% if cashier_name and cashier_name != sale.seller.get_full_name %}
         <tr>
-            <td>Caissier</td>
-            <td class="right">{{ cashier_name|default:"-" }}</td>
-        </tr>
-        {% if sale.customer %}
-        <tr>
-            <td>Client</td>
-            <td class="right">{{ sale.customer.full_name }}</td>
+            <td class="label">Caissier</td>
+            <td class="value">{{ cashier_name }}</td>
         </tr>
         {% endif %}
+        <tr>
+            <td class="label">Client</td>
+            <td class="value">{% if sale.customer %}{{ sale.customer.full_name }}{% else %}Client Comptant{% endif %}</td>
+        </tr>
     </table>
 
     <div class="divider"></div>
 
-    <table>
-        {% for item in sale.items.all %}
-        <tr>
-            <td colspan="3" class="bold">{{ item.product_name }}</td>
-        </tr>
-        <tr>
-            <td class="qty">{{ item.quantity }}x</td>
-            <td>{{ item.unit_price|floatformat:0 }}</td>
-            <td class="right">{{ item.line_total|floatformat:0 }}</td>
-        </tr>
-        {% endfor %}
+    <!-- ITEMS TABLE -->
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="text-align:left;">Produit</th>
+                <th class="c" style="width:14mm;">Qte</th>
+                <th class="r" style="width:16mm;">Prix Unit.</th>
+                <th class="r" style="width:16mm;">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in sale.items.all %}
+            <tr>
+                <td class="product">
+                    <span class="product-name">{{ item.product_name }}</span>
+                </td>
+                <td class="c">{{ item.quantity }}</td>
+                <td class="r">{{ item.unit_price|floatformat:0 }}</td>
+                <td class="r">{{ item.line_total|floatformat:0 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
 
-    <div class="divider"></div>
+    <div class="divider-dash"></div>
 
-    <table>
+    <!-- TOTALS -->
+    <table class="totals-table">
         <tr>
             <td>Sous-total</td>
-            <td class="right">{{ sale.subtotal|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+            <td class="r">{{ sale.subtotal|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
         </tr>
         {% if sale.discount_amount > 0 %}
         <tr>
-            <td>
-                {% if sale.discount_percent > 0 %}
-                Remise ({{ sale.discount_percent }}%)
-                {% else %}
-                Remise (valeur)
-                {% endif %}
-            </td>
-            <td class="right">-{{ sale.discount_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+            <td>Remise{% if sale.discount_percent > 0 %} ({{ sale.discount_percent }}%){% endif %}</td>
+            <td class="r">-{{ sale.discount_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
         </tr>
         {% endif %}
-        <tr class="total-row">
-            <td>TOTAL</td>
-            <td class="right">{{ sale.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
-        </tr>
-    </table>
-
-    <div class="divider"></div>
-
-    <table>
-        {% for payment in payments %}
+        {% if sale.tax_amount > 0 %}
         <tr>
-            <td>{{ payment.get_method_display }}</td>
-            <td class="right">{{ payment.amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+            <td>TVA</td>
+            <td class="r">{{ sale.tax_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
         </tr>
-        {% endfor %}
-        {% if change > 0 %}
-        <tr class="bold">
-            <td>Monnaie rendue</td>
-            <td class="right">{{ change|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+        {% else %}
+        <tr>
+            <td>TVA</td>
+            <td class="r">0 {{ store.effective_currency|default:"FCFA" }}</td>
         </tr>
         {% endif %}
+        <tr class="total-net">
+            <td>TOTAL NET</td>
+            <td class="r">{{ sale.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+        </tr>
     </table>
 
-    <div class="divider"></div>
+    <div class="divider-dash"></div>
 
-    <div class="footer">
-        {% if invoice_config.footer %}
-        <p>{{ invoice_config.footer }}</p>
-        {% else %}
-        <p>Merci pour votre achat</p>
-        <p>{{ invoice_config.business_name }}</p>
-        {% endif %}
-        <p>{{ now|date:"d/m/Y H:i" }}</p>
+    <!-- PAYMENT INFO -->
+    {% for payment in payments %}
+    <div class="payment-line">
+        <span class="payment-label">Paye&nbsp;:</span>
+        {{ payment.amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}
+        &nbsp;|&nbsp;
+        <span class="payment-label">Mode&nbsp;:</span>
+        {{ payment.get_method_display }}
     </div>
-
-    {% if verify_url %}
-    <div style="margin-top: 12px; border-top: 1px dashed #ccc; padding-top: 8px; text-align: center;">
-      <img src="{{ qr_data_uri }}" style="width: 48px; height: 48px; margin: 0 auto;" alt="QR" />
-      <div style="font-size: 7px; color: #888; margin-top: 4px;">
-        <div>{{ verify_hash }}</div>
-        <div>{{ verify_url }}</div>
-      </div>
+    {% endfor %}
+    {% if change > 0 %}
+    <div class="payment-line">
+        <span class="payment-label">Monnaie rendue&nbsp;:</span>
+        {{ change|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}
     </div>
     {% endif %}
+
+    <!-- QR CODE + VERIFICATION -->
+    {% if verify_url and qr_data_uri %}
+    <div class="divider-dash"></div>
+    <div class="qr-section">
+        <img src="{{ qr_data_uri }}" alt="QR Code verification">
+        <div class="qr-label">Scannez pour verifier ce recu</div>
+        {% if verify_hash %}
+        <div class="verify-hash">{{ verify_hash }}</div>
+        {% endif %}
+        <div class="verify-url">{{ verify_url }}</div>
+    </div>
+    {% endif %}
+
+    <!-- FOOTER -->
+    <div class="footer">
+        {% if invoice_config.footer %}
+        <div class="thanks">{{ invoice_config.footer }}</div>
+        {% else %}
+        <div class="thanks">Merci pour votre confiance.</div>
+        {% endif %}
+        <div>{{ invoice_config.business_name }}</div>
+        <div>{{ now|date:"d/m/Y H:i" }}</div>
+    </div>
+
 </body>
 </html>
