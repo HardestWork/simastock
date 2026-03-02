@@ -57,7 +57,7 @@ export default function AppLayout() {
       </div>
 
       {/* Desktop sidebar — static flex item, hidden on mobile */}
-      <div className="hidden md:flex flex-col shrink-0">
+      <div className="hidden md:flex flex-col shrink-0 h-full">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
