@@ -1480,6 +1480,21 @@ class UserViewSet(viewsets.ModelViewSet):
             raise ValidationError("Un gestionnaire ne peut pas supprimer un autre gestionnaire.")
         instance.delete()
 
+    @action(detail=True, methods=["post"], url_path="set-password")
+    def set_password(self, request, pk=None):
+        """POST /api/v1/users/{id}/set-password/ — admin sets a new password for a user."""
+        user = self.get_object()
+        new_password = request.data.get("new_password", "")
+        if not new_password:
+            return Response({"new_password": ["Ce champ est requis."]}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            validate_password(new_password, user)
+        except DjangoValidationError as exc:
+            return Response({"new_password": list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
+        return Response({"detail": "Mot de passe mis a jour avec succes."})
+
 
 # ---------------------------------------------------------------------------
 # Category ViewSet

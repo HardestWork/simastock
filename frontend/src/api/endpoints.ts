@@ -184,6 +184,9 @@ export const userApi = {
 
   delete: (id: string) =>
     apiClient.delete(`users/${id}/`),
+
+  setPassword: (id: string, new_password: string) =>
+    apiClient.post(`users/${id}/set-password/`, { new_password }).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------

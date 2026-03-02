@@ -4,7 +4,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi, roleApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
-import { ArrowLeft, Save, Loader2, AlertCircle, Copy, Check, X, Mail } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, AlertCircle, Copy, Check, X, Mail, KeyRound, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { extractApiError } from '@/lib/api-error';
 
@@ -45,6 +45,10 @@ export default function UserFormPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [createdCredentials, setCreatedCredentials] = useState<CreatedCredentials | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [passwordResetError, setPasswordResetError] = useState<string | null>(null);
 
   // ---- Fetch custom roles ----
   const { data: rolesData } = useQuery({
@@ -120,6 +124,34 @@ export default function UserFormPage() {
       setSubmitError(extractApiError(err));
     },
   });
+
+  // ---- Reset password mutation (edit mode only) ----
+  const resetPasswordMut = useMutation({
+    mutationFn: (newPwd: string) => userApi.setPassword(id!, newPwd),
+    onSuccess: () => {
+      toast.success('Mot de passe reinitialise avec succes.');
+      setShowPasswordReset(false);
+      setNewPassword('');
+      setNewPasswordConfirm('');
+      setPasswordResetError(null);
+    },
+    onError: (err: unknown) => {
+      setPasswordResetError(extractApiError(err));
+    },
+  });
+
+  const handleResetPassword = () => {
+    setPasswordResetError(null);
+    if (newPassword.length < 8) {
+      setPasswordResetError('Le mot de passe doit contenir au moins 8 caracteres.');
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      setPasswordResetError('Les mots de passe ne correspondent pas.');
+      return;
+    }
+    resetPasswordMut.mutate(newPassword);
+  };
 
   const isPending = createMut.isPending || updateMut.isPending;
 
@@ -377,6 +409,75 @@ export default function UserFormPage() {
               </>
             )}
           </div>
+
+          {/* Reset password section — edit mode only */}
+          {isEdit && (
+            <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPasswordReset((v) => !v);
+                  setPasswordResetError(null);
+                  setNewPassword('');
+                  setNewPasswordConfirm('');
+                }}
+                className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              >
+                <KeyRound size={15} />
+                Modifier le mot de passe
+                {showPasswordReset ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              {showPasswordReset && (
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nouveau mot de passe <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
+                      placeholder="Nouveau mot de passe"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Confirmer <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={newPasswordConfirm}
+                      onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
+                      placeholder="Confirmer le mot de passe"
+                    />
+                  </div>
+                  {passwordResetError && (
+                    <div className="sm:col-span-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm flex items-start gap-2">
+                      <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                      <span>{passwordResetError}</span>
+                    </div>
+                  )}
+                  <div className="sm:col-span-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleResetPassword}
+                      disabled={resetPasswordMut.isPending || !newPassword || !newPasswordConfirm}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-60 transition-colors"
+                    >
+                      {resetPasswordMut.isPending ? (
+                        <><Loader2 size={14} className="animate-spin" />Reinitialisation...</>
+                      ) : (
+                        <><KeyRound size={14} />Reinitialiser le mot de passe</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Error alert */}
           {submitError && (
