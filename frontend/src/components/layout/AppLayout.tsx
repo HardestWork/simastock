@@ -39,7 +39,7 @@ export default function AppLayout() {
 
   return (
     <div className="h-screen bg-canvas dark:bg-gray-900 md:flex overflow-hidden">
-      {/* Mobile backdrop */}
+      {/* Mobile backdrop — only rendered when drawer is open */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
@@ -47,22 +47,24 @@ export default function AppLayout() {
         />
       )}
 
-      {/* Sidebar: fixed overlay on mobile, static flex item on desktop */}
+      {/* Mobile sidebar — fixed overlay, hidden on desktop */}
       <div
-        className={`
-          fixed inset-y-0 left-0 z-50 flex flex-col shrink-0
-          transition-transform duration-200 ease-in-out
-          md:static md:z-auto md:translate-x-0 md:transition-none
-          ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        `}
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col md:hidden transition-transform duration-200 ease-in-out ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
+        <Sidebar collapsed={false} onToggle={closeMobile} />
+      </div>
+
+      {/* Desktop sidebar — static flex item, hidden on mobile */}
+      <div className="hidden md:flex flex-col shrink-0">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
       </div>
 
-      {/* Main content: full width on mobile, flex-1 + scrollable on desktop */}
+      {/* Main content */}
       <div className="flex-1 min-w-0 overflow-y-auto">
         <Topbar onMenuToggle={toggleMobile} />
         <main className="p-3 sm:p-4 md:p-6 dark:text-gray-100">
