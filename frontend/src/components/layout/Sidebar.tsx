@@ -38,6 +38,7 @@ import {
   Calendar,
   Clock,
   DollarSign,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth-store';
 import { useCapabilities } from '@/lib/capabilities';
@@ -306,6 +307,20 @@ const navItems: NavItem[] = [
         path: '/accounting/ledger',
         label: 'Grand livre',
         icon: <FileText size={15} />,
+        module: 'ACCOUNTING',
+        roles: ['MANAGER', 'ADMIN'],
+      },
+      {
+        path: '/accounting/bilan',
+        label: 'Bilan',
+        icon: <BarChart2 size={15} />,
+        module: 'ACCOUNTING',
+        roles: ['MANAGER', 'ADMIN'],
+      },
+      {
+        path: '/accounting/compte-resultat',
+        label: 'Compte de resultat',
+        icon: <TrendingUp size={15} />,
         module: 'ACCOUNTING',
         roles: ['MANAGER', 'ADMIN'],
       },

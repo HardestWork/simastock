@@ -111,6 +111,8 @@ const JournalEntriesPage = lazyRetry(() => import('@/features/accounting/Journal
 const BalanceGeneralePage = lazyRetry(() => import('@/features/accounting/BalanceGeneralePage'));
 const GrandLivrePage = lazyRetry(() => import('@/features/accounting/GrandLivrePage'));
 const AccountingSettingsPage = lazyRetry(() => import('@/features/accounting/AccountingSettingsPage'));
+const BilanPage = lazyRetry(() => import('@/features/accounting/BilanPage'));
+const CompteResultatPage = lazyRetry(() => import('@/features/accounting/CompteResultatPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -292,6 +294,8 @@ export default function App() {
                   <Route path="/accounting/entries" element={<Suspense fallback={<PageLoader />}><JournalEntriesPage /></Suspense>} />
                   <Route path="/accounting/balance" element={<Suspense fallback={<PageLoader />}><BalanceGeneralePage /></Suspense>} />
                   <Route path="/accounting/ledger" element={<Suspense fallback={<PageLoader />}><GrandLivrePage /></Suspense>} />
+                  <Route path="/accounting/bilan" element={<Suspense fallback={<PageLoader />}><BilanPage /></Suspense>} />
+                  <Route path="/accounting/compte-resultat" element={<Suspense fallback={<PageLoader />}><CompteResultatPage /></Suspense>} />
                   <Route path="/accounting/settings" element={<Suspense fallback={<PageLoader />}><AccountingSettingsPage /></Suspense>} />
                 </Route>
 

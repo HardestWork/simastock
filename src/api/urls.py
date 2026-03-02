@@ -177,6 +177,12 @@ urlpatterns = [
     # DG Dashboard
     path('dg/dashboard/', dg_views.DGDashboardView.as_view(), name='dg-dashboard'),
 
+    # Accounting financial reports (SYSCOHADA)
+    path('accounting/reports/balance-generale/', v1_views.JournalEntryViewSet.as_view({'get': 'balance_generale'}), name='acct-report-balance-generale'),
+    path('accounting/reports/grand-livre/', v1_views.JournalEntryViewSet.as_view({'get': 'grand_livre'}), name='acct-report-grand-livre'),
+    path('accounting/reports/bilan/', v1_views.JournalEntryViewSet.as_view({'get': 'bilan'}), name='acct-report-bilan'),
+    path('accounting/reports/compte-resultat/', v1_views.JournalEntryViewSet.as_view({'get': 'compte_resultat'}), name='acct-report-compte-resultat'),
+
     # Public document verification (no auth required)
     path('documents/verify/<str:token>/', v1_views.DocumentVerifyView.as_view(), name='document-verify'),
 ]

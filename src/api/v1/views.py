@@ -5592,6 +5592,58 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
             })
         return Response(results)
 
+    @action(detail=False, methods=["get"])
+    def bilan(self, request):
+        """Return SYSCOHADA Balance Sheet (Bilan) structured data."""
+        from accounting.reports import generate_bilan
+        from accounting.models import FiscalYear as AcctFiscalYear
+        enterprise_id = _user_enterprise_id(request.user)
+        if not enterprise_id:
+            return Response({"actif": [], "passif": [], "totals": {}})
+
+        fiscal_year_id = request.query_params.get("fiscal_year")
+        if fiscal_year_id:
+            try:
+                fiscal_year = AcctFiscalYear.objects.get(pk=fiscal_year_id, enterprise_id=enterprise_id)
+            except AcctFiscalYear.DoesNotExist:
+                return Response({"detail": "Exercice fiscal introuvable."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            fiscal_year = AcctFiscalYear.objects.filter(
+                enterprise_id=enterprise_id, status=AcctFiscalYear.Status.OPEN
+            ).order_by("-end_date").first()
+
+        if not fiscal_year:
+            return Response({"actif": [], "passif": [], "totals": {}})
+
+        data = generate_bilan(enterprise_id, fiscal_year)
+        return Response(data)
+
+    @action(detail=False, methods=["get"])
+    def compte_resultat(self, request):
+        """Return SYSCOHADA Income Statement (Compte de resultat) structured data."""
+        from accounting.reports import generate_compte_resultat
+        from accounting.models import FiscalYear as AcctFiscalYear
+        enterprise_id = _user_enterprise_id(request.user)
+        if not enterprise_id:
+            return Response({"charges": [], "produits": [], "totals": {}})
+
+        fiscal_year_id = request.query_params.get("fiscal_year")
+        if fiscal_year_id:
+            try:
+                fiscal_year = AcctFiscalYear.objects.get(pk=fiscal_year_id, enterprise_id=enterprise_id)
+            except AcctFiscalYear.DoesNotExist:
+                return Response({"detail": "Exercice fiscal introuvable."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            fiscal_year = AcctFiscalYear.objects.filter(
+                enterprise_id=enterprise_id, status=AcctFiscalYear.Status.OPEN
+            ).order_by("-end_date").first()
+
+        if not fiscal_year:
+            return Response({"charges": [], "produits": [], "totals": {}})
+
+        data = generate_compte_resultat(enterprise_id, fiscal_year)
+        return Response(data)
+
 
 class TaxRateViewSet(viewsets.ModelViewSet):
     """CRUD for Tax Rates."""

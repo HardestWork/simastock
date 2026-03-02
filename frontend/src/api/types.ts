@@ -2604,3 +2604,73 @@ export interface GrandLivreRow {
   credit: string;
   solde: string;
 }
+
+// ---------------------------------------------------------------------------
+// Bilan (Balance Sheet — SYSCOHADA)
+// ---------------------------------------------------------------------------
+
+export interface BilanActifLine {
+  account_code: string;
+  account_name: string;
+  brut: string;
+  amortissement: string;
+  net: string;
+}
+
+export interface BilanPassifLine {
+  account_code: string;
+  account_name: string;
+  montant: string;
+}
+
+export interface BilanActifSection {
+  section: string;
+  lines: BilanActifLine[];
+  subtotal_brut: string;
+  subtotal_amortissement: string;
+  subtotal_net: string;
+}
+
+export interface BilanPassifSection {
+  section: string;
+  lines: BilanPassifLine[];
+  subtotal: string;
+}
+
+export interface BilanData {
+  actif: BilanActifSection[];
+  passif: BilanPassifSection[];
+  totals: {
+    total_actif_brut: string;
+    total_actif_amortissement: string;
+    total_actif_net: string;
+    total_passif: string;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Compte de Resultat (Income Statement — SYSCOHADA)
+// ---------------------------------------------------------------------------
+
+export interface CompteResultatLine {
+  account_code: string;
+  account_name: string;
+  montant: string;
+}
+
+export interface CompteResultatSection {
+  section: string;
+  lines: CompteResultatLine[];
+  subtotal: string;
+}
+
+export interface CompteResultatData {
+  charges: CompteResultatSection[];
+  produits: CompteResultatSection[];
+  totals: {
+    total_charges: string;
+    total_produits: string;
+    resultat_net: string;
+    is_benefice: boolean;
+  };
+}
