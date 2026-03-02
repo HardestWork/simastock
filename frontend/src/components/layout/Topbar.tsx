@@ -1,14 +1,18 @@
 /** Top navigation bar with store switcher, alerts badge, and user menu. */
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, LogOut, Moon, Search, Sun, User as UserIcon, Store } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Menu, Moon, Search, Sun, User as UserIcon, Store } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth-store';
 import { useThemeStore } from '@/lib/theme-store';
 import { useStoreStore } from '@/store-context/store-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { ROLE_LABELS } from '@/lib/roles';
 
-export default function Topbar() {
+interface TopbarProps {
+  onMenuToggle?: () => void;
+}
+
+export default function Topbar({ onMenuToggle }: TopbarProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, stores, logout } = useAuthStore();
@@ -52,36 +56,47 @@ export default function Topbar() {
   }
 
   return (
-    <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6 print:hidden">
-      {/* Store switcher */}
-      <div className="relative" ref={storeRef}>
+    <header className="h-14 sm:h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3 sm:px-6 print:hidden">
+      <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+        {/* Mobile hamburger */}
         <button
-          onClick={() => setStoreMenuOpen(!storeMenuOpen)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm dark:text-gray-200"
+          onClick={onMenuToggle}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors md:hidden shrink-0"
+          aria-label="Menu"
         >
-          <Store size={18} className="text-primary" />
-          <span className="font-medium">
-            {currentStore?.name ?? 'Selectionner un magasin'}
-          </span>
-          <ChevronDown size={16} />
+          <Menu size={22} className="text-gray-600 dark:text-gray-300" />
         </button>
 
-        {storeMenuOpen && stores.length > 1 && (
-          <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
-            {stores.map((store) => (
-              <button
-                key={store.id}
-                onClick={() => handleStoreSwitch(store)}
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
-                  store.id === currentStore?.id ? 'bg-primary/5 text-primary font-medium' : ''
-                }`}
-              >
-                <div>{store.name}</div>
-                <div className="text-xs text-gray-500">{store.enterprise_name}</div>
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Store switcher */}
+        <div className="relative min-w-0" ref={storeRef}>
+          <button
+            onClick={() => setStoreMenuOpen(!storeMenuOpen)}
+            className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm dark:text-gray-200 min-w-0"
+          >
+            <Store size={18} className="text-primary shrink-0" />
+            <span className="font-medium truncate">
+              {currentStore?.name ?? 'Magasin'}
+            </span>
+            <ChevronDown size={16} className="shrink-0" />
+          </button>
+
+          {storeMenuOpen && stores.length > 1 && (
+            <div className="absolute top-full left-0 mt-1 w-64 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+              {stores.map((store) => (
+                <button
+                  key={store.id}
+                  onClick={() => handleStoreSwitch(store)}
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
+                    store.id === currentStore?.id ? 'bg-primary/5 text-primary font-medium' : ''
+                  }`}
+                >
+                  <div>{store.name}</div>
+                  <div className="text-xs text-gray-500">{store.enterprise_name}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Global search trigger */}
@@ -95,7 +110,7 @@ export default function Topbar() {
       </button>
 
       {/* Right side */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-1 sm:gap-4">
         {/* Dark mode toggle */}
         <button
           onClick={toggleTheme}
