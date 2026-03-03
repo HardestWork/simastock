@@ -3,6 +3,7 @@
 import logging
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -14,7 +15,7 @@ from django.utils.decorators import method_decorator
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import permissions, status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, AuthenticationFailed
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -23,6 +24,48 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from api.v1.serializers import CustomTokenObtainPairSerializer
 
 logger = logging.getLogger("boutique")
+
+# Number of consecutive authentication failures before an IP is locked out.
+LOGIN_FAILURE_LIMIT = getattr(settings, "LOGIN_FAILURE_LIMIT", 5)
+# Lockout duration in seconds (default 1 hour).
+LOGIN_LOCKOUT_SECONDS = getattr(settings, "LOGIN_LOCKOUT_SECONDS", 3600)
+
+
+def _login_fail_cache_key(ip: str) -> str:
+    return f"login_fail:{ip}"
+
+
+def _get_client_ip(request) -> str:
+    """Extract the real client IP, honouring X-Forwarded-For if behind a proxy."""
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "unknown")
+
+
+def _record_login_failure(ip: str) -> int:
+    """Increment the failure counter and return the updated count."""
+    key = _login_fail_cache_key(ip)
+    try:
+        count = cache.get(key, 0) + 1
+        cache.set(key, count, timeout=LOGIN_LOCKOUT_SECONDS)
+        return count
+    except Exception:
+        return 0
+
+
+def _clear_login_failures(ip: str) -> None:
+    try:
+        cache.delete(_login_fail_cache_key(ip))
+    except Exception:
+        pass
+
+
+def _is_ip_locked(ip: str) -> bool:
+    try:
+        return (cache.get(_login_fail_cache_key(ip)) or 0) >= LOGIN_FAILURE_LIMIT
+    except Exception:
+        return False
 
 
 class SafeScopedRateThrottle(ScopedRateThrottle):
@@ -89,13 +132,39 @@ class CookieTokenObtainPairView(TokenObtainPairView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        validated = serializer.validated_data
+        ip = _get_client_ip(request)
 
+        # Check IP lockout before even attempting authentication.
+        if _is_ip_locked(ip):
+            logger.warning("Login blocked for locked IP %s", ip)
+            return Response(
+                {
+                    "detail": (
+                        "Trop de tentatives de connexion echouees. "
+                        "Compte temporairement bloque. Reessayez dans 1 heure."
+                    )
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except (ValidationError, AuthenticationFailed):
+            failures = _record_login_failure(ip)
+            logger.warning(
+                "Failed login attempt from %s (%d/%d)",
+                ip, failures, LOGIN_FAILURE_LIMIT,
+            )
+            raise
+
+        validated = serializer.validated_data
         access = validated["access"]
         refresh = validated["refresh"]
         user = validated["user"]
+
+        # Clear failure counter on successful login.
+        _clear_login_failures(ip)
 
         response_data = {"user": user}
         if getattr(settings, "JWT_RETURN_TOKENS_IN_BODY", False):

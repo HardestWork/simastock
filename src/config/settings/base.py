@@ -199,6 +199,12 @@ if GOOGLE_OAUTH_ENABLED:
         }
     }
 
+# Login failure lockout — implemented via Redis in api.auth_views
+# (django-axes was incompatible with DRF JSON requests; this custom solution
+#  uses the Django cache backend for reliable per-IP failure counting).
+LOGIN_FAILURE_LIMIT = env.int("LOGIN_FAILURE_LIMIT", default=5)
+LOGIN_LOCKOUT_SECONDS = env.int("LOGIN_LOCKOUT_SECONDS", default=3600)  # 1 hour
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -305,7 +311,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": env("DRF_THROTTLE_ANON", default="60/min"),
-        "user": env("DRF_THROTTLE_USER", default="600/min"),
+        "user": env("DRF_THROTTLE_USER", default="200/min"),
         "auth_burst": env("DRF_THROTTLE_AUTH_BURST", default="20/min"),
         "auth_sustained": env("DRF_THROTTLE_AUTH_SUSTAINED", default="200/day"),
         "document_verify": "15/min",

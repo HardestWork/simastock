@@ -62,6 +62,7 @@
 | Numerotation continue et ininterrompue | Sequence par journal+exercice, contrainte DB `UNIQUE(journal, fiscal_year, sequence_number)` |
 | Interdiction de suppression | Pas de `DELETE` sur ecritures validees, seulement contre-passation |
 | Interdiction de modification post-validation | Statut `DRAFT` → `VALIDATED` → `POSTED`, verrouillage apres validation |
+| Gestion de la concurrence | Verrouillage pessimiste (`select_for_update`) sur le compteur de sequence lors de la validation pour eviter les trous/doublons |
 | Piste d'audit complete | Chaque ecriture stocke : auteur, date creation, date validation, IP, source |
 | Clôture de periode irrevocable | Flag `is_closed` sur Period, interdit toute ecriture dans une periode close |
 | Pieces justificatives | Lien `attachments` vers les documents (factures, recus) |
