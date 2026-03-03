@@ -230,14 +230,17 @@
                 <img src="{{ invoice_config.logo_uri }}" alt="Logo">
             </div>
             {% endif %}
-            <p class="company-name">{{ invoice_config.business_name }}</p>
+            <p class="company-name">{{ invoice_config.business_name }}{% if invoice_config.legal_form %} {{ invoice_config.legal_form }}{% endif %}</p>
+            {% if invoice_config.share_capital %}<p class="small-info">Capital social : {{ invoice_config.share_capital }}</p>{% endif %}
             {% if store.address %}<p class="small-info">{{ store.address }}</p>{% endif %}
             <p class="small-info">
                 {% if store.phone %}{{ store.phone }}{% endif %}
-                {% if store.phone and store.email %} - {% endif %}
-                {% if store.email %}{{ store.email }}{% endif %}
+                {% if store.phone and invoice_config.email %} - {% endif %}
+                {% if invoice_config.email %}{{ invoice_config.email }}{% endif %}
             </p>
             {% if invoice_config.website %}<p class="small-info">{{ invoice_config.website }}</p>{% endif %}
+            {% if invoice_config.registration_number %}<p class="small-info">RCCM : {{ invoice_config.registration_number }}</p>{% endif %}
+            {% if invoice_config.tax_id %}<p class="small-info">NIF : {{ invoice_config.tax_id }}</p>{% endif %}
         </div>
         <div class="header-right">
             <p class="doc-title">{{ document.title }}</p>

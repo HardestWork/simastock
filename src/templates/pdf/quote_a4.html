@@ -61,16 +61,17 @@
                 <img src="{{ invoice_config.logo_uri }}" alt="Logo" style="height:72px; width:auto; max-width:220px;">
             </p>
             {% endif %}
-            <h1>{{ invoice_config.business_name }}</h1>
+            <h1>{{ invoice_config.business_name }}{% if invoice_config.legal_form %} {{ invoice_config.legal_form }}{% endif %}</h1>
+            {% if invoice_config.share_capital %}<p>Capital social : {{ invoice_config.share_capital }}</p>{% endif %}
             {% if store.address %}<p>{{ store.address }}</p>{% endif %}
             <p>
                 {% if store.phone %}Tel: {{ store.phone }}{% endif %}
-                {% if store.phone and store.email %} · {% endif %}
-                {% if store.email %}{{ store.email }}{% endif %}
+                {% if store.phone and invoice_config.email %} · {% endif %}
+                {% if invoice_config.email %}{{ invoice_config.email }}{% endif %}
                 {% if invoice_config.website %} · {{ invoice_config.website }}{% endif %}
             </p>
-            {% if invoice_config.registration_number %}<p>RCCM: {{ invoice_config.registration_number }}</p>{% endif %}
-            {% if invoice_config.tax_id %}<p>NIF: {{ invoice_config.tax_id }}</p>{% endif %}
+            {% if invoice_config.registration_number %}<p>RCCM : {{ invoice_config.registration_number }}</p>{% endif %}
+            {% if invoice_config.tax_id %}<p>NIF : {{ invoice_config.tax_id }}</p>{% endif %}
         </div>
         <div class="invoice-meta">
             <h2>{{ document_title|default:"DEVIS" }}</h2>

@@ -362,15 +362,16 @@
                     {% else %}
                     <h2 class="brand-name">{{ invoice_config.business_name }}</h2>
                     {% endif %}
-                    <p class="brand-sub">{{ invoice_config.business_name }}</p>
+                    <p class="brand-sub">{{ invoice_config.business_name }}{% if invoice_config.legal_form %} &mdash; {{ invoice_config.legal_form }}{% endif %}</p>
                 </div>
                 <div class="hero-right">
+                    {% if invoice_config.share_capital %}<p>Capital social : {{ invoice_config.share_capital }}</p>{% endif %}
                     {% if store.address %}<p>{{ store.address }}</p>{% endif %}
                     {% if store.phone %}<p>{{ store.phone }}</p>{% endif %}
-                    {% if store.email %}<p>{{ store.email }}</p>{% endif %}
+                    {% if invoice_config.email %}<p>{{ invoice_config.email }}</p>{% endif %}
                     {% if invoice_config.website %}<p>{{ invoice_config.website }}</p>{% endif %}
-                    {% if invoice_config.registration_number %}<p>RCCM: {{ invoice_config.registration_number }}</p>{% endif %}
-                    {% if invoice_config.tax_id %}<p>IFU/NIF: {{ invoice_config.tax_id }}</p>{% endif %}
+                    {% if invoice_config.registration_number %}<p>RCCM : {{ invoice_config.registration_number }}</p>{% endif %}
+                    {% if invoice_config.tax_id %}<p>NIF/IFU : {{ invoice_config.tax_id }}</p>{% endif %}
                 </div>
             </div>
         </div>
