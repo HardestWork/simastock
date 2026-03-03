@@ -232,10 +232,10 @@
             {% endif %}
             <p class="company-name">{{ invoice_config.business_name }}{% if invoice_config.legal_form %} {{ invoice_config.legal_form }}{% endif %}</p>
             {% if invoice_config.share_capital %}<p class="small-info">Capital social : {{ invoice_config.share_capital }}</p>{% endif %}
-            {% if store.address %}<p class="small-info">{{ store.address }}</p>{% endif %}
+            {% if invoice_config.address %}<p class="small-info">{{ invoice_config.address }}</p>{% endif %}
             <p class="small-info">
-                {% if store.phone %}{{ store.phone }}{% endif %}
-                {% if store.phone and invoice_config.email %} - {% endif %}
+                {% if invoice_config.phone %}{{ invoice_config.phone }}{% endif %}
+                {% if invoice_config.phone and invoice_config.email %} - {% endif %}
                 {% if invoice_config.email %}{{ invoice_config.email }}{% endif %}
             </p>
             {% if invoice_config.website %}<p class="small-info">{{ invoice_config.website }}</p>{% endif %}

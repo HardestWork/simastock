@@ -95,6 +95,10 @@ export default function SettingsPage() {
   useEffect(() => {
     if (enterprise) {
       setInvoiceDraft({
+        address: enterprise.address ?? '',
+        phone: enterprise.phone ?? '',
+        email: enterprise.email ?? '',
+        website: enterprise.website ?? '',
         legal_name: enterprise.legal_name ?? '',
         legal_form: enterprise.legal_form ?? '',
         share_capital: enterprise.share_capital ?? '',
@@ -477,6 +481,44 @@ export default function SettingsPage() {
               <div className="text-sm text-gray-500 dark:text-gray-400">Aucune structure chargee.</div>
             ) : (
               <div className="space-y-4">
+
+              {/* ---- Coordonnees ---- */}
+              <div>
+                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 pb-1 border-b border-gray-100 dark:border-gray-700">
+                  Coordonnees
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Adresse / Localisation</label>
+                    <textarea
+                      value={invoiceDraft.address ?? ''}
+                      onChange={(e) => setInvoiceDraft((d) => ({ ...d, address: e.target.value }))}
+                      placeholder="Ex : Somgade - Ouagadougou, Burkina Faso"
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100 resize-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Telephone</label>
+                    <input
+                      value={invoiceDraft.phone ?? ''}
+                      onChange={(e) => setInvoiceDraft((d) => ({ ...d, phone: e.target.value }))}
+                      placeholder="+226 XX XX XX XX"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={invoiceDraft.email ?? ''}
+                      onChange={(e) => setInvoiceDraft((d) => ({ ...d, email: e.target.value }))}
+                      placeholder="contact@entreprise.com"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* ---- Identite legale SYSCOHADA ---- */}
               <div>

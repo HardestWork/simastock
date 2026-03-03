@@ -344,7 +344,7 @@
         <div class="row">
             <div class="left">
                 <strong>{{ invoice_config.business_name }}</strong>
-                {% if store.phone %} - {{ store.phone }}{% endif %}
+                {% if invoice_config.phone %} - {{ invoice_config.phone }}{% endif %}
             </div>
             <div class="right">
                 <strong>{{ document.title }}</strong> - {{ document.number }}
@@ -366,8 +366,8 @@
                 </div>
                 <div class="hero-right">
                     {% if invoice_config.share_capital %}<p>Capital social : {{ invoice_config.share_capital }}</p>{% endif %}
-                    {% if store.address %}<p>{{ store.address }}</p>{% endif %}
-                    {% if store.phone %}<p>{{ store.phone }}</p>{% endif %}
+                    {% if invoice_config.address %}<p>{{ invoice_config.address }}</p>{% endif %}
+                    {% if invoice_config.phone %}<p>{{ invoice_config.phone }}</p>{% endif %}
                     {% if invoice_config.email %}<p>{{ invoice_config.email }}</p>{% endif %}
                     {% if invoice_config.website %}<p>{{ invoice_config.website }}</p>{% endif %}
                     {% if invoice_config.registration_number %}<p>RCCM : {{ invoice_config.registration_number }}</p>{% endif %}

@@ -147,6 +147,10 @@ export interface Enterprise {
   id: string;
   name: string;
   code: string;
+  address?: string;
+  phone: string;
+  email: string;
+  website: string;
   legal_name: string;
   legal_form?: string;
   share_capital?: string;
@@ -155,9 +159,6 @@ export interface Enterprise {
   currency: string;
   vat_enabled: boolean;
   vat_rate: string;
-  email: string;
-  phone: string;
-  website: string;
   bank_details?: string;
   invoice_header?: string;
   invoice_template?: InvoiceTemplate;

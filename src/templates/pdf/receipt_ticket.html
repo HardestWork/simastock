@@ -79,8 +79,8 @@
         <div class="tagline">Capital social : {{ invoice_config.share_capital }}</div>
         {% endif %}
         <div class="contact">
-            {% if store.address %}<span>{{ store.address }}</span>{% endif %}
-            {% if store.phone %}<span>{{ store.phone }}</span>{% endif %}
+            {% if invoice_config.address %}<span>{{ invoice_config.address }}</span>{% endif %}
+            {% if invoice_config.phone %}<span>{{ invoice_config.phone }}</span>{% endif %}
             {% if invoice_config.email %}<span>{{ invoice_config.email }}</span>{% endif %}
         </div>
         {% if invoice_config.registration_number or invoice_config.tax_id %}

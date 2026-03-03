@@ -154,6 +154,7 @@ class Enterprise(TimeStampedModel):
 
     name = models.CharField("nom", max_length=255)
     code = models.CharField("code", max_length=50, unique=True)
+    address = models.TextField("adresse", blank=True, default="")
     legal_name = models.CharField("raison sociale", max_length=255, blank=True, default="")
 
     class LegalForm(models.TextChoices):

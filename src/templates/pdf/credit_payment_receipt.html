@@ -47,11 +47,11 @@
             </p>
             {% endif %}
             <h1>{{ invoice_config.business_name }}</h1>
-            {% if store.address %}<p>{{ store.address }}</p>{% endif %}
+            {% if invoice_config.address %}<p>{{ invoice_config.address }}</p>{% endif %}
             <p>
-                {% if store.phone %}Tel: {{ store.phone }}{% endif %}
-                {% if store.phone and store.email %} · {% endif %}
-                {% if store.email %}{{ store.email }}{% endif %}
+                {% if invoice_config.phone %}Tel: {{ invoice_config.phone }}{% endif %}
+                {% if invoice_config.phone and invoice_config.email %} · {% endif %}
+                {% if invoice_config.email %}{{ invoice_config.email }}{% endif %}
                 {% if invoice_config.website %} · {{ invoice_config.website }}{% endif %}
             </p>
             {% if invoice_config.registration_number %}<p>RCCM: {{ invoice_config.registration_number }}</p>{% endif %}
@@ -145,7 +145,7 @@
         {% if invoice_config.footer %}
         <p>{{ invoice_config.footer }}</p>
         {% else %}
-        <p>{{ invoice_config.business_name }}{% if store.address %} · {{ store.address }}{% endif %}</p>
+        <p>{{ invoice_config.business_name }}{% if invoice_config.address %} · {{ invoice_config.address }}{% endif %}</p>
         {% endif %}
         <p>Facture generee le {{ now|date:"d/m/Y a H:i" }}</p>
     </div>
