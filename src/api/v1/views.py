@@ -1248,8 +1248,14 @@ class StoreViewSet(viewsets.ModelViewSet):
         if getattr(user, "is_superuser", False):
             return qs
 
+        # For assign_users, admins must be able to reach any store in their
+        # enterprise (they may not personally be in that store yet).
+        if getattr(self, "action", None) == "assign_users":
+            enterprise_id = _require_user_enterprise_id(user)
+            return qs.filter(enterprise_id=enterprise_id)
+
         return qs.filter(id__in=_user_store_ids(user)).distinct()
-    
+
     def perform_create(self, serializer):
         # Force enterprise scoping from the creator context to prevent
         # cross-tenant store creation.
@@ -1362,13 +1368,16 @@ class StoreUserViewSet(viewsets.ModelViewSet):
 
     serializer_class = StoreUserSerializer
     permission_classes = [IsAuthenticated, CanManageUsers, IsStoreMember]
-    filterset_fields = ['store']
+    filterset_fields = ['store', 'user']
 
     def get_queryset(self):
         qs = StoreUser.objects.select_related('user', 'store')
         store_id = self.request.query_params.get('store')
         if store_id:
             qs = qs.filter(store_id=store_id)
+        user_id = self.request.query_params.get('user')
+        if user_id:
+            qs = qs.filter(user_id=user_id)
         return qs.filter(store_id__in=_user_store_ids(self.request.user))
 
     @action(detail=False, methods=['get'], url_path='presets')
