@@ -723,6 +723,71 @@ export interface Sale {
   submitted_at: string | null;
   created_at: string;
   verification_token: string | null;
+  coupon: string | null;
+  coupon_code: string;
+}
+
+// ---------------------------------------------------------------------------
+// Coupons (Codes promo)
+// ---------------------------------------------------------------------------
+
+export type CouponDiscountType = 'PERCENT' | 'FIXED';
+
+export interface Coupon {
+  id: string;
+  store: string;
+  code: string;
+  description: string;
+  discount_type: CouponDiscountType;
+  discount_value: string;
+  min_order_amount: string;
+  valid_from: string;
+  valid_until: string | null;
+  max_uses: number | null;
+  uses_count: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Cash Flow Report
+// ---------------------------------------------------------------------------
+
+export interface CashFlowPeriod {
+  date: string;
+  cash_in: string;
+  cash_out: string;
+  net: string;
+}
+
+export interface CashFlowReport {
+  periods: CashFlowPeriod[];
+  totals: {
+    cash_in: string;
+    cash_out: string;
+    net: string;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Refunds (Remboursements)
+// ---------------------------------------------------------------------------
+
+export type RefundMethod = 'CASH' | 'MOBILE_MONEY' | 'BANK_TRANSFER' | 'CREDIT';
+
+export interface Refund {
+  id: string;
+  sale: string;
+  store: string;
+  amount: string;
+  reason: string;
+  approved_by: string;
+  processed_by: string | null;
+  refund_method: RefundMethod;
+  reference: string;
+  credit_note_number: string | null;
+  restore_stock: boolean;
+  created_at: string;
 }
 
 // ---------------------------------------------------------------------------

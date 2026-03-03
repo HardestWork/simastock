@@ -125,6 +125,11 @@ import type {
   AccountingSettings,
   BalanceGeneraleRow,
   GrandLivreRow,
+  Refund,
+  RefundMethod,
+  Coupon,
+  CouponDiscountType,
+  CashFlowReport,
 } from './types';
 import type { Capability } from './types';
 
@@ -642,6 +647,86 @@ export const saleApi = {
 
   cancel: (saleId: string, reason: string) =>
     apiClient.post<Sale>(`sales/${saleId}/cancel/`, { reason }).then((r) => r.data),
+
+  applyCoupon: (saleId: string, code: string) =>
+    apiClient.post<Sale>(`sales/${saleId}/apply-coupon/`, { code }).then((r) => r.data),
+
+  removeCoupon: (saleId: string) =>
+    apiClient.post<Sale>(`sales/${saleId}/remove-coupon/`).then((r) => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// Refunds (Remboursements)
+// ---------------------------------------------------------------------------
+
+export const refundApi = {
+  list: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<Refund>>('refunds/', { params }).then((r) => r.data),
+
+  get: (id: string) =>
+    apiClient.get<Refund>(`refunds/${id}/`).then((r) => r.data),
+
+  create: (data: {
+    sale_id: string;
+    amount: string;
+    reason: string;
+    refund_method: RefundMethod;
+    restore_stock?: boolean;
+  }) => apiClient.post<Refund>('refunds/', data).then((r) => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// Coupons (Codes promo)
+// ---------------------------------------------------------------------------
+
+export const couponApi = {
+  list: (params?: Record<string, string>) =>
+    apiClient.get<{ results: Coupon[]; count: number }>('coupons/', { params }).then((r) => r.data),
+
+  get: (id: string) =>
+    apiClient.get<Coupon>(`coupons/${id}/`).then((r) => r.data),
+
+  create: (data: {
+    store: string;
+    code: string;
+    description?: string;
+    discount_type: CouponDiscountType;
+    discount_value: string;
+    min_order_amount?: string;
+    valid_from: string;
+    valid_until?: string | null;
+    max_uses?: number | null;
+    is_active?: boolean;
+  }) => apiClient.post<Coupon>('coupons/', data).then((r) => r.data),
+
+  update: (id: string, data: Partial<{
+    code: string;
+    description: string;
+    discount_type: CouponDiscountType;
+    discount_value: string;
+    min_order_amount: string;
+    valid_from: string;
+    valid_until: string | null;
+    max_uses: number | null;
+    is_active: boolean;
+  }>) => apiClient.patch<Coupon>(`coupons/${id}/`, data).then((r) => r.data),
+
+  delete: (id: string) =>
+    apiClient.delete(`coupons/${id}/`),
+
+  validate: (params: { code: string; store: string; order_amount?: string }) =>
+    apiClient
+      .get<{ valid: boolean; coupon?: Coupon; error?: string }>('coupons/validate/', { params })
+      .then((r) => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// Cash Flow Report
+// ---------------------------------------------------------------------------
+
+export const cashFlowApi = {
+  get: (params: { store: string; start_date: string; end_date: string; group_by?: string }) =>
+    apiClient.get<CashFlowReport>('reports/cash-flow/', { params }).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------

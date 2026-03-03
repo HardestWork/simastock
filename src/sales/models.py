@@ -9,6 +9,79 @@ from core.models import TimeStampedModel
 
 
 # ---------------------------------------------------------------------------
+# Coupon
+# ---------------------------------------------------------------------------
+
+class Coupon(TimeStampedModel):
+    """A promotional coupon code that can be applied to a sale."""
+
+    class DiscountType(models.TextChoices):
+        PERCENT = "PERCENT", "Pourcentage"
+        FIXED = "FIXED", "Montant fixe"
+
+    store = models.ForeignKey(
+        "stores.Store",
+        on_delete=models.CASCADE,
+        related_name="coupons",
+        verbose_name="boutique",
+    )
+    code = models.CharField("code", max_length=50)
+    description = models.CharField("description", max_length=200, blank=True, default="")
+    discount_type = models.CharField(
+        "type de remise",
+        max_length=10,
+        choices=DiscountType.choices,
+        default=DiscountType.PERCENT,
+    )
+    discount_value = models.DecimalField(
+        "valeur de remise",
+        max_digits=10,
+        decimal_places=2,
+    )
+    min_order_amount = models.DecimalField(
+        "montant minimum de commande",
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    valid_from = models.DateField("valide a partir du")
+    valid_until = models.DateField("valide jusqu'au", null=True, blank=True)
+    max_uses = models.PositiveIntegerField(
+        "utilisations maximum",
+        null=True,
+        blank=True,
+        help_text="Laisser vide pour un usage illimite.",
+    )
+    uses_count = models.PositiveIntegerField("nombre d'utilisations", default=0)
+    is_active = models.BooleanField("actif", default=True)
+
+    class Meta:
+        verbose_name = "coupon"
+        verbose_name_plural = "coupons"
+        unique_together = [("store", "code")]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Coupon {self.code} ({self.store})"
+
+    def is_valid(self, order_amount=Decimal("0.00")):
+        """Return (True, None) if usable, (False, error_message) otherwise."""
+        from django.utils import timezone
+        today = timezone.now().date()
+        if not self.is_active:
+            return False, "Ce coupon est inactif."
+        if self.valid_from > today:
+            return False, "Ce coupon n'est pas encore actif."
+        if self.valid_until and self.valid_until < today:
+            return False, "Ce coupon a expire."
+        if self.max_uses is not None and self.uses_count >= self.max_uses:
+            return False, "Ce coupon a atteint sa limite d'utilisations."
+        if order_amount < self.min_order_amount:
+            return False, f"Montant minimum requis : {self.min_order_amount} FCFA."
+        return True, None
+
+
+# ---------------------------------------------------------------------------
 # Sale
 # ---------------------------------------------------------------------------
 
@@ -149,6 +222,25 @@ class Sale(TimeStampedModel):
         "raison d'annulation",
         blank=True,
         default="",
+    )
+
+    # ------------------------------------------------------------------
+    # Coupon
+    # ------------------------------------------------------------------
+    coupon = models.ForeignKey(
+        "sales.Coupon",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="applied_sales",
+        verbose_name="coupon",
+    )
+    coupon_code = models.CharField(
+        "code coupon (snapshot)",
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="Snapshot du code coupon au moment de la vente.",
     )
 
     # ------------------------------------------------------------------

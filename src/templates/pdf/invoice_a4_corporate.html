@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+@page {
+  size: A4;
+  margin: 0;
+  @top-right {
+    content: "Page " counter(page) " / " counter(pages);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 8pt;
+    color: #888;
+    padding-right: 15mm;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a2e; }
+
+/* ---- HEADER BAND ---- */
+.header-band {
+  background: {{ invoice_config.primary_color }};
+  padding: 18px 20mm;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-band .logo-wrap img { height: 42px; width: auto; filter: brightness(0) invert(1); }
+.header-band .logo-wrap .biz-name { font-size: 16pt; font-weight: bold; color: #fff; letter-spacing: 1px; }
+.header-band .doc-info { text-align: right; }
+.header-band .doc-title { font-size: 22pt; font-weight: bold; color: #fff; letter-spacing: 2px; }
+.header-band .doc-number { font-size: 11pt; color: rgba(255,255,255,0.85); margin-top: 2px; }
+.header-band .doc-date { font-size: 9pt; color: rgba(255,255,255,0.7); margin-top: 2px; }
+
+/* ---- BODY ---- */
+.body-wrap { padding: 16px 20mm 0; }
+
+/* ---- INFO SECTION (2 cols) ---- */
+.info-section {
+  display: flex;
+  gap: 0;
+  border: 1px solid #dde1ea;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.info-col {
+  flex: 1;
+  padding: 14px 16px;
+}
+.info-col + .info-col {
+  border-left: 1px solid #dde1ea;
+  background: #f8f9fc;
+}
+.info-col .col-title {
+  font-size: 7.5pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: {{ invoice_config.primary_color }};
+  margin-bottom: 7px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid {{ invoice_config.primary_color }};
+  display: inline-block;
+}
+.info-col .name { font-size: 11pt; font-weight: bold; color: #1a1a2e; margin-bottom: 3px; }
+.info-col .detail { font-size: 8.5pt; color: #555; line-height: 1.6; }
+
+/* ---- ITEMS TABLE ---- */
+.section-title {
+  font-size: 7.5pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #888;
+  margin-bottom: 6px;
+}
+.items-table { width: 100%; border-collapse: collapse; }
+.items-table thead tr {
+  background: {{ invoice_config.primary_color }};
+}
+.items-table th {
+  font-size: 8pt;
+  font-weight: bold;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 9px 10px;
+  text-align: left;
+}
+.items-table th.r { text-align: right; }
+.items-table tbody tr { border-bottom: 1px solid #eef0f5; }
+.items-table tbody tr:nth-child(even) { background: #f9fafc; }
+.items-table td { font-size: 8.5pt; padding: 8px 10px; vertical-align: top; }
+.items-table td.r { text-align: right; }
+.items-table .product-name { font-weight: 600; color: #1a1a2e; }
+
+/* ---- TOTALS ---- */
+.totals-wrap { display: flex; justify-content: flex-end; margin-top: 12px; }
+.totals-box { width: 200px; }
+.totals-box .tot-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid #eef0f5;
+  font-size: 8.5pt;
+}
+.totals-box .tot-row.coupon { color: #555; font-size: 8pt; }
+.totals-box .tot-row.discount { color: #dc2626; }
+.totals-box .tot-row.grand {
+  border-bottom: none;
+  border-top: 2px solid {{ invoice_config.primary_color }};
+  padding-top: 8px;
+  margin-top: 4px;
+  font-size: 12pt;
+  font-weight: bold;
+  color: {{ invoice_config.primary_color }};
+}
+.totals-box .tot-label { color: #555; }
+
+/* ---- PAYMENT STATUS ---- */
+.status-strip {
+  margin-top: 16px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 8.5pt;
+  font-weight: 600;
+}
+.status-strip.paid { background: #ecfdf5; color: #059669; border-left: 4px solid #059669; }
+.status-strip.pending { background: #fffbeb; color: #d97706; border-left: 4px solid #d97706; }
+.status-strip.credit { background: #fef2f2; color: #dc2626; border-left: 4px solid #dc2626; }
+
+/* ---- FOOTER SECTION ---- */
+.footer-section {
+  margin-top: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding-top: 12px;
+  border-top: 1px solid #dde1ea;
+}
+.footer-section .bank-block { flex: 1; }
+.footer-section .bank-block .block-title {
+  font-size: 7.5pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: {{ invoice_config.primary_color }};
+  margin-bottom: 5px;
+}
+.footer-section .bank-block .bank-text { font-size: 8pt; color: #555; line-height: 1.7; }
+.footer-section .qr-block { text-align: center; }
+.footer-section .qr-block img { width: 72px; height: 72px; display: block; }
+.footer-section .qr-block .qr-label { font-size: 6.5pt; color: #888; margin-top: 3px; }
+.footer-section .qr-block .verify-hash { font-size: 7pt; font-weight: bold; letter-spacing: 1px; margin-top: 2px; color: #555; }
+
+/* ---- TERMS ---- */
+.terms-block { margin-top: 14px; padding-bottom: 14px; }
+.terms-block .block-title {
+  font-size: 7.5pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #888;
+  margin-bottom: 4px;
+}
+.terms-block .terms-text { font-size: 8pt; color: #666; line-height: 1.6; }
+
+/* ---- DOCUMENT FOOTER ---- */
+.doc-footer {
+  text-align: center;
+  padding: 10px 20mm;
+  background: {{ invoice_config.primary_color }};
+  margin-top: 10px;
+  color: rgba(255,255,255,0.8);
+  font-size: 7.5pt;
+}
+.doc-footer strong { color: #fff; }
+
+.page-break { page-break-after: always; }
+.avoid-break { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- HEADER BAND -->
+<div class="header-band">
+  <div class="logo-wrap">
+    {% if invoice_config.logo_uri %}
+    <img src="{{ invoice_config.logo_uri }}" alt="Logo">
+    {% else %}
+    <div class="biz-name">{{ invoice_config.business_name }}</div>
+    {% endif %}
+  </div>
+  <div class="doc-info">
+    <div class="doc-title">{{ document.title|upper }}</div>
+    <div class="doc-number">N° {{ document.number }}</div>
+    <div class="doc-date">
+      {{ sale.created_at|date:"d/m/Y" }}
+      {% if document.valid_until %} &mdash; Valable jusqu'au {{ document.valid_until|date:"d/m/Y" }}{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="body-wrap">
+
+  <!-- INFO SECTION -->
+  <div class="info-section avoid-break">
+    <div class="info-col">
+      <div class="col-title">Facturer à</div>
+      {% if sale.customer %}
+      <div class="name">{{ sale.customer.full_name }}</div>
+      <div class="detail">
+        {% if sale.customer.phone %}{{ sale.customer.phone }}<br>{% endif %}
+        {% if sale.customer.email %}{{ sale.customer.email }}<br>{% endif %}
+        {% if sale.customer.address %}{{ sale.customer.address }}{% endif %}
+      </div>
+      {% else %}
+      <div class="name">Client Comptant</div>
+      {% endif %}
+    </div>
+    <div class="info-col">
+      <div class="col-title">Émis par</div>
+      <div class="name">
+        {{ invoice_config.business_name }}{% if invoice_config.legal_form %} {{ invoice_config.legal_form }}{% endif %}
+      </div>
+      <div class="detail">
+        {% if invoice_config.address %}{{ invoice_config.address }}<br>{% endif %}
+        {% if invoice_config.phone %}{{ invoice_config.phone }}<br>{% endif %}
+        {% if invoice_config.email %}{{ invoice_config.email }}<br>{% endif %}
+        {% if invoice_config.registration_number %}RCCM : {{ invoice_config.registration_number }}<br>{% endif %}
+        {% if invoice_config.tax_id %}NIF : {{ invoice_config.tax_id }}{% endif %}
+        {% if invoice_config.share_capital %}<br>Capital : {{ invoice_config.share_capital }}{% endif %}
+      </div>
+    </div>
+    <div class="info-col" style="max-width:120px;">
+      <div class="col-title">Vendeur</div>
+      <div class="name" style="font-size:9pt;">{{ sale.seller.get_full_name }}</div>
+      <div class="detail" style="margin-top:8px;">
+        <div class="col-title">Boutique</div>
+        <div>{{ store.name }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITEMS TABLE -->
+  <div class="section-title">Détail des articles</div>
+  <table class="items-table avoid-break">
+    <thead>
+      <tr>
+        <th style="width:28px;">#</th>
+        <th>Article</th>
+        <th class="r" style="width:70px;">Prix unit.</th>
+        <th class="r" style="width:50px;">Qté</th>
+        {% if invoice_config.vat_enabled %}<th class="r" style="width:60px;">TVA</th>{% endif %}
+        <th class="r" style="width:80px;">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in sale.items.all %}
+      <tr>
+        <td style="color:#999;">{{ forloop.counter }}</td>
+        <td>
+          <span class="product-name">{{ item.product_name }}</span>
+          {% if item.notes %}<br><span style="color:#888;font-size:7.5pt;">{{ item.notes }}</span>{% endif %}
+        </td>
+        <td class="r">{{ item.unit_price|floatformat:0 }}</td>
+        <td class="r">{{ item.quantity }}</td>
+        {% if invoice_config.vat_enabled %}<td class="r" style="color:#888;">{% if item.tax_amount %}{{ item.tax_amount|floatformat:0 }}{% else %}—{% endif %}</td>{% endif %}
+        <td class="r" style="font-weight:600;">{{ item.line_total|floatformat:0 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- TOTALS -->
+  <div class="totals-wrap avoid-break">
+    <div class="totals-box">
+      <div class="tot-row">
+        <span class="tot-label">Sous-total</span>
+        <span>{{ sale.subtotal|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+      </div>
+      {% if sale.coupon_code %}
+      <div class="tot-row coupon">
+        <span class="tot-label">Coupon <strong>{{ sale.coupon_code }}</strong></span>
+        <span>&#10003;</span>
+      </div>
+      {% endif %}
+      {% if sale.discount_amount > 0 %}
+      <div class="tot-row discount">
+        <span class="tot-label">Remise{% if sale.discount_percent > 0 %} ({{ sale.discount_percent }}%){% endif %}</span>
+        <span>-{{ sale.discount_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+      </div>
+      {% endif %}
+      {% if invoice_config.vat_enabled or sale.tax_amount > 0 %}
+      <div class="tot-row">
+        <span class="tot-label">TVA{% if invoice_config.vat_enabled %} ({{ invoice_config.vat_rate }}%){% endif %}</span>
+        <span>{{ sale.tax_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+      </div>
+      {% endif %}
+      <div class="tot-row grand">
+        <span>TOTAL TTC</span>
+        <span>{{ sale.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  {% if sale.payment_status == 'PAID' %}
+  <div class="status-strip paid avoid-break">&#10003; Facture entièrement réglée</div>
+  {% elif sale.credit_balance and sale.credit_balance > 0 %}
+  <div class="status-strip credit avoid-break">Solde restant dû : {{ sale.credit_balance|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
+  {% else %}
+  <div class="status-strip pending avoid-break">En attente de paiement</div>
+  {% endif %}
+
+  <!-- FOOTER SECTION -->
+  <div class="footer-section avoid-break">
+    {% if invoice_config.bank_details %}
+    <div class="bank-block">
+      <div class="block-title">Coordonnées bancaires</div>
+      <div class="bank-text">{{ invoice_config.bank_details|linebreaksbr }}</div>
+    </div>
+    {% endif %}
+    <div class="bank-block">
+      <div class="block-title">Signataire autorisé</div>
+      <div class="bank-text" style="margin-top:28px;">
+        _________________________<br>
+        <span style="font-size:7.5pt;">{{ invoice_config.business_name }}</span>
+      </div>
+    </div>
+    {% if verify_url and qr_data_uri %}
+    <div class="qr-block">
+      <img src="{{ qr_data_uri }}" alt="QR">
+      <div class="qr-label">Vérifier ce document</div>
+      {% if verify_hash %}<div class="verify-hash">{{ verify_hash }}</div>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- TERMS -->
+  {% if invoice_config.terms %}
+  <div class="terms-block">
+    <div class="block-title">Conditions</div>
+    <div class="terms-text">{{ invoice_config.terms }}</div>
+  </div>
+  {% endif %}
+
+</div><!-- /body-wrap -->
+
+<!-- DOC FOOTER -->
+<div class="doc-footer">
+  <strong>{{ invoice_config.business_name }}</strong>
+  {% if invoice_config.footer %} &mdash; {{ invoice_config.footer }}{% endif %}
+  &mdash; Édité le {{ now|date:"d/m/Y à H:i" }}
+</div>
+
+</body>
+</html>

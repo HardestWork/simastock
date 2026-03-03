@@ -54,7 +54,7 @@ from stock.models import (
     StockCount, StockCountLine,
 )
 from customers.models import Customer
-from sales.models import Quote, QuoteItem, Refund, Sale, SaleItem
+from sales.models import Coupon, Quote, QuoteItem, Refund, Sale, SaleItem
 from cashier.models import CashShift, Payment
 from credits.models import CustomerAccount, CreditLedgerEntry, PaymentSchedule
 from purchases.models import Supplier, PurchaseOrder, GoodsReceipt
@@ -116,6 +116,7 @@ from api.v1.serializers import (
     MyStoreSerializer,
     RefundSerializer,
     RefundCreateSerializer,
+    CouponSerializer,
     AuditLogSerializer,
     StockTransferSerializer,
     StockTransferCreateSerializer,
@@ -2787,7 +2788,7 @@ class SaleViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
-        if self.action in ('create', 'add_item', 'set_item_quantity', 'set_item_unit_price', 'remove_item', 'submit'):
+        if self.action in ('create', 'add_item', 'set_item_quantity', 'set_item_unit_price', 'remove_item', 'submit', 'apply_coupon', 'remove_coupon'):
             return [IsSales(), FeatureSalesPOSEnabled()]
         if self.action == 'cancel':
             return [IsManagerOrAdmin(), FeatureSalesPOSEnabled()]
@@ -3166,6 +3167,83 @@ class SaleViewSet(viewsets.ModelViewSet):
                 {"detail": "Impossible de generer le recu pour cette vente."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+    @action(detail=True, methods=['post'], url_path='apply-coupon')
+    def apply_coupon(self, request, pk=None):
+        """Apply a coupon code to a draft sale.
+
+        POST /api/v1/sales/{id}/apply-coupon/
+        Body: { "code": "PROMO10" }
+        """
+        sale = self.get_object()
+
+        if sale.status != Sale.Status.DRAFT:
+            return Response(
+                {'detail': 'Le coupon ne peut etre applique que sur une vente en brouillon.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        code = (request.data.get('code') or '').strip().upper()
+        if not code:
+            return Response(
+                {'detail': 'Le code coupon est requis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            coupon = Coupon.objects.get(code=code, store=sale.store)
+        except Coupon.DoesNotExist:
+            return Response(
+                {'detail': 'Code coupon invalide ou inapplicable a cette boutique.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        is_valid, error_msg = coupon.is_valid(order_amount=sale.subtotal)
+        if not is_valid:
+            return Response({'detail': error_msg}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Apply coupon discount to the sale
+        if coupon.discount_type == Coupon.DiscountType.PERCENT:
+            sale.discount_percent = coupon.discount_value
+            sale.discount_amount = Decimal('0.00')
+        else:
+            sale.discount_amount = coupon.discount_value
+            sale.discount_percent = Decimal('0.00')
+
+        sale.coupon = coupon
+        sale.coupon_code = coupon.code
+        sale.recalculate_totals()
+        sale.save(update_fields=[
+            'discount_percent', 'discount_amount', 'subtotal', 'tax_amount',
+            'total', 'amount_due', 'coupon', 'coupon_code', 'updated_at',
+        ])
+
+        sale = self.get_queryset().get(pk=sale.pk)
+        return Response(SaleSerializer(sale).data)
+
+    @action(detail=True, methods=['post'], url_path='remove-coupon')
+    def remove_coupon(self, request, pk=None):
+        """Remove the coupon from a draft sale and reset discount."""
+        sale = self.get_object()
+
+        if sale.status != Sale.Status.DRAFT:
+            return Response(
+                {'detail': 'Le coupon ne peut etre retire que sur une vente en brouillon.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        sale.coupon = None
+        sale.coupon_code = ''
+        sale.discount_percent = Decimal('0.00')
+        sale.discount_amount = Decimal('0.00')
+        sale.recalculate_totals()
+        sale.save(update_fields=[
+            'discount_percent', 'discount_amount', 'subtotal', 'tax_amount',
+            'total', 'amount_due', 'coupon', 'coupon_code', 'updated_at',
+        ])
+
+        sale = self.get_queryset().get(pk=sale.pk)
+        return Response(SaleSerializer(sale).data)
 
     @action(detail=False, methods=['get'], url_path='export-csv')
     def export_csv(self, request):
@@ -4045,6 +4123,120 @@ class KPIView(APIView):
 
 
 # ---------------------------------------------------------------------------
+# Cash Flow Report View
+# ---------------------------------------------------------------------------
+
+class CashFlowView(APIView):
+    """
+    GET /api/v1/reports/cash-flow/
+
+    Aggregates cash inflows (payments) and outflows (expenses) for a store
+    over a date range, grouped by day or month.
+
+    Query params:
+        - store (required): store UUID
+        - start_date (required): YYYY-MM-DD
+        - end_date (required): YYYY-MM-DD
+        - group_by: 'day' (default) or 'month'
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Sum
+        from django.db.models.functions import TruncDay, TruncMonth
+
+        store_id = request.query_params.get('store')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        group_by = request.query_params.get('group_by', 'day')
+
+        if not store_id or not start_date or not end_date:
+            return Response(
+                {'detail': 'Les parametres store, start_date et end_date sont requis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check store access
+        store_ids = _user_store_ids(request.user)
+        try:
+            import uuid as _uuid
+            store_uuid = _uuid.UUID(str(store_id))
+        except (ValueError, AttributeError):
+            return Response({'detail': 'Identifiant boutique invalide.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if store_uuid not in store_ids:
+            return Response({'detail': "Acces interdit a cette boutique."}, status=status.HTTP_403_FORBIDDEN)
+
+        trunc_fn = TruncDay if group_by == 'day' else TruncMonth
+
+        # Cash inflows: Payments (all non-credit methods)
+        payments_qs = (
+            Payment.objects
+            .filter(store_id=store_uuid, created_at__date__gte=start_date, created_at__date__lte=end_date)
+            .annotate(period=trunc_fn('created_at'))
+            .values('period')
+            .annotate(cash_in=Sum('amount'))
+            .order_by('period')
+        )
+
+        # Cash outflows: Expenses (status=POSTED only)
+        from expenses.models import Expense
+        expenses_qs = (
+            Expense.objects
+            .filter(store_id=store_uuid, expense_date__gte=start_date, expense_date__lte=end_date, status='POSTED')
+            .values('expense_date')
+            .annotate(cash_out=Sum('amount'))
+            .order_by('expense_date')
+        )
+
+        # Build unified period map
+        period_map: dict = {}
+
+        for row in payments_qs:
+            if row['period'] is None:
+                continue
+            key = row['period'].strftime('%Y-%m-%d')
+            period_map.setdefault(key, {'date': key, 'cash_in': Decimal('0.00'), 'cash_out': Decimal('0.00')})
+            period_map[key]['cash_in'] += row['cash_in'] or Decimal('0.00')
+
+        for row in expenses_qs:
+            if row['expense_date'] is None:
+                continue
+            # For month grouping, truncate to first day of month
+            if group_by == 'month':
+                key = row['expense_date'].strftime('%Y-%m-01')
+            else:
+                key = row['expense_date'].strftime('%Y-%m-%d')
+            period_map.setdefault(key, {'date': key, 'cash_in': Decimal('0.00'), 'cash_out': Decimal('0.00')})
+            period_map[key]['cash_out'] += row['cash_out'] or Decimal('0.00')
+
+        periods = []
+        total_cash_in = Decimal('0.00')
+        total_cash_out = Decimal('0.00')
+
+        for key in sorted(period_map.keys()):
+            p = period_map[key]
+            net = p['cash_in'] - p['cash_out']
+            periods.append({
+                'date': p['date'],
+                'cash_in': str(p['cash_in']),
+                'cash_out': str(p['cash_out']),
+                'net': str(net),
+            })
+            total_cash_in += p['cash_in']
+            total_cash_out += p['cash_out']
+
+        return Response({
+            'periods': periods,
+            'totals': {
+                'cash_in': str(total_cash_in),
+                'cash_out': str(total_cash_out),
+                'net': str(total_cash_in - total_cash_out),
+            },
+        })
+
+
 # Sales Report API View
 # ---------------------------------------------------------------------------
 
@@ -5079,6 +5271,94 @@ class RefundViewSet(
             RefundSerializer(refund).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+# ---------------------------------------------------------------------------
+# Coupon ViewSet
+# ---------------------------------------------------------------------------
+
+class CouponViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for promotional coupons + validate action.
+
+    - List/Retrieve: any authenticated user with SELL module.
+    - Create/Update/Delete: MANAGER/ADMIN only.
+    - validate action: GET /api/v1/coupons/validate/?code=XXX&store=YYY&order_amount=ZZZ
+    """
+
+    serializer_class = CouponSerializer
+    queryset = Coupon.objects.select_related('store')
+    filterset_fields = ['store', 'is_active', 'discount_type']
+    ordering_fields = ['created_at', 'code', 'valid_until']
+    pagination_class = StandardResultsSetPagination
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsManagerOrAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        store_ids = _user_store_ids(self.request.user)
+        return qs.filter(store_id__in=store_ids)
+
+    @action(detail=False, methods=['get'], url_path='validate')
+    def validate_coupon(self, request):
+        """Validate a coupon code without applying it.
+
+        GET /api/v1/coupons/validate/?code=XXX&store=YYY&order_amount=ZZZ
+        Returns: {valid: bool, coupon: {...}} or {valid: false, error: '...'}
+        """
+        code = (request.query_params.get('code') or '').strip().upper()
+        store_id = request.query_params.get('store')
+        order_amount_raw = request.query_params.get('order_amount', '0') or '0'
+        try:
+            order_amount = Decimal(order_amount_raw)
+        except Exception:
+            order_amount = Decimal('0.00')
+
+        if not code or not store_id:
+            return Response(
+                {'valid': False, 'error': 'Les parametres code et store sont requis.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Verify store is accessible by the user
+        store_ids = _user_store_ids(request.user)
+        try:
+            import uuid
+            store_uuid = uuid.UUID(str(store_id))
+        except (ValueError, AttributeError):
+            return Response(
+                {'valid': False, 'error': 'Identifiant boutique invalide.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if store_uuid not in store_ids:
+            return Response(
+                {'valid': False, 'error': 'Boutique inaccessible.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            coupon = Coupon.objects.get(code=code, store_id=store_uuid)
+        except Coupon.DoesNotExist:
+            return Response(
+                {'valid': False, 'error': 'Code coupon introuvable.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        is_valid, error_msg = coupon.is_valid(order_amount=order_amount)
+        if not is_valid:
+            return Response(
+                {'valid': False, 'error': error_msg},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({
+            'valid': True,
+            'coupon': CouponSerializer(coupon).data,
+        })
 
 
 # ---------------------------------------------------------------------------

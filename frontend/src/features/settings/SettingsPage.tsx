@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Save, RefreshCw, Plus, X, Loader2 } from 'lucide-react';
+import { Save, RefreshCw, Plus, X, Loader2, Check } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { extractApiError } from '@/lib/api-error';
 
@@ -42,6 +42,191 @@ function tabFromPath(pathname: string): Tab {
   if (pathname.startsWith('/settings/structure')) return 'enterprise';
   return 'stores';
 }
+
+// ---- Invoice template picker ------------------------------------------------
+
+const INVOICE_TEMPLATES = [
+  { id: 'CLASSIC',   name: 'Classique',  desc: 'Standard épuré' },
+  { id: 'MODERN',    name: 'Moderne',    desc: 'Gradient premium' },
+  { id: 'SIMPLE',    name: 'Simple',     desc: 'Minimaliste' },
+  { id: 'CORPORATE', name: 'Corporate',  desc: 'Bande colorée' },
+  { id: 'BORDERED',  name: 'Structuré',  desc: 'Grille bordérée' },
+  { id: 'PRESTIGE',  name: 'Prestige',   desc: 'Sidebar couleur' },
+] as const;
+
+function TemplateMiniPreview({ template, color }: { template: string; color: string }) {
+  const c = color || '#0F4C9A';
+  const base = 'w-full rounded overflow-hidden bg-white border border-gray-100';
+  const line = (w: string, op = '1') =>
+    <div style={{ height: 5, background: `rgba(0,0,0,${op})`, borderRadius: 2, marginBottom: 3, width: w }} />;
+
+  if (template === 'CLASSIC') return (
+    <div className={base} style={{ aspectRatio: '1/1.41' }}>
+      <div style={{ background: c, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 6px' }}>
+        <div style={{ width: 20, height: 8, background: 'rgba(255,255,255,0.5)', borderRadius: 2 }} />
+        <div style={{ width: 28, height: 8, background: 'rgba(255,255,255,0.8)', borderRadius: 2 }} />
+      </div>
+      <div style={{ padding: '6px 6px 4px' }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+          {[1,2].map(i => <div key={i} style={{ flex: 1, background: '#f3f4f6', borderRadius: 2, padding: '4px 4px' }}>{line('70%')}{line('50%', '0.3')}</div>)}
+        </div>
+        <div style={{ background: c, height: 8, borderRadius: 2, marginBottom: 3 }} />
+        {[1,2,3].map(i => <div key={i} style={{ display:'flex', gap:4, borderBottom:'1px solid #f0f0f0', padding:'3px 0' }}>
+          {line('40%', '0.5')}<div style={{flex:1}}/>{line('20%', '0.4')}
+        </div>)}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+          <div style={{ width: 60, background: '#f9fafb', borderRadius: 2, padding: 4 }}>
+            {line('100%', '0.3')}{line('100%', '0.3')}
+            <div style={{ height: 7, background: c, borderRadius: 2, marginTop: 3 }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (template === 'MODERN') return (
+    <div className={base} style={{ aspectRatio: '1/1.41', background: '#0f172a' }}>
+      <div style={{ background: `linear-gradient(135deg, ${c}, #6366f1)`, height: 28, display: 'flex', alignItems: 'flex-end', padding: '0 6px 4px' }}>
+        <div style={{ color: '#fff', fontSize: 9, fontWeight: 'bold', letterSpacing: 1 }}>FACTURE</div>
+      </div>
+      <div style={{ background: '#1e293b', padding: '6px 6px 4px', flex: 1 }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+          {[1,2].map(i => <div key={i} style={{ flex: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 2, padding: '4px 4px' }}>
+            <div style={{ height: 4, background: 'rgba(255,255,255,0.3)', borderRadius: 2, marginBottom: 3, width: '70%' }} />
+            <div style={{ height: 3, background: 'rgba(255,255,255,0.15)', borderRadius: 2, width: '50%' }} />
+          </div>)}
+        </div>
+        {[1,2,3].map(i => <div key={i} style={{ display:'flex', gap:4, borderBottom:'1px solid rgba(255,255,255,0.06)', padding:'3px 0' }}>
+          <div style={{ height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2, width: '40%' }} />
+          <div style={{flex:1}}/>
+          <div style={{ height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 2, width: '20%' }} />
+        </div>)}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <div style={{ height: 8, background: `linear-gradient(90deg, ${c}, #6366f1)`, borderRadius: 4, width: 50 }} />
+        </div>
+      </div>
+    </div>
+  );
+
+  if (template === 'SIMPLE') return (
+    <div className={base} style={{ aspectRatio: '1/1.41', padding: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'flex-start' }}>
+        <div style={{ width: 24, height: 24, background: c, borderRadius: 4 }} />
+        <div>
+          {line('100%', '0.6')}
+          {line('80%', '0.3')}
+        </div>
+      </div>
+      <div style={{ borderTop: `2px solid ${c}`, paddingTop: 6, marginBottom: 6 }}>
+        {line('60%', '0.5')}{line('40%', '0.3')}
+      </div>
+      {[1,2,3].map(i => <div key={i} style={{ display:'flex', gap:4, padding:'3px 0', borderBottom:'1px solid #f0f0f0' }}>
+        {line('40%', '0.5')}<div style={{flex:1}}/>{line('25%', '0.5')}
+      </div>)}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+        <div style={{ width: 56, borderTop: `2px solid ${c}`, paddingTop: 3 }}>
+          <div style={{ height: 6, background: c, borderRadius: 2 }} />
+        </div>
+      </div>
+    </div>
+  );
+
+  if (template === 'CORPORATE') return (
+    <div className={base} style={{ aspectRatio: '1/1.41' }}>
+      <div style={{ background: c, padding: '8px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ width: 22, height: 10, background: 'rgba(255,255,255,0.5)', borderRadius: 2 }} />
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ height: 7, background: 'rgba(255,255,255,0.9)', borderRadius: 1, width: 36, marginBottom: 2 }} />
+          <div style={{ height: 4, background: 'rgba(255,255,255,0.5)', borderRadius: 1, width: 26 }} />
+        </div>
+      </div>
+      <div style={{ padding: '5px 6px' }}>
+        <div style={{ display: 'flex', gap: 0, border: '1px solid #dde1ea', borderRadius: 2, marginBottom: 5, overflow: 'hidden' }}>
+          {[1,2,3].map(i => <div key={i} style={{ flex:1, padding:'4px 4px', borderRight: i<3 ? '1px solid #dde1ea':undefined }}>
+            <div style={{ height: 3, background: c, borderRadius: 1, width: '60%', marginBottom: 3 }} />
+            {line('80%', '0.4')}{line('55%', '0.25')}
+          </div>)}
+        </div>
+        <div style={{ background: c, height: 7, borderRadius: 2, marginBottom: 4 }} />
+        {[1,2,3].map(i => <div key={i} style={{ display:'flex', gap:4, borderBottom:'1px solid #f0f0f0', padding:'3px 0' }}>
+          {line('40%', '0.5')}<div style={{flex:1}}/>{line('22%', '0.5')}
+        </div>)}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 5 }}>
+          <div style={{ background: c, height: 8, borderRadius: 2, width: 52, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <div style={{ height: 4, background: 'rgba(255,255,255,0.85)', borderRadius: 1, width: 34 }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (template === 'BORDERED') return (
+    <div className={base} style={{ aspectRatio: '1/1.41' }}>
+      <div style={{ display: 'flex', border: '1.5px solid #222', margin: 6, borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{ flex: '0 0 45%', padding: '6px 6px', borderRight: '1.5px solid #222' }}>
+          {line('60%')}{line('80%', '0.4')}{line('55%', '0.3')}
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: c, padding: '4px 6px', borderBottom: '1.5px solid #222', display:'flex', justifyContent:'space-between' }}>
+            <div style={{ height: 6, background: 'rgba(255,255,255,0.9)', borderRadius: 1, width: 32 }} />
+            <div style={{ height: 5, background: 'rgba(255,255,255,0.5)', borderRadius: 10, width: 22 }} />
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', flex: 1 }}>
+            {[1,2,3,4].map(i => <div key={i} style={{ flex:'0 0 50%', padding:'3px 4px', borderRight:i%2===1?'1px solid #e0e4ed':undefined, borderBottom:'1px solid #e0e4ed' }}>
+              <div style={{ height: 3, background: '#ccc', borderRadius: 1, width: '50%', marginBottom: 2 }} />
+              <div style={{ height: 4, background: '#444', borderRadius: 1, width: '70%' }} />
+            </div>)}
+          </div>
+        </div>
+      </div>
+      <div style={{ margin: '0 6px' }}>
+        <div style={{ border: '1px solid #c8cdd8' }}>
+          <div style={{ background: '#f5f6fa', height: 8, borderBottom: '1px solid #c8cdd8' }} />
+          {[1,2,3].map(i => <div key={i} style={{ height: 9, borderBottom: '1px solid #d8dce8', background: i%2===0 ? '#fafbfe' : '#fff' }} />)}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+          <div style={{ width: 55, border: '1px solid #c8cdd8' }}>
+            {[1,2].map(i => <div key={i} style={{ height: 6, borderBottom: '1px solid #e0e4ed', background: '#fff' }} />)}
+            <div style={{ height: 8, background: c }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // PRESTIGE
+  return (
+    <div className={base} style={{ aspectRatio: '1/1.41', display: 'flex', overflow: 'hidden' }}>
+      <div style={{ width: 12, background: c, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 5, height: 32, background: 'rgba(255,255,255,0.18)', borderRadius: 10 }} />
+      </div>
+      <div style={{ flex: 1, padding: '6px 6px 4px' }}>
+        <div style={{ borderBottom: `2px solid ${c}`, paddingBottom: 5, marginBottom: 5, display:'flex', justifyContent:'space-between' }}>
+          <div>
+            <div style={{ height: 7, background: c, borderRadius: 1, width: 48, marginBottom: 3 }} />
+            {line('65%', '0.4')}{line('45%', '0.3')}
+          </div>
+          <div style={{ textAlign:'right' }}>{line('60%', '0.6')}{line('45%', '0.3')}</div>
+        </div>
+        <div style={{ display:'flex', gap:3, marginBottom:5 }}>
+          {[1,2,3].map(i => <div key={i} style={{ flex:1, background:'#f5f7fb', borderRadius:2, padding:'3px 3px' }}>
+            <div style={{ height: 3, background: c, borderRadius: 1, width:'60%', marginBottom: 2 }} />
+            {line('80%', '0.5')}{line('55%', '0.3')}
+          </div>)}
+        </div>
+        <div style={{ background: c, height: 7, borderRadius: 2, marginBottom: 3 }} />
+        {[1,2,3].map(i => <div key={i} style={{ display:'flex', gap:4, borderBottom:'1px solid #eef0f5', padding:'3px 0' }}>
+          {line('40%', '0.5')}<div style={{flex:1}}/>{line('22%', '0.5')}
+        </div>)}
+        <div style={{ display:'flex', justifyContent:'flex-end', marginTop:4 }}>
+          <div style={{ background: c, height: 8, borderRadius: 3, width: 52 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 
 export default function SettingsPage() {
   const qc = useQueryClient();
@@ -597,17 +782,39 @@ export default function SettingsPage() {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Modele</label>
-                  <select
-                    value={invoiceDraft.invoice_template ?? 'CLASSIC'}
-                    onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_template: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
-                  >
-                    <option value="CLASSIC">Classique</option>
-                    <option value="MODERN">Moderne</option>
-                    <option value="SIMPLE">Simple</option>
-                  </select>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Modèle de facture</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {INVOICE_TEMPLATES.map((tpl) => {
+                      const selected = (invoiceDraft.invoice_template ?? 'CLASSIC') === tpl.id;
+                      return (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => setInvoiceDraft((d) => ({ ...d, invoice_template: tpl.id as any }))}
+                          className={`relative rounded-xl border-2 p-2 text-left transition-all focus:outline-none ${
+                            selected
+                              ? 'border-primary ring-2 ring-primary/20 bg-primary/5'
+                              : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-700/30'
+                          }`}
+                        >
+                          <TemplateMiniPreview
+                            template={tpl.id}
+                            color={invoiceDraft.invoice_primary_color ?? '#0F4C9A'}
+                          />
+                          <div className="mt-2 text-center">
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">{tpl.name}</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">{tpl.desc}</p>
+                          </div>
+                          {selected && (
+                            <div className="absolute top-2 right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-sm">
+                              <Check size={11} className="text-white" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Couleur primaire</label>

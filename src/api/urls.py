@@ -50,6 +50,7 @@ router.register(r'purchase-orders', v1_views.PurchaseOrderViewSet)
 router.register(r'goods-receipts', v1_views.GoodsReceiptViewSet)
 router.register(r'alerts', v1_views.AlertViewSet)
 router.register(r'refunds', v1_views.RefundViewSet)
+router.register(r'coupons', v1_views.CouponViewSet, basename='coupon')
 router.register(r'audit-logs', v1_views.AuditLogViewSet)
 router.register(r'store-users', v1_views.StoreUserViewSet, basename='store-user')
 router.register(r'expense-categories', expense_api_views.ExpenseCategoryViewSet, basename='expense-category')
@@ -124,6 +125,7 @@ urlpatterns = [
     path('auth/password/reset/confirm/', PasswordResetConfirmAPIView.as_view(), name='auth-password-reset-confirm'),
 
     # Reports
+    path('reports/cash-flow/', v1_views.CashFlowView.as_view(), name='reports-cash-flow'),
     path('reports/kpis/', v1_views.KPIView.as_view(), name='kpis'),
     path('reports/sales/', v1_views.SalesReportAPIView.as_view(), name='sales-report'),
     path('reports/cashier-operations/pdf/', v1_views.CashierOperationsPDFAPIView.as_view(), name='cashier-operations-pdf'),

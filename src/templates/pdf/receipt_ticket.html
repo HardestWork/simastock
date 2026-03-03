@@ -159,6 +159,12 @@
             <td>Sous-total</td>
             <td class="r">{{ sale.subtotal|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
         </tr>
+        {% if sale.coupon_code %}
+        <tr>
+            <td style="color:#555;">Coupon <strong>{{ sale.coupon_code }}</strong></td>
+            <td class="r" style="color:#555;">&#10003;</td>
+        </tr>
+        {% endif %}
         {% if sale.discount_amount > 0 %}
         <tr>
             <td>Remise{% if sale.discount_percent > 0 %} ({{ sale.discount_percent }}%){% endif %}</td>

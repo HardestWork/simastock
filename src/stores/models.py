@@ -193,7 +193,14 @@ class Enterprise(TimeStampedModel):
     invoice_template = models.CharField(
         "modele facture",
         max_length=20,
-        choices=[("CLASSIC", "Classique"), ("MODERN", "Moderne"), ("SIMPLE", "Simple")],
+        choices=[
+            ("CLASSIC", "Classique"),
+            ("MODERN", "Moderne"),
+            ("SIMPLE", "Simple"),
+            ("CORPORATE", "Corporate"),
+            ("BORDERED", "Structuré"),
+            ("PRESTIGE", "Prestige"),
+        ],
         default="CLASSIC",
     )
     invoice_primary_color = models.CharField("couleur primaire", max_length=7, default="#0F4C9A")
@@ -600,6 +607,9 @@ class Store(TimeStampedModel):
         CLASSIC = "CLASSIC", "Classique"
         MODERN = "MODERN", "Moderne"
         SIMPLE = "SIMPLE", "Simple"
+        CORPORATE = "CORPORATE", "Corporate"
+        BORDERED = "BORDERED", "Structuré"
+        PRESTIGE = "PRESTIGE", "Prestige"
 
     enterprise = models.ForeignKey(
         Enterprise,

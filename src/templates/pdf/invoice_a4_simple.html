@@ -301,6 +301,12 @@
             <div class="total-value">{{ sale.tax_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
         </div>
         {% endif %}
+        {% if sale.coupon_code %}
+        <div class="total-row">
+            <div class="total-label">Coupon :</div>
+            <div class="total-value" style="font-weight:600;">{{ sale.coupon_code }}</div>
+        </div>
+        {% endif %}
         {% if sale.discount_amount > 0 %}
         <div class="total-row">
             <div class="total-label">Remise:</div>

@@ -1,4 +1,4 @@
-/** Main sidebar navigation grouped by domain and filtered by module/role/capability. */
+/** Main sidebar — PreAdmin exact style (white bg, submenu-hdr sections, bullet sub-items). */
 import { Fragment, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -39,6 +39,7 @@ import {
   Clock,
   DollarSign,
   TrendingUp,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth-store';
 import { useCapabilities } from '@/lib/capabilities';
@@ -102,7 +103,7 @@ const navItems: NavItem[] = [
     section: '',
     path: '/dashboard',
     label: 'Tableau de bord',
-    icon: <LayoutDashboard size={20} />,
+    icon: <LayoutDashboard size={16} />,
     module: 'CORE',
     roles: ['ADMIN', 'MANAGER', 'HR', 'COMMERCIAL', 'SALES', 'CASHIER', 'SALES_CASHIER', 'STOCKER'],
   },
@@ -110,7 +111,7 @@ const navItems: NavItem[] = [
     section: '',
     path: '/alerts',
     label: 'Alertes',
-    icon: <Bell size={20} />,
+    icon: <Bell size={16} />,
     module: 'ALERTS',
     roles: ['ADMIN', 'MANAGER', 'HR', 'COMMERCIAL', 'SALES', 'CASHIER', 'SALES_CASHIER', 'STOCKER'],
   },
@@ -119,7 +120,7 @@ const navItems: NavItem[] = [
     section: 'VENTES',
     path: '/pos',
     label: 'Point de Vente',
-    icon: <ShoppingCart size={20} />,
+    icon: <ShoppingCart size={16} />,
     module: 'SELL',
     roles: ['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     capability: 'CAN_SELL',
@@ -128,7 +129,7 @@ const navItems: NavItem[] = [
     section: 'VENTES',
     path: '/quotes',
     label: 'Devis',
-    icon: <FileText size={20} />,
+    icon: <FileText size={16} />,
     module: 'SELL',
     roles: ['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     capability: 'CAN_SELL',
@@ -137,45 +138,62 @@ const navItems: NavItem[] = [
     section: 'VENTES',
     path: '/customers',
     label: 'Clients & Credit',
-    icon: <Users size={20} />,
+    icon: <Users size={16} />,
     module: 'CUSTOMER',
     roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER'],
     children: [
       {
         path: '/customers',
         label: 'Clients',
-        icon: <Users size={15} />,
+        icon: <Users size={14} />,
         module: 'CUSTOMER',
         roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER'],
       },
       {
         path: '/credits',
         label: 'Credits',
-        icon: <CreditCard size={15} />,
+        icon: <CreditCard size={14} />,
         module: 'CUSTOMER',
         roles: ['MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER'],
       },
       {
         path: '/customers/intelligence',
         label: 'Intelligence',
-        icon: <Sparkles size={15} />,
+        icon: <Sparkles size={14} />,
         module: 'CLIENT_INTEL',
         roles: ['MANAGER', 'ADMIN'],
       },
     ],
   },
   {
+    section: 'VENTES',
+    path: '/sales/refunds',
+    label: 'Remboursements',
+    icon: <RotateCcw size={16} />,
+    module: 'SELL',
+    roles: ['MANAGER', 'ADMIN'],
+    capability: 'CAN_REFUND',
+  },
+  {
+    section: 'VENTES',
+    path: '/coupons',
+    label: 'Codes promo',
+    icon: <Tag size={16} />,
+    module: 'SELL',
+    roles: ['MANAGER', 'ADMIN'],
+  },
+  {
     section: 'COMMERCIAL',
     path: '/commercial',
     label: 'Commercial CRM',
-    icon: <Target size={20} />,
+    icon: <Target size={16} />,
     module: 'COMMERCIAL',
     roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     children: [
       {
         path: '/commercial',
         label: 'Pipeline',
-        icon: <Target size={15} />,
+        icon: <Target size={14} />,
         module: 'COMMERCIAL',
         roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_MANAGE_OPPORTUNITIES',
@@ -183,7 +201,7 @@ const navItems: NavItem[] = [
       {
         path: '/commercial/prospects',
         label: 'Prospects',
-        icon: <Users size={15} />,
+        icon: <Users size={14} />,
         module: 'COMMERCIAL',
         roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_MANAGE_LEADS',
@@ -191,7 +209,7 @@ const navItems: NavItem[] = [
       {
         path: '/commercial/tasks',
         label: 'Relances',
-        icon: <ClipboardList size={15} />,
+        icon: <ClipboardList size={14} />,
         module: 'COMMERCIAL',
         roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_LOG_ACTIVITY',
@@ -199,7 +217,7 @@ const navItems: NavItem[] = [
       {
         path: '/commercial/incentives',
         label: 'Primes',
-        icon: <Wallet size={15} />,
+        icon: <Wallet size={14} />,
         module: 'COMMERCIAL',
         roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_APPROVE_COMMERCIAL_BONUS',
@@ -210,14 +228,14 @@ const navItems: NavItem[] = [
     section: 'FINANCE',
     path: '/cashier',
     label: 'Caisse',
-    icon: <Banknote size={20} />,
+    icon: <Banknote size={16} />,
     module: 'CASH',
     roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     children: [
       {
         path: '/cashier',
         label: 'Tableau de bord',
-        icon: <Banknote size={15} />,
+        icon: <Banknote size={14} />,
         module: 'CASH',
         roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_CASH',
@@ -225,7 +243,7 @@ const navItems: NavItem[] = [
       {
         path: '/cashier/analytics',
         label: 'Mon Analyse',
-        icon: <Shield size={15} />,
+        icon: <Shield size={14} />,
         module: 'ANALYTICS_CASHIER',
         roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_CASH',
@@ -233,7 +251,7 @@ const navItems: NavItem[] = [
       {
         path: '/cashier/team-analytics',
         label: 'Equipe Caisse',
-        icon: <Users size={15} />,
+        icon: <Users size={14} />,
         module: 'ANALYTICS_CASHIER',
         roles: ['MANAGER', 'ADMIN'],
       },
@@ -243,7 +261,7 @@ const navItems: NavItem[] = [
     section: 'FINANCE',
     path: '/expenses',
     label: 'Depenses',
-    icon: <Wallet size={20} />,
+    icon: <Wallet size={16} />,
     module: 'EXPENSE',
     roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     capability: 'CAN_VIEW_EXPENSE_REPORTS',
@@ -251,7 +269,7 @@ const navItems: NavItem[] = [
       {
         path: '/expenses',
         label: 'Liste',
-        icon: <Wallet size={15} />,
+        icon: <Wallet size={14} />,
         module: 'EXPENSE',
         roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_VIEW_EXPENSE_REPORTS',
@@ -259,7 +277,7 @@ const navItems: NavItem[] = [
       {
         path: '/expenses/dashboard',
         label: 'Dashboard',
-        icon: <PieChart size={15} />,
+        icon: <PieChart size={14} />,
         module: 'EXPENSE',
         roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
         capability: 'CAN_VIEW_EXPENSE_REPORTS',
@@ -267,7 +285,7 @@ const navItems: NavItem[] = [
       {
         path: '/expenses/settings',
         label: 'Parametres',
-        icon: <Settings size={15} />,
+        icon: <Settings size={14} />,
         module: 'EXPENSE',
         roles: ['MANAGER', 'ADMIN'],
         capability: 'CAN_SET_BUDGETS',
@@ -278,56 +296,56 @@ const navItems: NavItem[] = [
     section: 'FINANCE',
     path: '/accounting',
     label: 'Comptabilite',
-    icon: <FileText size={20} />,
+    icon: <FileText size={16} />,
     module: 'ACCOUNTING',
     roles: ['MANAGER', 'ADMIN'],
     children: [
       {
         path: '/accounting/chart',
         label: 'Plan comptable',
-        icon: <FolderTree size={15} />,
+        icon: <FolderTree size={14} />,
         module: 'ACCOUNTING',
         roles: ['MANAGER', 'ADMIN'],
       },
       {
         path: '/accounting/entries',
         label: 'Ecritures',
-        icon: <ClipboardList size={15} />,
+        icon: <ClipboardList size={14} />,
         module: 'ACCOUNTING',
         roles: ['MANAGER', 'ADMIN'],
       },
       {
         path: '/accounting/balance',
         label: 'Balance generale',
-        icon: <BarChart2 size={15} />,
+        icon: <BarChart2 size={14} />,
         module: 'ACCOUNTING',
         roles: ['MANAGER', 'ADMIN'],
       },
       {
         path: '/accounting/ledger',
         label: 'Grand livre',
-        icon: <FileText size={15} />,
+        icon: <FileText size={14} />,
         module: 'ACCOUNTING',
         roles: ['MANAGER', 'ADMIN'],
       },
       {
         path: '/accounting/bilan',
         label: 'Bilan',
-        icon: <BarChart2 size={15} />,
+        icon: <BarChart2 size={14} />,
         module: 'ACCOUNTING',
         roles: ['MANAGER', 'ADMIN'],
       },
       {
         path: '/accounting/compte-resultat',
         label: 'Compte de resultat',
-        icon: <TrendingUp size={15} />,
+        icon: <TrendingUp size={14} />,
         module: 'ACCOUNTING',
         roles: ['MANAGER', 'ADMIN'],
       },
       {
         path: '/accounting/settings',
         label: 'Parametres',
-        icon: <Settings size={15} />,
+        icon: <Settings size={14} />,
         module: 'ACCOUNTING',
         roles: ['ADMIN'],
       },
@@ -337,22 +355,22 @@ const navItems: NavItem[] = [
     section: 'LOGISTIQUE',
     path: '/catalog',
     label: 'Catalogue',
-    icon: <Package size={20} />,
+    icon: <Package size={16} />,
     module: 'SELL',
     roles: ['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN', 'STOCKER'],
     children: [
-      { path: '/catalog', label: 'Produits', icon: <Package size={15} />, module: 'SELL' },
+      { path: '/catalog', label: 'Produits', icon: <Package size={14} />, module: 'SELL' },
       {
         path: '/catalog/categories',
         label: 'Categories',
-        icon: <FolderTree size={15} />,
+        icon: <FolderTree size={14} />,
         module: 'STOCK',
         roles: ['MANAGER', 'ADMIN'],
       },
       {
         path: '/catalog/brands',
         label: 'Marques',
-        icon: <Tag size={15} />,
+        icon: <Tag size={14} />,
         module: 'STOCK',
         roles: ['MANAGER', 'ADMIN'],
       },
@@ -362,38 +380,38 @@ const navItems: NavItem[] = [
     section: 'LOGISTIQUE',
     path: '/stock',
     label: 'Stock',
-    icon: <Layers size={20} />,
+    icon: <Layers size={16} />,
     module: 'STOCK',
     roles: ['STOCKER', 'MANAGER', 'ADMIN'],
     capability: 'CAN_STOCK',
     children: [
-      { path: '/stock', label: 'Niveaux', icon: <Layers size={15} />, module: 'STOCK' },
-      { path: '/stock/movements', label: 'Mouvements', icon: <History size={15} />, module: 'STOCK' },
-      { path: '/stock/entry', label: 'Entrees', icon: <PackagePlus size={15} />, module: 'STOCK' },
-      { path: '/stock/adjust', label: 'Ajustements', icon: <PackageMinus size={15} />, module: 'STOCK' },
-      { path: '/stock/transfers', label: 'Transferts', icon: <ArrowRightLeft size={15} />, module: 'STOCK' },
-      { path: '/stock/counts', label: 'Inventaires', icon: <ClipboardList size={15} />, module: 'STOCK' },
-      { path: '/stock/analytics', label: 'Analyse Stock', icon: <BarChart2 size={15} />, module: 'ANALYTICS_STOCK' },
+      { path: '/stock', label: 'Niveaux', icon: <Layers size={14} />, module: 'STOCK' },
+      { path: '/stock/movements', label: 'Mouvements', icon: <History size={14} />, module: 'STOCK' },
+      { path: '/stock/entry', label: 'Entrees', icon: <PackagePlus size={14} />, module: 'STOCK' },
+      { path: '/stock/adjust', label: 'Ajustements', icon: <PackageMinus size={14} />, module: 'STOCK' },
+      { path: '/stock/transfers', label: 'Transferts', icon: <ArrowRightLeft size={14} />, module: 'STOCK' },
+      { path: '/stock/counts', label: 'Inventaires', icon: <ClipboardList size={14} />, module: 'STOCK' },
+      { path: '/stock/analytics', label: 'Analyse Stock', icon: <BarChart2 size={14} />, module: 'ANALYTICS_STOCK' },
     ],
   },
   {
     section: 'LOGISTIQUE',
     path: '/purchases',
     label: 'Achats',
-    icon: <Truck size={20} />,
+    icon: <Truck size={16} />,
     module: 'PURCHASE',
     roles: ['MANAGER', 'ADMIN'],
     children: [
       {
         path: '/purchases/orders',
         label: 'Bons de commande',
-        icon: <ClipboardList size={15} />,
+        icon: <ClipboardList size={14} />,
         module: 'PURCHASE',
       },
       {
         path: '/purchases/suppliers',
         label: 'Fournisseurs',
-        icon: <Building2 size={15} />,
+        icon: <Building2 size={14} />,
         module: 'PURCHASE',
       },
     ],
@@ -402,14 +420,14 @@ const navItems: NavItem[] = [
     section: 'RH',
     path: '/hrm',
     label: 'Ressources Humaines',
-    icon: <UserCheck size={20} />,
+    icon: <UserCheck size={16} />,
     module: 'HRM',
     roles: ['HR', 'MANAGER', 'ADMIN'],
     children: [
       {
         path: '/hrm/employees',
         label: 'Employes',
-        icon: <Users size={15} />,
+        icon: <Users size={14} />,
         module: 'HRM',
         roles: ['HR', 'MANAGER', 'ADMIN'],
         capability: 'CAN_VIEW_HRM',
@@ -417,7 +435,7 @@ const navItems: NavItem[] = [
       {
         path: '/hrm/leaves',
         label: 'Conges',
-        icon: <Calendar size={15} />,
+        icon: <Calendar size={14} />,
         module: 'HRM',
         roles: ['HR', 'MANAGER', 'ADMIN'],
         capability: 'CAN_VIEW_HRM',
@@ -425,7 +443,7 @@ const navItems: NavItem[] = [
       {
         path: '/hrm/attendance',
         label: 'Pointage',
-        icon: <Clock size={15} />,
+        icon: <Clock size={14} />,
         module: 'HRM',
         roles: ['HR', 'MANAGER', 'ADMIN'],
         capability: 'CAN_VIEW_HRM',
@@ -433,33 +451,32 @@ const navItems: NavItem[] = [
       {
         path: '/hrm/payroll',
         label: 'Paie',
-        icon: <DollarSign size={15} />,
+        icon: <DollarSign size={14} />,
         module: 'HRM',
         roles: ['HR', 'MANAGER', 'ADMIN'],
         capability: 'CAN_VIEW_HRM',
       },
     ],
   },
-
   {
     section: 'PILOTAGE',
     path: '/objectives',
     label: 'Objectifs',
-    icon: <Target size={20} />,
+    icon: <Target size={16} />,
     module: 'SELLER_PERF',
     roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     children: [
       {
         path: '/objectives/my-goal',
         label: 'Mon Objectif',
-        icon: <Target size={15} />,
+        icon: <Target size={14} />,
         module: 'SELLER_PERF',
         roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
       },
       {
         path: '/objectives/admin',
         label: 'Administration',
-        icon: <Settings size={15} />,
+        icon: <Settings size={14} />,
         module: 'SELLER_PERF',
         roles: ['MANAGER', 'ADMIN'],
       },
@@ -469,16 +486,32 @@ const navItems: NavItem[] = [
     section: 'PILOTAGE',
     path: '/reports',
     label: 'Rapports',
-    icon: <BarChart3 size={20} />,
+    icon: <BarChart3 size={16} />,
     module: 'ANALYTICS_MANAGER',
     roles: ['MANAGER', 'ADMIN'],
     capability: 'CAN_VIEW_REPORTS',
   },
   {
     section: 'PILOTAGE',
+    path: '/reports/cashflow',
+    label: 'Trésorerie',
+    icon: <TrendingUp size={16} />,
+    module: 'SELL',
+    roles: ['MANAGER', 'ADMIN'],
+  },
+  {
+    section: 'PILOTAGE',
+    path: '/reports/debts',
+    label: 'Créances & Dettes',
+    icon: <CreditCard size={16} />,
+    module: 'SELL',
+    roles: ['MANAGER', 'ADMIN'],
+  },
+  {
+    section: 'PILOTAGE',
     path: '/statistics',
     label: 'Statistiques',
-    icon: <PieChart size={20} />,
+    icon: <PieChart size={16} />,
     module: 'ANALYTICS_MANAGER',
     roles: ['MANAGER', 'ADMIN'],
     capability: 'CAN_VIEW_REPORTS',
@@ -487,7 +520,7 @@ const navItems: NavItem[] = [
     section: 'PILOTAGE',
     path: '/analytics',
     label: 'Analytics AI',
-    icon: <Brain size={20} />,
+    icon: <Brain size={16} />,
     module: 'ANALYTICS_MANAGER',
     roles: ['MANAGER', 'ADMIN'],
   },
@@ -495,7 +528,7 @@ const navItems: NavItem[] = [
     section: 'PILOTAGE',
     path: '/dg/dashboard',
     label: 'Dashboard DG',
-    icon: <LayoutDashboard size={20} />,
+    icon: <LayoutDashboard size={16} />,
     module: 'ANALYTICS_DG',
     roles: ['MANAGER', 'ADMIN'],
   },
@@ -503,19 +536,19 @@ const navItems: NavItem[] = [
     section: 'ADMINISTRATION',
     path: '/settings',
     label: 'Parametres',
-    icon: <Settings size={20} />,
+    icon: <Settings size={16} />,
     module: 'CORE',
     roles: ['MANAGER', 'ADMIN'],
     children: [
-      { path: '/settings/stores', label: 'Magasins', icon: <Wrench size={15} />, module: 'CORE', capability: 'CAN_MANAGE_STORES' },
-      { path: '/settings/invoice', label: 'Facturation', icon: <FileText size={15} />, module: 'CORE', capability: 'CAN_MANAGE_STORES' },
-      { path: '/settings/structure', label: 'Structure', icon: <Building2 size={15} />, module: 'CORE', capability: 'CAN_MANAGE_STORES' },
-      { path: '/settings/subscriptions', label: 'Abonnements', icon: <CreditCard size={15} />, module: 'CORE', superuserOnly: true },
-      { path: '/settings/modules', label: 'Modules payants', icon: <Layers size={15} />, module: 'CORE', superuserOnly: true },
-      { path: '/settings/permissions', label: 'Permissions', icon: <Shield size={15} />, module: 'CORE', capability: 'CAN_MANAGE_USERS' },
-      { path: '/settings/users', label: 'Utilisateurs', icon: <UserCog size={15} />, module: 'CORE', capability: 'CAN_MANAGE_USERS' },
-      { path: '/settings/enterprises', label: 'Entreprises', icon: <Building2 size={15} />, module: 'CORE', superuserOnly: true },
-      { path: '/settings/enterprise-setup', label: 'Creer entreprise', icon: <PlusCircle size={15} />, module: 'CORE', superuserOnly: true },
+      { path: '/settings/stores', label: 'Magasins', icon: <Wrench size={14} />, module: 'CORE', capability: 'CAN_MANAGE_STORES' },
+      { path: '/settings/invoice', label: 'Facturation', icon: <FileText size={14} />, module: 'CORE', capability: 'CAN_MANAGE_STORES' },
+      { path: '/settings/structure', label: 'Structure', icon: <Building2 size={14} />, module: 'CORE', capability: 'CAN_MANAGE_STORES' },
+      { path: '/settings/subscriptions', label: 'Abonnements', icon: <CreditCard size={14} />, module: 'CORE', superuserOnly: true },
+      { path: '/settings/modules', label: 'Modules payants', icon: <Layers size={14} />, module: 'CORE', superuserOnly: true },
+      { path: '/settings/permissions', label: 'Permissions', icon: <Shield size={14} />, module: 'CORE', capability: 'CAN_MANAGE_USERS' },
+      { path: '/settings/users', label: 'Utilisateurs', icon: <UserCog size={14} />, module: 'CORE', capability: 'CAN_MANAGE_USERS' },
+      { path: '/settings/enterprises', label: 'Entreprises', icon: <Building2 size={14} />, module: 'CORE', superuserOnly: true },
+      { path: '/settings/enterprise-setup', label: 'Creer entreprise', icon: <PlusCircle size={14} />, module: 'CORE', superuserOnly: true },
     ],
   },
 ];
@@ -575,15 +608,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   const sections: { key: NavSection; items: typeof visibleItems }[] = useMemo(() => {
     const grouped = new Map<NavSection, typeof visibleItems>();
-
-    for (const section of SECTION_ORDER) {
-      grouped.set(section, []);
-    }
-
-    for (const item of visibleItems) {
-      grouped.get(item.section)?.push(item);
-    }
-
+    for (const section of SECTION_ORDER) grouped.set(section, []);
+    for (const item of visibleItems) grouped.get(item.section)?.push(item);
     return SECTION_ORDER
       .map((section) => ({ key: section, items: grouped.get(section) ?? [] }))
       .filter(({ items }) => items.length > 0);
@@ -600,116 +626,192 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`h-full bg-sidebar text-white transition-all duration-200 flex flex-col print:hidden ${
-        collapsed ? 'w-16' : 'w-60'
+      className={`h-full bg-white dark:bg-gray-800 border-r border-[#E6EAED] dark:border-gray-700 flex flex-col print:hidden transition-all duration-200 ${
+        collapsed ? 'w-[72px]' : 'w-[252px]'
       }`}
     >
-      <div className="flex items-center h-16 px-3 border-b border-white/8 shrink-0">
-        <img
-          src={collapsed ? '/logo-icon.png' : '/logo-full.png'}
-          alt="SimaStock"
-          className={collapsed ? 'h-8 mx-auto' : 'h-10'}
-        />
-        <button
-          onClick={onToggle}
-          className="ml-auto p-1.5 rounded-lg hover:bg-white/8 transition-colors shrink-0 text-white/50 hover:text-white"
-        >
-          <ChevronLeft
-            size={18}
-            className={`transition-transform ${collapsed ? 'rotate-180' : ''}`}
-          />
-        </button>
+      {/* ── Logo + toggle ── */}
+      <div className="flex items-center h-[65px] px-4 shrink-0 border-b border-[#E6EAED] dark:border-gray-700">
+        {!collapsed ? (
+          <>
+            <img src="/logo-full.png" alt="SimaStock" className="h-9 w-auto object-contain flex-1 min-w-0" />
+            <button
+              onClick={onToggle}
+              className="ml-2 p-1.5 rounded-[5px] text-[#637381] hover:bg-[#F9FAFB] dark:hover:bg-gray-700 transition-colors shrink-0"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={onToggle}
+            className="mx-auto p-1.5 rounded-[5px] text-[#637381] hover:bg-[#F9FAFB] dark:hover:bg-gray-700 transition-colors"
+          >
+            <ChevronLeft size={16} className="rotate-180" />
+          </button>
+        )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-2 pb-4">
-        {sections.map(({ key, items }, sectionIdx) => (
-          <Fragment key={key || '__root'}>
-            {collapsed
-              ? sectionIdx > 0
-                ? <div className="mx-3 my-2.5 h-px bg-white/10" />
-                : null
-              : key
-                ? (
-                  <div className="px-4 pt-5 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30 select-none">
-                    {SECTION_LABELS[key as Exclude<NavSection, ''>]}
-                  </div>
-                )
-                : null}
+      {/* ── Navigation (PreAdmin: sidebar-inner > sidebar-menu) ── */}
+      <nav className="flex-1 overflow-y-auto">
+        <div className="px-6 py-6">
+          {sections.map(({ key, items }, sectionIdx) => (
+            <Fragment key={key || '__root'}>
 
-            {items.map((item) => {
-              const filteredChildren = item.children?.filter((child) => {
-                if (child.superuserOnly && !isSuperuser) return false;
-                return canAccessSubItem(child);
-              });
-
-              const hasChildren = Boolean(filteredChildren && filteredChildren.length > 0);
-              const isExpanded = expandedSections.has(item.path);
-              const childRouteActive = Boolean(filteredChildren?.some((child) => location.pathname.startsWith(child.path)));
-              const isSectionActive = location.pathname.startsWith(item.path) || childRouteActive;
-
-              if (hasChildren && !collapsed) {
-                return (
-                  <div key={item.path}>
-                    <button
-                      onClick={() => toggleSection(item.path)}
-                      className={`flex items-center gap-3 px-3 py-2.5 mx-1.5 rounded-lg transition-colors w-[calc(100%-0.75rem)] text-left ${
-                        isSectionActive
-                          ? 'bg-white/11 text-white'
-                          : 'text-white/60 hover:bg-white/7 hover:text-white'
-                      }`}
+              {/* Section header — submenu-hdr style */}
+              {collapsed
+                ? sectionIdx > 0
+                  ? <div className="h-px my-3 bg-[#E6EAED] dark:bg-gray-700" />
+                  : null
+                : key
+                  ? (
+                    <h6
+                      className="text-[12px] font-bold mb-2 select-none text-[#092C4C] dark:text-gray-300"
+                      style={{ margin: sectionIdx === 0 ? '0 0 8px 0' : '16px 0 8px 0' }}
                     >
-                      <span className="shrink-0">{item.icon}</span>
-                      <span className="text-sm flex-1">{item.label}</span>
-                      <ChevronDown
-                        size={14}
-                        className={`transition-transform text-white/40 ${isExpanded ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-                    {isExpanded && (
-                      <div className="ml-7 mt-0.5 mb-0.5 border-l border-white/10 pl-1">
-                        {filteredChildren!.map((child) => (
-                          <NavLink
-                            key={child.path}
-                            to={child.path}
-                            end={child.path === item.path}
-                            className={({ isActive }) =>
-                              `flex items-center gap-2.5 px-3 py-2 mr-1.5 rounded-lg transition-colors text-sm ${
-                                isActive
-                                  ? 'bg-white/10 text-white'
-                                  : 'text-white/45 hover:bg-white/6 hover:text-white/80'
-                              }`
-                            }
-                          >
-                            {child.icon}
-                            <span>{child.label}</span>
-                          </NavLink>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
+                      {SECTION_LABELS[key as Exclude<NavSection, ''>]}
+                    </h6>
+                  )
+                  : null}
 
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={!hasChildren}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 mx-1.5 rounded-lg transition-colors ${
-                      isActive || (hasChildren && isSectionActive)
-                        ? 'bg-white/11 text-white'
-                        : 'text-white/60 hover:bg-white/7 hover:text-white'
-                    }`
+              {/* Items list */}
+              <ul className="mb-0">
+                {items.map((item) => {
+                  const filteredChildren = item.children?.filter((child) => {
+                    if (child.superuserOnly && !isSuperuser) return false;
+                    return canAccessSubItem(child);
+                  });
+                  const hasChildren = Boolean(filteredChildren?.length);
+                  const isExpanded = expandedSections.has(item.path);
+                  const childRouteActive = Boolean(
+                    filteredChildren?.some((child) => location.pathname.startsWith(child.path)),
+                  );
+                  const isSectionActive = location.pathname.startsWith(item.path) || childRouteActive;
+
+                  /* ── Parent with children ── */
+                  if (hasChildren && !collapsed) {
+                    return (
+                      <li key={item.path} className="mb-0.5">
+                        <button
+                          onClick={() => toggleSection(item.path)}
+                          className={`w-full flex items-center rounded-[5px] transition-colors px-[15px] py-[10px] ${
+                            isSectionActive
+                              ? 'bg-primary/8'
+                              : 'hover:bg-primary/8'
+                          }`}
+                        >
+                          {/* Icon */}
+                          <span
+                            className={`mr-[10px] shrink-0 ${isSectionActive ? 'text-primary' : 'text-[#637381] dark:text-gray-400'}`}
+                          >
+                            {item.icon}
+                          </span>
+                          {/* Label */}
+                          <span
+                            className={`text-[15px] font-medium flex-1 text-left ${isSectionActive ? 'text-primary' : 'text-[#646B72] dark:text-gray-300'}`}
+                          >
+                            {item.label}
+                          </span>
+                          {/* Chevron */}
+                          <ChevronDown
+                            size={14}
+                            className={`shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''} ${isSectionActive ? 'text-primary' : 'text-[#9CA3AF] dark:text-gray-500'}`}
+                          />
+                        </button>
+
+                        {/* Sub-items — PreAdmin bullet dot style */}
+                        {isExpanded && (
+                          <ul className="pt-1.5 pb-4 border-b border-gray-200/50 dark:border-gray-700">
+                            {filteredChildren!.map((child) => {
+                              const childActive = child.path === item.path
+                                ? location.pathname === child.path
+                                : location.pathname.startsWith(child.path);
+                              return (
+                                <li key={child.path}>
+                                  <NavLink
+                                    to={child.path}
+                                    end={child.path === item.path}
+                                    className={`flex items-center relative transition-colors rounded-[5px] py-2 pr-3 text-[14px] font-medium ${
+                                      childActive
+                                        ? 'text-primary'
+                                        : 'text-[#092C4C] dark:text-gray-300 hover:text-primary dark:hover:text-primary'
+                                    }`}
+                                    style={{ paddingLeft: '40px' }}
+                                  >
+                                    {/* Bullet dot (PreAdmin ::after) */}
+                                    <span
+                                      className="absolute border-2 rounded-full"
+                                      style={{
+                                        width: '8px',
+                                        height: '8px',
+                                        left: '16px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        background: childActive ? 'var(--color-primary)' : 'rgba(50,71,92,0.38)',
+                                        borderColor: childActive ? 'rgba(15,76,154,0.3)' : 'transparent',
+                                      }}
+                                    />
+                                    {child.label}
+                                  </NavLink>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </li>
+                    );
                   }
-                >
-                  <span className="shrink-0">{item.icon}</span>
-                  {!collapsed && <span className="text-sm">{item.label}</span>}
-                </NavLink>
-              );
-            })}
-          </Fragment>
-        ))}
+
+                  /* ── Leaf nav item ── */
+                  return (
+                    <li key={item.path} className="mb-0.5">
+                      <NavLink
+                        to={item.path}
+                        end={!hasChildren}
+                        title={collapsed ? item.label : undefined}
+                        className={({ isActive }) =>
+                          `flex items-center rounded-[5px] transition-colors px-[15px] py-[10px] ${
+                            isActive || (hasChildren && isSectionActive)
+                              ? 'bg-primary/8'
+                              : 'hover:bg-primary/8'
+                          } ${collapsed ? 'justify-center px-0 py-3' : ''}`
+                        }
+                      >
+                        {({ isActive }) => (
+                          <>
+                            {/* Icon */}
+                            <span
+                              className={`${collapsed ? '' : 'mr-[10px] shrink-0'} ${
+                                isActive || (hasChildren && isSectionActive)
+                                  ? 'text-primary'
+                                  : 'text-[#637381] dark:text-gray-400'
+                              }`}
+                            >
+                              {item.icon}
+                            </span>
+                            {/* Label (hidden when collapsed) */}
+                            {!collapsed && (
+                              <span
+                                className={`text-[15px] font-medium ${
+                                  isActive || (hasChildren && isSectionActive)
+                                    ? 'text-primary'
+                                    : 'text-[#646B72] dark:text-gray-300'
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </NavLink>
+                    </li>
+                  );
+                })}
+              </ul>
+
+            </Fragment>
+          ))}
+        </div>
       </nav>
     </aside>
   );

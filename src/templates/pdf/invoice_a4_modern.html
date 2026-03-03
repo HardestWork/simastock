@@ -474,6 +474,12 @@
                     <div class="summary-value">{{ sale.tax_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
                 </div>
                 {% endif %}
+                {% if sale.coupon_code %}
+                <div class="summary-line">
+                    <div class="summary-label">Coupon :</div>
+                    <div class="summary-value" style="font-weight:600;">{{ sale.coupon_code }}</div>
+                </div>
+                {% endif %}
                 {% if sale.discount_amount > 0 %}
                 <div class="summary-line">
                     <div class="summary-label">Remise :</div>

@@ -90,26 +90,34 @@ def _build_invoice_config(store):
         "address": ent_address or store.address,
         "phone": ent_phone or store.phone,
         "email": ent_email or store.email,
-        "document_title": store.invoice_header or "FACTURE",
-        "template": getattr(store, "invoice_template", "CLASSIC"),
+        "document_title": (
+            getattr(enterprise, "invoice_header", "") or store.invoice_header or "FACTURE"
+        ),
+        "template": (
+            getattr(enterprise, "invoice_template", "") or
+            getattr(store, "invoice_template", "")
+        ) or "CLASSIC",
         "registration_number": ent_rccm or store.registration_number,
         "tax_id": ent_nif or store.tax_id,
         "website": store.website,
         "logo_uri": logo_uri,
         "primary_color": _normalize_hex_color(
-            getattr(store, "invoice_primary_color", "#0F4C9A"),
+            getattr(enterprise, "invoice_primary_color", "") or getattr(store, "invoice_primary_color", ""),
             "#0F4C9A",
         ),
         "secondary_color": _normalize_hex_color(
-            getattr(store, "invoice_secondary_color", "#21A8F6"),
+            getattr(enterprise, "invoice_secondary_color", "") or getattr(store, "invoice_secondary_color", ""),
             "#21A8F6",
         ),
-        "offer_validity_days": getattr(store, "offer_validity_days", 15) or 15,
+        "offer_validity_days": (
+            getattr(enterprise, "offer_validity_days", None) or
+            getattr(store, "offer_validity_days", 15) or 15
+        ),
         "vat_enabled": bool(vat_enabled),
         "vat_rate": vat_rate,
-        "bank_details": store.bank_details,
-        "terms": store.invoice_terms,
-        "footer": store.invoice_footer,
+        "bank_details": getattr(enterprise, "bank_details", "") or store.bank_details,
+        "terms": getattr(enterprise, "invoice_terms", "") or store.invoice_terms,
+        "footer": getattr(enterprise, "invoice_footer", "") or store.invoice_footer,
     }
 
 
@@ -166,6 +174,12 @@ def generate_invoice_pdf(sale, store, document_kind="invoice"):
         template_name = "pdf/invoice_a4_modern.html"
     elif template_mode == "SIMPLE":
         template_name = "pdf/invoice_a4_simple.html"
+    elif template_mode == "CORPORATE":
+        template_name = "pdf/invoice_a4_corporate.html"
+    elif template_mode == "BORDERED":
+        template_name = "pdf/invoice_a4_bordered.html"
+    elif template_mode == "PRESTIGE":
+        template_name = "pdf/invoice_a4_prestige.html"
     else:
         template_name = "pdf/invoice_a4.html"
     context = {
@@ -280,19 +294,33 @@ def generate_quote_pdf(quote, store):
         document_title = "DEVIS"
         fallback_prefix = "DEV"
 
+    template_mode = invoice_config.get("template", "CLASSIC")
+    template_map = {
+        "CORPORATE": "pdf/quote_a4_corporate.html",
+        "BORDERED":  "pdf/quote_a4_bordered.html",
+        "PRESTIGE":  "pdf/quote_a4_prestige.html",
+    }
+    template_name = template_map.get(template_mode, "pdf/quote_a4.html")
+
+    doc_number = quote.quote_number or f"{fallback_prefix}-{str(quote.id).split('-')[0].upper()}"
+    document = {
+        "kind": "quote",
+        "number": doc_number,
+        "title": document_title,
+        "valid_until": getattr(quote, "valid_until", None),
+    }
+
     context = {
         "quote": quote,
         "store": store,
         "invoice_config": invoice_config,
         "document_title": document_title,
+        "document": document,
         "now": now,
         **_verification_context(quote),
     }
-    filename = _safe_pdf_filename(
-        quote.quote_number or f"{fallback_prefix}-{quote.id}",
-        fallback="devis",
-    )
-    return render_pdf("pdf/quote_a4.html", context, filename)
+    filename = _safe_pdf_filename(doc_number, fallback="devis")
+    return render_pdf(template_name, context, filename)
 
 
 def generate_cashier_operations_report_pdf(

@@ -139,6 +139,12 @@
             <span class="label">Sous-total</span>
             <span>{{ sale.subtotal|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
         </div>
+        {% if sale.coupon_code %}
+        <div class="row">
+            <span class="label">Coupon appliqué</span>
+            <span style="font-weight:600;">{{ sale.coupon_code }}</span>
+        </div>
+        {% endif %}
         {% if sale.discount_amount > 0 %}
         <div class="row">
             <span class="label">

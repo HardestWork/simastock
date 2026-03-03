@@ -40,6 +40,10 @@ const ForgotPasswordPage = lazyRetry(() => import('@/features/auth/ForgotPasswor
 const ResetPasswordPage = lazyRetry(() => import('@/features/auth/ResetPasswordPage'));
 const SaleListPage = lazyRetry(() => import('@/features/pos/SaleListPage'));
 const PosPage = lazyRetry(() => import('@/features/pos/PosPage'));
+const RefundListPage = lazyRetry(() => import('@/features/sales/RefundListPage'));
+const CouponManagementPage = lazyRetry(() => import('@/features/coupons/CouponManagementPage'));
+const CashFlowPage = lazyRetry(() => import('@/features/reports/CashFlowPage'));
+const DebtAgingPage = lazyRetry(() => import('@/features/reports/DebtAgingPage'));
 const CashierDashboard = lazyRetry(() => import('@/features/cashier/CashierDashboard'));
 const ProcessPaymentPage = lazyRetry(() => import('@/features/cashier/ProcessPaymentPage'));
 const ProductListPage = lazyRetry(() => import('@/features/catalog/ProductListPage'));
@@ -163,6 +167,44 @@ export default function App() {
                 >
                   <Route path="/pos" element={<Suspense fallback={<PageLoader />}><SaleListPage /></Suspense>} />
                   <Route path="/pos/new" element={<Suspense fallback={<PageLoader />}><PosPage /></Suspense>} />
+                </Route>
+
+                {/* Refunds (Remboursements) */}
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['MANAGER', 'ADMIN']}
+                      allowedCapabilities={['CAN_REFUND']}
+                      requiredModules={['SELL']}
+                    />
+                  }
+                >
+                  <Route path="/sales/refunds" element={<Suspense fallback={<PageLoader />}><RefundListPage /></Suspense>} />
+                </Route>
+
+                {/* Coupons (Codes promo) */}
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['MANAGER', 'ADMIN']}
+                      requiredModules={['SELL']}
+                    />
+                  }
+                >
+                  <Route path="/coupons" element={<Suspense fallback={<PageLoader />}><CouponManagementPage /></Suspense>} />
+                </Route>
+
+                {/* Cash Flow + Debt reports */}
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['MANAGER', 'ADMIN']}
+                      requiredModules={['SELL']}
+                    />
+                  }
+                >
+                  <Route path="/reports/cashflow" element={<Suspense fallback={<PageLoader />}><CashFlowPage /></Suspense>} />
+                  <Route path="/reports/debts" element={<Suspense fallback={<PageLoader />}><DebtAgingPage /></Suspense>} />
                 </Route>
 
                 {/* Quotes (Devis) */}

@@ -25,7 +25,7 @@ from stock.models import (
     StockCount, StockCountLine,
 )
 from customers.models import Customer
-from sales.models import Quote, QuoteItem, Refund, Sale, SaleItem
+from sales.models import Coupon, Quote, QuoteItem, Refund, Sale, SaleItem
 from cashier.models import CashShift, Payment
 from credits.models import CustomerAccount, CreditLedgerEntry, PaymentSchedule
 from purchases.models import Supplier, PurchaseOrder, PurchaseOrderLine, GoodsReceipt, GoodsReceiptLine
@@ -960,6 +960,23 @@ class SaleItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'product_name', 'line_total']
 
 
+# ---------------------------------------------------------------------------
+# Coupon Serializers
+# ---------------------------------------------------------------------------
+
+class CouponSerializer(serializers.ModelSerializer):
+    """Serializer for the Coupon model."""
+
+    class Meta:
+        model = Coupon
+        fields = [
+            'id', 'store', 'code', 'description', 'discount_type', 'discount_value',
+            'min_order_amount', 'valid_from', 'valid_until', 'max_uses', 'uses_count',
+            'is_active', 'created_at',
+        ]
+        read_only_fields = ['id', 'uses_count', 'created_at']
+
+
 class SaleSerializer(serializers.ModelSerializer):
     """Read serializer for Sale model with nested items."""
 
@@ -979,12 +996,12 @@ class SaleSerializer(serializers.ModelSerializer):
             'discount_percent', 'tax_amount', 'total', 'amount_paid',
             'amount_due', 'items', 'is_credit_sale', 'notes',
             'source_quote', 'source_quote_number', 'submitted_at', 'created_at',
-            'verification_token',
+            'verification_token', 'coupon_code',
         ]
         read_only_fields = [
             'id', 'invoice_number', 'payment_status', 'subtotal', 'tax_amount', 'total',
             'amount_paid', 'amount_due', 'source_quote', 'source_quote_number',
-            'submitted_at', 'created_at', 'verification_token',
+            'submitted_at', 'created_at', 'verification_token', 'coupon_code',
         ]
 
     def get_customer_name(self, obj):

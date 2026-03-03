@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+@page {
+  size: A4;
+  margin: 14mm 18mm 14mm 18mm;
+  @top-right {
+    content: "Page " counter(page) " / " counter(pages);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 8pt;
+    color: #888;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a2e; }
+
+/* ---- HEADER GRID ---- */
+.header-grid {
+  display: flex;
+  border: 1.5px solid #222;
+  margin-bottom: 14px;
+}
+.hg-left {
+  flex: 0 0 45%;
+  padding: 14px 14px;
+  border-right: 1.5px solid #222;
+}
+.hg-left img { height: 40px; width: auto; margin-bottom: 8px; display: block; }
+.hg-left .biz-name { font-size: 13pt; font-weight: bold; color: #1a1a2e; }
+.hg-left .biz-sub { font-size: 8pt; color: #555; margin-top: 4px; line-height: 1.6; }
+.hg-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.hg-right .doc-title-row {
+  background: {{ invoice_config.primary_color }};
+  padding: 10px 14px;
+  border-bottom: 1.5px solid #222;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.hg-right .doc-title-row .title { font-size: 18pt; font-weight: bold; color: #fff; letter-spacing: 2px; }
+.hg-right .doc-title-row .badge {
+  font-size: 7.5pt;
+  color: rgba(255,255,255,0.8);
+  border: 1px solid rgba(255,255,255,0.5);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+.meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.meta-cell {
+  flex: 0 0 50%;
+  padding: 10px 14px;
+  border-right: 1px solid #e0e4ed;
+  border-bottom: 1px solid #e0e4ed;
+}
+.meta-cell:nth-child(2n) { border-right: none; }
+.meta-cell:nth-last-child(-n+2) { border-bottom: none; }
+.meta-cell .mc-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.8px; color: #888; margin-bottom: 3px; }
+.meta-cell .mc-value { font-size: 9.5pt; font-weight: 600; color: #1a1a2e; }
+
+/* ---- ITEMS TABLE ---- */
+.items-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+.items-table thead tr { background: #f5f6fa; }
+.items-table th {
+  font-size: 8pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #444;
+  padding: 9px 10px;
+  text-align: left;
+  border: 1px solid #c8cdd8;
+}
+.items-table th.r { text-align: right; }
+.items-table td {
+  font-size: 8.5pt;
+  padding: 8px 10px;
+  border: 1px solid #d8dce8;
+  vertical-align: top;
+}
+.items-table td.r { text-align: right; }
+.items-table .product-name { font-weight: 600; }
+.items-table tbody tr:nth-child(even) td { background: #fafbfe; }
+
+/* ---- BOTTOM SECTION ---- */
+.bottom-section {
+  display: flex;
+  gap: 14px;
+  margin-top: 14px;
+  align-items: flex-start;
+}
+.bottom-left { flex: 1; }
+.bottom-right { flex: 0 0 200px; }
+
+/* ---- TOTALS BOX ---- */
+.totals-box { border: 1.5px solid #c8cdd8; }
+.totals-box .tb-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 12px;
+  border-bottom: 1px solid #e0e4ed;
+  font-size: 8.5pt;
+}
+.totals-box .tb-row:last-child { border-bottom: none; }
+.totals-box .tb-row.grand {
+  background: {{ invoice_config.primary_color }};
+  color: #fff;
+  font-size: 10pt;
+  font-weight: bold;
+}
+.totals-box .tb-row.coupon { color: #555; font-size: 8pt; }
+.totals-box .tb-row.discount { color: #dc2626; }
+.tb-label { color: #555; }
+.totals-box .tb-row.grand .tb-label { color: rgba(255,255,255,0.85); }
+
+/* ---- NOTES / TERMS ---- */
+.notes-block { margin-bottom: 10px; }
+.notes-block .nb-title {
+  font-size: 7.5pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: {{ invoice_config.primary_color }};
+  margin-bottom: 5px;
+  border-bottom: 2px solid {{ invoice_config.primary_color }};
+  padding-bottom: 3px;
+  display: inline-block;
+}
+.notes-block .nb-text { font-size: 8pt; color: #555; line-height: 1.7; }
+
+/* ---- QR ---- */
+.qr-block { text-align: center; padding-top: 10px; }
+.qr-block img { width: 70px; height: 70px; }
+.qr-block .qr-label { font-size: 6.5pt; color: #888; margin-top: 3px; }
+.qr-block .verify-hash { font-size: 7pt; font-weight: bold; letter-spacing: 1px; color: #555; margin-top: 2px; }
+
+/* ---- FOOTER ---- */
+.doc-footer {
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px solid #c8cdd8;
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5pt;
+  color: #888;
+}
+.doc-footer strong { color: #555; }
+
+.avoid-break { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- HEADER GRID -->
+<div class="header-grid avoid-break">
+  <div class="hg-left">
+    {% if invoice_config.logo_uri %}
+    <img src="{{ invoice_config.logo_uri }}" alt="Logo">
+    {% endif %}
+    <div class="biz-name">
+      {{ invoice_config.business_name }}{% if invoice_config.legal_form %} {{ invoice_config.legal_form }}{% endif %}
+    </div>
+    <div class="biz-sub">
+      {% if invoice_config.address %}{{ invoice_config.address }}<br>{% endif %}
+      {% if invoice_config.phone %}{{ invoice_config.phone }}<br>{% endif %}
+      {% if invoice_config.email %}{{ invoice_config.email }}<br>{% endif %}
+      {% if invoice_config.registration_number %}RCCM : {{ invoice_config.registration_number }}<br>{% endif %}
+      {% if invoice_config.tax_id %}NIF : {{ invoice_config.tax_id }}{% endif %}
+    </div>
+  </div>
+  <div class="hg-right">
+    <div class="doc-title-row">
+      <span class="title">{{ document.title|upper }}</span>
+      <span class="badge">Original</span>
+    </div>
+    <div class="meta-grid">
+      <div class="meta-cell">
+        <div class="mc-label">Numéro</div>
+        <div class="mc-value">{{ document.number }}</div>
+      </div>
+      <div class="meta-cell">
+        <div class="mc-label">Date</div>
+        <div class="mc-value">{{ quote.created_at|date:"d/m/Y" }}</div>
+      </div>
+      <div class="meta-cell">
+        <div class="mc-label">Facturer à</div>
+        <div class="mc-value">{% if quote.customer %}{{ quote.customer.full_name }}{% else %}Client Comptant{% endif %}</div>
+      </div>
+      <div class="meta-cell">
+        <div class="mc-label">Vendeur</div>
+        <div class="mc-value">{{ quote.created_by.get_full_name }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ITEMS TABLE -->
+<table class="items-table">
+  <thead>
+    <tr>
+      <th style="width:26px;">#</th>
+      <th>Désignation</th>
+      <th class="r" style="width:75px;">Prix unit.</th>
+      <th class="r" style="width:50px;">Qté</th>
+      {% if invoice_config.vat_enabled %}<th class="r" style="width:60px;">TVA</th>{% endif %}
+      <th class="r" style="width:85px;">Montant</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in quote.items.all %}
+    <tr>
+      <td style="color:#999; text-align:center;">{{ forloop.counter }}</td>
+      <td><span class="product-name">{{ item.product_name }}</span></td>
+      <td class="r">{{ item.unit_price|floatformat:0 }}</td>
+      <td class="r">{{ item.quantity }}</td>
+      {% if invoice_config.vat_enabled %}<td class="r" style="color:#888;">{% if item.tax_amount %}{{ item.tax_amount|floatformat:0 }}{% else %}—{% endif %}</td>{% endif %}
+      <td class="r" style="font-weight:600;">{{ item.line_total|floatformat:0 }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- BOTTOM SECTION -->
+<div class="bottom-section avoid-break">
+  <div class="bottom-left">
+    {% if quote.customer and quote.customer.phone %}
+    <div class="notes-block">
+      <div class="nb-title">Client</div>
+      <div class="nb-text">
+        {{ quote.customer.full_name }}<br>
+        {% if quote.customer.phone %}{{ quote.customer.phone }}<br>{% endif %}
+        {% if quote.customer.email %}{{ quote.customer.email }}<br>{% endif %}
+        {% if quote.customer.address %}{{ quote.customer.address }}{% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% if invoice_config.bank_details %}
+    <div class="notes-block">
+      <div class="nb-title">Coordonnées bancaires</div>
+      <div class="nb-text">{{ invoice_config.bank_details|linebreaksbr }}</div>
+    </div>
+    {% endif %}
+    {% if invoice_config.terms %}
+    <div class="notes-block">
+      <div class="nb-title">Conditions</div>
+      <div class="nb-text">{{ invoice_config.terms }}</div>
+    </div>
+    {% endif %}
+    {% if verify_url and qr_data_uri %}
+    <div class="qr-block" style="text-align:left; padding-top:8px;">
+      <img src="{{ qr_data_uri }}" alt="QR" style="width:64px;height:64px;">
+      <div class="qr-label" style="text-align:left;">Vérifier ce document</div>
+      {% if verify_hash %}<div class="verify-hash" style="text-align:left;">{{ verify_hash }}</div>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="bottom-right">
+    <div class="totals-box">
+      <div class="tb-row">
+        <span class="tb-label">Sous-total</span>
+        <span>{{ quote.subtotal|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+      </div>
+      {% if quote.discount_amount > 0 %}
+      <div class="tb-row discount">
+        <span class="tb-label">Remise{% if quote.discount_percent > 0 %} ({{ quote.discount_percent }}%){% endif %}</span>
+        <span>-{{ quote.discount_amount|floatformat:0 }}</span>
+      </div>
+      {% endif %}
+      {% if invoice_config.vat_enabled or quote.tax_amount > 0 %}
+      <div class="tb-row">
+        <span class="tb-label">TVA{% if invoice_config.vat_enabled %} ({{ invoice_config.vat_rate }}%){% endif %}</span>
+        <span>{{ quote.tax_amount|floatformat:0 }}</span>
+      </div>
+      {% endif %}
+      <div class="tb-row grand">
+        <span class="tb-label">TOTAL TTC</span>
+        <span>{{ quote.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+      </div>
+    </div>
+    <!-- Signature -->
+    <div style="margin-top:16px; text-align:center; font-size:7.5pt; color:#555;">
+      <div style="margin-bottom:22px;">Signataire autorisé</div>
+      <div style="border-top:1px solid #999; padding-top:4px;">{{ invoice_config.business_name }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="doc-footer">
+  <span><strong>{{ invoice_config.business_name }}</strong>{% if invoice_config.footer %} — {{ invoice_config.footer }}{% endif %}</span>
+  <span>Édité le {{ now|date:"d/m/Y à H:i" }}</span>
+</div>
+
+</body>
+</html>

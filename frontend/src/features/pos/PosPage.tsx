@@ -9,7 +9,7 @@ import { useStoreStore } from '@/store-context/store-store';
 import { useCapabilities } from '@/lib/capabilities';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { Sale, PosProduct, SaleItem } from '@/api/types';
-import { Search, Plus, Minus, Trash2, Send, Banknote, UserPlus, Percent, X, AlertCircle } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Send, Banknote, UserPlus, Percent, X, AlertCircle, Tag } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { extractApiError as extractErrorMessage } from '@/lib/api-error';
 
@@ -37,6 +37,9 @@ export default function PosPage() {
   // Discount state
   const [discountMode, setDiscountMode] = useState<DiscountMode>('none');
   const [discountValue, setDiscountValue] = useState('');
+
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
 
   // Inline customer creation state
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -171,6 +174,26 @@ export default function PosPage() {
     onError: (err: unknown) => {
       toast.error(extractErrorMessage(err, 'Erreur lors de la creation du client'));
     },
+  });
+
+  // Coupon mutations
+  const applyCouponMut = useMutation({
+    mutationFn: (code: string) => saleApi.applyCoupon(sale!.id, code),
+    onSuccess: (updatedSale) => {
+      setSale(updatedSale);
+      setCouponCode('');
+      toast.success(`Coupon ${updatedSale.coupon_code} applique !`);
+    },
+    onError: (err) => { toast.error(extractErrorMessage(err)); },
+  });
+
+  const removeCouponMut = useMutation({
+    mutationFn: () => saleApi.removeCoupon(sale!.id),
+    onSuccess: (updatedSale) => {
+      setSale(updatedSale);
+      toast.success('Coupon retire.');
+    },
+    onError: (err) => { toast.error(extractErrorMessage(err)); },
   });
 
   useEffect(() => {
@@ -690,6 +713,49 @@ export default function PosPage() {
                     className="px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark disabled:opacity-50"
                   >
                     {updateSaleMut.isPending ? '...' : 'Appliquer'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Coupon section */}
+          {sale && sale.items.length > 0 && (
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Tag size={14} className="text-gray-500 dark:text-gray-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Code promo</span>
+              </div>
+              {sale.coupon_code ? (
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded text-xs font-mono font-bold tracking-wide">
+                    {sale.coupon_code}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeCouponMut.mutate()}
+                    disabled={removeCouponMut.isPending}
+                    className="text-xs text-red-500 hover:underline disabled:opacity-50"
+                  >
+                    Retirer
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="CODE PROMO"
+                    className="flex-1 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono uppercase tracking-wide focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => couponCode.trim() && applyCouponMut.mutate(couponCode.trim())}
+                    disabled={applyCouponMut.isPending || !couponCode.trim()}
+                    className="px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark disabled:opacity-50"
+                  >
+                    {applyCouponMut.isPending ? '...' : 'Appliquer'}
                   </button>
                 </div>
               )}
