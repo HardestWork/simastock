@@ -655,7 +655,7 @@ export default function EnterpriseListPage() {
       {/* Reset confirmation modal */}
       {resetTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full mx-4 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start gap-3 mb-4">
               <span className="text-amber-500 mt-0.5">
                 <RotateCcw size={20} />
