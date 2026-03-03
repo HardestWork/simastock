@@ -174,6 +174,15 @@
                         <option value="quote">Imprimer devis</option>
                     </select>
                 </div>
+                <div class="mb-3" x-show="printDocument === 'receipt'">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Modele de recu</label>
+                    <select x-model="printTemplate" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="ticket">Ticket classique</option>
+                        <option value="compact">Ticket compact</option>
+                        <option value="modern">Recu A5 style facture</option>
+                    </select>
+                    <p class="mt-1 text-[11px] text-gray-500">Le recu reprendra les mentions comptables proches de la facture.</p>
+                </div>
 
                 <button type="submit"
                         :disabled="submitting || totalEntered <= 0"
@@ -196,12 +205,20 @@ function paymentProcessor() {
         amountDue: Number('{{ sale.amount_due|unlocalize }}'),
         paymentLines: [{ method: 'CASH', amount: '{{ sale.amount_due|unlocalize }}', reference: '' }],
         printDocument: '',
+        printTemplate: 'ticket',
         submitting: false,
         errorMessage: '',
         successMessage: '',
         retryPayload: null,
         get retryAvailable() { return this.retryPayload !== null; },
-        init() {},
+        init() {
+            try {
+                const stored = window.localStorage.getItem('simastock:receipt-template');
+                if (stored && ['ticket', 'compact', 'modern'].includes(stored)) {
+                    this.printTemplate = stored;
+                }
+            } catch (error) {}
+        },
         normalizeAmount(value) {
             if (value === null || value === undefined) return '';
             return String(value).replace(',', '.').trim();
@@ -255,6 +272,12 @@ function paymentProcessor() {
             const form = new URLSearchParams();
             form.append('payment_data', JSON.stringify(payload));
             form.append('print_document', this.printDocument);
+            if (this.printDocument === 'receipt') {
+                form.append('print_template', this.printTemplate);
+                try {
+                    window.localStorage.setItem('simastock:receipt-template', this.printTemplate);
+                } catch (error) {}
+            }
             form.append('csrfmiddlewaretoken', this.csrfToken);
 
             try {

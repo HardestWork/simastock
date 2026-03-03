@@ -507,38 +507,44 @@ export default function StatisticsPage() {
         <KpiCard
           label="Chiffre d'affaires"
           value={formatCurrency(data.summary.total_revenue)}
-          icon={<DollarSign size={24} />}
-          color="bg-blue-500"
+          icon={<DollarSign size={22} />}
+          iconBg="bg-red-100 dark:bg-red-900/30"
+          iconColor="text-red-500"
         />
         <KpiCard
           label="Benefice total"
           value={formatCurrency(data.summary.total_profit)}
-          icon={<TrendingUp size={24} />}
-          color="bg-emerald-500"
+          icon={<TrendingUp size={22} />}
+          iconBg="bg-emerald-100 dark:bg-emerald-900/30"
+          iconColor="text-emerald-600"
         />
         <KpiCard
           label="Marge %"
           value={`${data.summary.margin_pct}%`}
-          icon={<Percent size={24} />}
-          color="bg-teal-500"
+          icon={<Percent size={22} />}
+          iconBg="bg-violet-100 dark:bg-violet-900/30"
+          iconColor="text-violet-600"
         />
         <KpiCard
           label="Commandes"
           value={data.summary.nb_sales}
-          icon={<ShoppingBag size={24} />}
-          color="bg-amber-500"
+          icon={<ShoppingBag size={22} />}
+          iconBg="bg-amber-100 dark:bg-amber-900/30"
+          iconColor="text-amber-500"
         />
         <KpiCard
           label="Panier moyen"
           value={formatCurrency(data.summary.avg_basket)}
-          icon={<ShoppingCart size={24} />}
-          color="bg-purple-500"
+          icon={<ShoppingCart size={22} />}
+          iconBg="bg-blue-100 dark:bg-blue-900/30"
+          iconColor="text-blue-500"
         />
         <KpiCard
           label="Remises"
           value={formatCurrency(data.summary.total_discounts)}
-          icon={<Tag size={24} />}
-          color="bg-orange-500"
+          icon={<Tag size={22} />}
+          iconBg="bg-orange-100 dark:bg-orange-900/30"
+          iconColor="text-orange-500"
         />
       </div>
 

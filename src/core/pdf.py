@@ -30,7 +30,7 @@ def _safe_pdf_filename(stem: str, fallback: str = "document") -> str:
     return f"{safe}.pdf"
 
 
-def render_pdf(template_name, context, filename="document.pdf"):
+def render_pdf(template_name, context, filename="document.pdf", disposition="inline"):
     """Render a Django template to PDF and return an HttpResponse."""
     try:
         from weasyprint import HTML
@@ -43,9 +43,37 @@ def render_pdf(template_name, context, filename="document.pdf"):
     HTML(string=html_string, base_url=str(settings.BASE_DIR)).write_pdf(pdf_file)
     pdf_file.seek(0)
 
+    safe_disposition = "attachment" if (disposition or "").strip().lower() == "attachment" else "inline"
     response = HttpResponse(pdf_file, content_type="application/pdf")
-    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    response["Content-Disposition"] = f'{safe_disposition}; filename="{filename}"'
     return response
+
+
+_RECEIPT_TEMPLATE_CODE_TO_PATH = {
+    "TICKET": "pdf/receipt_ticket.html",
+    "COMPACT": "pdf/receipt_compact.html",
+    "MODERN": "pdf/receipt_modern.html",
+}
+
+_RECEIPT_TEMPLATE_ALIASES = {
+    # Receipt-first names
+    "TICKET": "TICKET",
+    "COMPACT": "COMPACT",
+    "MODERN": "MODERN",
+    # Invoice template aliases for easier reuse of existing settings
+    "CLASSIC": "TICKET",
+    "SIMPLE": "COMPACT",
+    "CORPORATE": "MODERN",
+    "BORDERED": "MODERN",
+    "PRESTIGE": "MODERN",
+}
+
+
+def _normalize_receipt_template(value: str, fallback: str = "TICKET") -> str:
+    candidate = (value or "").strip().upper()
+    normalized_fallback = (fallback or "TICKET").strip().upper()
+    default_code = _RECEIPT_TEMPLATE_ALIASES.get(normalized_fallback, "TICKET")
+    return _RECEIPT_TEMPLATE_ALIASES.get(candidate, default_code)
 
 
 def _build_invoice_config(store):
@@ -197,13 +225,29 @@ def generate_invoice_pdf(sale, store, document_kind="invoice"):
     return render_pdf(template_name, context, filename)
 
 
-def generate_receipt_pdf(sale, store, payments=None, change=0, cashier_name=""):
+def generate_receipt_pdf(
+    sale,
+    store,
+    payments=None,
+    change=0,
+    cashier_name="",
+    template_code="",
+    as_attachment=False,
+):
     """Generate receipt/ticket PDF for a sale."""
     from django.utils import timezone
+    invoice_config = _build_invoice_config(store)
+    default_template_code = _normalize_receipt_template(invoice_config.get("template"))
+    receipt_template_code = _normalize_receipt_template(template_code, fallback=default_template_code)
+    template_name = _RECEIPT_TEMPLATE_CODE_TO_PATH.get(
+        receipt_template_code,
+        _RECEIPT_TEMPLATE_CODE_TO_PATH["TICKET"],
+    )
     context = {
         "sale": sale,
         "store": store,
-        "invoice_config": _build_invoice_config(store),
+        "invoice_config": invoice_config,
+        "receipt_template_code": receipt_template_code,
         "payments": payments or sale.payments.all(),
         "change": change,
         "cashier_name": cashier_name,
@@ -212,7 +256,12 @@ def generate_receipt_pdf(sale, store, payments=None, change=0, cashier_name=""):
     }
     sale_ref = sale.invoice_number or str(sale.id).split("-")[0].upper()
     filename = _safe_pdf_filename(f"REC-{sale_ref}", fallback="recu")
-    return render_pdf("pdf/receipt_ticket.html", context, filename)
+    return render_pdf(
+        template_name,
+        context,
+        filename,
+        disposition="attachment" if as_attachment else "inline",
+    )
 
 
 def generate_shift_report_pdf(shift, store):

@@ -1,12 +1,14 @@
 /** Top navigation bar with store switcher, alerts badge, and user menu. */
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, LogOut, Menu, Moon, Search, Sun, User as UserIcon, Store } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Bell, ChevronDown, LogOut, Menu, Moon, Search, Sun, User as UserIcon, Store, ShoppingCart } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth-store';
 import { useThemeStore } from '@/lib/theme-store';
 import { useStoreStore } from '@/store-context/store-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { ROLE_LABELS } from '@/lib/roles';
+
+const POS_ROLES = ['ADMIN', 'MANAGER', 'SALES', 'SALES_CASHIER'] as const;
 
 interface TopbarProps {
   onMenuToggle?: () => void;
@@ -56,7 +58,7 @@ export default function Topbar({ onMenuToggle }: TopbarProps) {
   }
 
   return (
-    <header className="h-14 sm:h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3 sm:px-6 print:hidden">
+    <header className="h-[65px] bg-white dark:bg-gray-800 border-b border-[#E6EAED] dark:border-gray-700 flex items-center justify-between px-4 sm:px-6 print:hidden">
       <div className="flex items-center gap-1 sm:gap-2 min-w-0">
         {/* Mobile hamburger */}
         <button
@@ -66,6 +68,17 @@ export default function Topbar({ onMenuToggle }: TopbarProps) {
         >
           <Menu size={22} className="text-gray-600 dark:text-gray-300" />
         </button>
+
+        {/* POS quick-link — visible on desktop for sales roles */}
+        {user && (POS_ROLES as readonly string[]).includes(user.role) && (
+          <Link
+            to="/pos"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sidebar text-white text-xs font-bold hover:bg-sidebar-hover transition-colors shrink-0"
+          >
+            <ShoppingCart size={14} />
+            POS
+          </Link>
+        )}
 
         {/* Store switcher */}
         <div className="relative min-w-0" ref={storeRef}>

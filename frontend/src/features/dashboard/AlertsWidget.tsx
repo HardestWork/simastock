@@ -1,6 +1,6 @@
-/** Recent alerts widget for the dashboard. */
+/** Recent alerts widget — PreAdmin card style. */
 import { Link } from 'react-router-dom';
-import { Bell } from 'lucide-react';
+import { Bell, AlertCircle, AlertTriangle, Info, CheckCircle, ArrowRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import type { Alert } from '@/api/types';
@@ -10,78 +10,124 @@ interface AlertsWidgetProps {
   isLoading: boolean;
 }
 
-const severityDotColor: Record<string, string> = {
-  CRITICAL: 'bg-red-500',
-  HIGH: 'bg-orange-500',
-  MEDIUM: 'bg-yellow-500',
-  LOW: 'bg-blue-500',
-  INFO: 'bg-gray-400',
+const SEVERITY_CONFIG: Record<string, {
+  dot: string;
+  badge: string;
+  icon: React.ReactNode;
+  label: string;
+}> = {
+  CRITICAL: {
+    dot: 'bg-red-500',
+    badge: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+    icon: <AlertCircle size={12} />,
+    label: 'Critique',
+  },
+  HIGH: {
+    dot: 'bg-orange-500',
+    badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+    icon: <AlertTriangle size={12} />,
+    label: 'Eleve',
+  },
+  MEDIUM: {
+    dot: 'bg-amber-500',
+    badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    icon: <AlertTriangle size={12} />,
+    label: 'Moyen',
+  },
+  LOW: {
+    dot: 'bg-blue-500',
+    badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    icon: <Info size={12} />,
+    label: 'Faible',
+  },
+  INFO: {
+    dot: 'bg-gray-400',
+    badge: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+    icon: <Info size={12} />,
+    label: 'Info',
+  },
 };
+
+const DEFAULT_SEVERITY = SEVERITY_CONFIG.INFO;
 
 export default function AlertsWidget({ alerts, isLoading }: AlertsWidgetProps) {
   const visibleAlerts = alerts.slice(0, 5);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        <Bell size={20} className="text-gray-700 dark:text-gray-300" />
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Alertes recentes</h2>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+        <div className="flex items-center gap-2">
+          <Bell size={15} className="text-gray-500 dark:text-gray-400" />
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Alertes recentes</h2>
+        </div>
+        {visibleAlerts.length > 0 && (
+          <span className="text-xs font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full">
+            {visibleAlerts.length}
+          </span>
+        )}
       </div>
 
       {/* Loading state */}
       {isLoading && (
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+        <div className="flex items-center justify-center py-10">
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
         </div>
       )}
 
       {/* Empty state */}
       {!isLoading && visibleAlerts.length === 0 && (
-        <p className="text-sm text-gray-400 dark:text-gray-500 py-6 text-center">Aucune alerte</p>
+        <div className="flex flex-col items-center justify-center py-10 gap-2 text-gray-400 dark:text-gray-500">
+          <CheckCircle size={32} strokeWidth={1.2} />
+          <p className="text-sm font-semibold">Aucune alerte active</p>
+        </div>
       )}
 
       {/* Alert list */}
       {!isLoading && visibleAlerts.length > 0 && (
-        <ul className="space-y-3">
-          {visibleAlerts.map((alert) => (
-            <li
-              key={alert.id}
-              className={`flex items-start gap-3 rounded-lg px-3 py-2 ${
-                !alert.is_read ? 'bg-blue-50/50' : ''
-              }`}
-            >
-              {/* Severity dot */}
-              <span
-                className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
-                  severityDotColor[alert.severity] ?? 'bg-gray-400'
-                }`}
-              />
+        <ul className="divide-y divide-gray-50 dark:divide-gray-700 flex-1">
+          {visibleAlerts.map((alert) => {
+            const cfg = SEVERITY_CONFIG[alert.severity] ?? DEFAULT_SEVERITY;
+            return (
+              <li
+                key={alert.id}
+                className="flex items-start gap-3 px-5 py-3 hover:bg-gray-50/70 dark:hover:bg-gray-700/30 transition-colors"
+              >
+                {/* Severity dot */}
+                <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
 
-              {/* Content */}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{alert.title}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{alert.message}</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                  {formatDistanceToNow(new Date(alert.created_at), {
-                    addSuffix: true,
-                    locale: fr,
-                  })}
-                </p>
-              </div>
-            </li>
-          ))}
+                {/* Content */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug">{alert.title}</p>
+                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded ${cfg.badge}`}>
+                      {cfg.icon}
+                      {cfg.label}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">{alert.message}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    {formatDistanceToNow(new Date(alert.created_at), {
+                      addSuffix: true,
+                      locale: fr,
+                    })}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      {/* Footer link */}
+      {/* Footer */}
       {!isLoading && (
-        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+        <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-700">
           <Link
             to="/alerts"
-            className="text-sm text-primary hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline transition-colors"
           >
-            Voir toutes les alertes &rarr;
+            Voir toutes les alertes
+            <ArrowRight size={12} />
           </Link>
         </div>
       )}

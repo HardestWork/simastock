@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
 
@@ -25,16 +25,24 @@
   --color-sidebar-hover: #161d2b;
   --color-sidebar-active: #1a2436;
 
-  /* ── Canvas — warm off-white instead of cold gray ── */
-  --color-canvas: #F5F4F2;
+  /* ── Canvas — PreAdmin-inspired light gray ── */
+  --color-canvas: #F7F7F7;
+
+  /* ── Card border ── */
+  --color-card-border: #E6EAED;
+
+  /* ── Font ── */
+  --font-sans: 'Nunito', system-ui, -apple-system, sans-serif;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Nunito', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #F7F7F7;
+  color: #212B36;
 }
 
 .dark body, body:where(.dark *) {
@@ -43,6 +51,42 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+/* ── PreAdmin-style card base ── */
+.pread-card {
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #E6EAED;
+  transition: box-shadow 0.2s ease;
+}
+.pread-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Table base ── */
+.pread-table th {
+  background-color: #F9FAFB;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #646B72;
+  padding: 10px 20px;
+  white-space: nowrap;
+}
+.pread-table td {
+  padding: 10px 20px;
+  vertical-align: middle;
+  font-size: 0.8125rem;
+  color: #212B36;
+  border-bottom: 1px solid #F3F4F6;
+}
+.pread-table tr:last-child td {
+  border-bottom: none;
+}
+.pread-table tr:hover td {
+  background-color: #FAFAFA;
 }
 
 @media print {

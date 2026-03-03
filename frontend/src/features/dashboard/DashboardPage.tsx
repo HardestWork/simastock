@@ -17,7 +17,10 @@ import {
   Tag,
   CreditCard,
   SlidersHorizontal,
+  Store,
+  ArrowRight,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import KpiCard from './KpiCard';
 import PeriodSelector from './PeriodSelector';
@@ -38,6 +41,33 @@ const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 
 function isManagerOrAdmin(role: string | undefined): boolean {
   return role === 'ADMIN' || role === 'MANAGER';
+}
+
+// ---------------------------------------------------------------------------
+// DashCount card — PreAdmin "dash-count" style (colored solid background)
+// ---------------------------------------------------------------------------
+interface DashCountProps {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  bg: string;       // e.g. "bg-primary"
+  shadow: string;   // e.g. "shadow-blue-200"
+}
+
+function DashCount({ label, value, icon, bg, shadow }: DashCountProps) {
+  return (
+    <div
+      className={`${bg} rounded-lg p-5 flex items-center justify-between text-white shadow-lg ${shadow} min-h-[100px] transition-transform duration-200 hover:scale-[1.02]`}
+    >
+      <div>
+        <p className="text-2xl font-bold leading-tight">{value}</p>
+        <p className="text-sm text-white/80 mt-1">{label}</p>
+      </div>
+      <div className="text-white/80 transition-transform duration-300 group-hover:scale-125">
+        {icon}
+      </div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -114,16 +144,20 @@ export default function DashboardPage() {
 
   if (!currentStore) {
     return (
-      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-        Aucun magasin selectionne.
+      <div className="flex flex-col items-center justify-center py-20 gap-4 text-gray-400 dark:text-gray-500">
+        <Store size={48} strokeWidth={1.2} />
+        <p className="text-base font-semibold">Aucun magasin selectionne.</p>
       </div>
     );
   }
 
   if (kpisLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="flex items-center justify-center py-16">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Chargement…</p>
+        </div>
       </div>
     );
   }
@@ -132,14 +166,15 @@ export default function DashboardPage() {
     ? parseFloat(strategic.revenue_growth_pct)
     : pctChange(kpis?.total_sales, prevKpis?.total_sales);
 
-  // ---- KPI cards (role-filtered) ----
+  // ---- KPI cards (role-filtered) — PreAdmin dash-widget style ----
   const allKpiCards = [
     {
       key: 'sales',
       label: "Chiffre d'affaires",
       value: formatCurrency(kpis?.total_sales ?? 0),
-      icon: <DollarSign size={24} />,
-      color: 'bg-blue-500',
+      icon: <DollarSign size={22} />,
+      iconBg: 'bg-red-100 dark:bg-red-900/30',
+      iconColor: 'text-red-500',
       trend: revenueGrowth,
       roles: ['ADMIN', 'MANAGER', 'SALES', 'CASHIER', 'SALES_CASHIER'],
     },
@@ -147,8 +182,9 @@ export default function DashboardPage() {
       key: 'net_sales',
       label: 'Ventes nettes',
       value: formatCurrency(kpis?.net_sales ?? 0),
-      icon: <TrendingUp size={24} />,
-      color: 'bg-cyan-500',
+      icon: <TrendingUp size={22} />,
+      iconBg: 'bg-blue-100 dark:bg-blue-900/30',
+      iconColor: 'text-blue-500',
       trend: pctChange(kpis?.net_sales, prevKpis?.net_sales),
       roles: ['ADMIN', 'MANAGER'],
     },
@@ -156,8 +192,9 @@ export default function DashboardPage() {
       key: 'orders',
       label: 'Commandes',
       value: kpis?.total_orders ?? 0,
-      icon: <ShoppingBag size={24} />,
-      color: 'bg-emerald-500',
+      icon: <ShoppingBag size={22} />,
+      iconBg: 'bg-emerald-100 dark:bg-emerald-900/30',
+      iconColor: 'text-emerald-600',
       trend: pctChange(kpis?.total_orders, prevKpis?.total_orders),
       roles: ['ADMIN', 'MANAGER', 'SALES', 'CASHIER', 'SALES_CASHIER'],
     },
@@ -165,8 +202,9 @@ export default function DashboardPage() {
       key: 'basket',
       label: 'Panier moyen',
       value: formatCurrency(kpis?.average_basket ?? 0),
-      icon: <ShoppingCart size={24} />,
-      color: 'bg-amber-500',
+      icon: <ShoppingCart size={22} />,
+      iconBg: 'bg-amber-100 dark:bg-amber-900/30',
+      iconColor: 'text-amber-500',
       trend: pctChange(kpis?.average_basket, prevKpis?.average_basket),
       roles: ['ADMIN', 'MANAGER', 'SALES', 'SALES_CASHIER'],
     },
@@ -174,8 +212,9 @@ export default function DashboardPage() {
       key: 'margin',
       label: 'Marge brute',
       value: formatCurrency(kpis?.gross_margin ?? 0),
-      icon: <Percent size={24} />,
-      color: 'bg-teal-500',
+      icon: <Percent size={22} />,
+      iconBg: 'bg-violet-100 dark:bg-violet-900/30',
+      iconColor: 'text-violet-600',
       trend: pctChange(kpis?.gross_margin, prevKpis?.gross_margin),
       roles: ['ADMIN', 'MANAGER'],
     },
@@ -183,8 +222,9 @@ export default function DashboardPage() {
       key: 'discounts',
       label: 'Remises',
       value: formatCurrency(kpis?.total_discounts ?? 0),
-      icon: <Tag size={24} />,
-      color: 'bg-orange-500',
+      icon: <Tag size={22} />,
+      iconBg: 'bg-orange-100 dark:bg-orange-900/30',
+      iconColor: 'text-orange-500',
       trend: pctChange(kpis?.total_discounts, prevKpis?.total_discounts),
       roles: ['ADMIN', 'MANAGER'],
     },
@@ -192,8 +232,9 @@ export default function DashboardPage() {
       key: 'credit',
       label: 'Credits en cours',
       value: formatCurrency(kpis?.credit_outstanding ?? 0),
-      icon: <CreditCard size={24} />,
-      color: 'bg-rose-500',
+      icon: <CreditCard size={22} />,
+      iconBg: 'bg-pink-100 dark:bg-pink-900/30',
+      iconColor: 'text-pink-500',
       trend: null,
       roles: ['ADMIN', 'MANAGER'],
     },
@@ -201,8 +242,9 @@ export default function DashboardPage() {
       key: 'stock',
       label: 'Valeur stock',
       value: formatCurrency(kpis?.stock_value ?? 0),
-      icon: <Package size={24} />,
-      color: 'bg-purple-500',
+      icon: <Package size={22} />,
+      iconBg: 'bg-purple-100 dark:bg-purple-900/30',
+      iconColor: 'text-purple-600',
       trend: null,
       roles: ['ADMIN', 'MANAGER', 'STOCKER'],
     },
@@ -210,16 +252,34 @@ export default function DashboardPage() {
 
   const visibleKpiCards = allKpiCards.filter((c) => role && c.roles.includes(role));
 
+  // ---- Period label ----
+  const periodLabel: Record<PeriodKey, string> = {
+    today: "Aujourd'hui",
+    '7d': '7 derniers jours',
+    '30d': '30 derniers jours',
+    month: 'Ce mois',
+    year: 'Cette annee',
+    custom: `${dateFrom} — ${dateTo}`,
+  };
+
   // ---- Render ----
   return (
     <div className="space-y-6">
-      {/* Header */}
+
+      {/* ── Page Header ── */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Tableau de bord</h1>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-gray-100">
+              Tableau de bord
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              {currentStore.name} &middot; {periodLabel[period]}
+            </p>
+          </div>
           <button
             onClick={openConfig}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shrink-0"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-white dark:hover:bg-gray-700 bg-white dark:bg-gray-800 shadow-sm transition-colors shrink-0"
           >
             <SlidersHorizontal size={16} />
             <span className="hidden sm:inline">Personnaliser</span>
@@ -233,13 +293,13 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* STOCKER — alertes en premier */}
+      {/* ── STOCKER — alertes en premier ── */}
       {role === 'STOCKER' && isVisible('alerts') && (
         <AlertsWidget alerts={alertsData?.results ?? []} isLoading={alertsLoading} />
       )}
 
-      {/* Section 1 — KPI Cards */}
-      {isVisible('kpis') && (
+      {/* ── Section 1 — KPI Cards (dash-widget style) ── */}
+      {isVisible('kpis') && visibleKpiCards.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {visibleKpiCards.map((card) => (
             <KpiCard
@@ -247,40 +307,75 @@ export default function DashboardPage() {
               label={card.label}
               value={card.value}
               icon={card.icon}
-              color={card.color}
+              iconBg={card.iconBg}
+              iconColor={card.iconColor}
               trend={card.trend}
             />
           ))}
         </div>
       )}
 
-      {/* SALES / CASHIER / SALES_CASHIER — raccourcis */}
+      {/* ── Section 2 — Dash-Count row (Admin/Manager) ── */}
+      {showAdvanced && isVisible('kpis') && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <DashCount
+            label="Total Commandes"
+            value={kpis?.total_orders ?? 0}
+            icon={<ShoppingBag size={40} strokeWidth={1.5} />}
+            bg="bg-primary"
+            shadow="shadow-blue-200 dark:shadow-none"
+          />
+          <DashCount
+            label="Panier moyen"
+            value={formatCurrency(kpis?.average_basket ?? 0)}
+            icon={<ShoppingCart size={40} strokeWidth={1.5} />}
+            bg="bg-cyan-500"
+            shadow="shadow-cyan-200 dark:shadow-none"
+          />
+          <DashCount
+            label="Credits en cours"
+            value={formatCurrency(kpis?.credit_outstanding ?? 0)}
+            icon={<CreditCard size={40} strokeWidth={1.5} />}
+            bg="bg-gray-800 dark:bg-gray-700"
+            shadow="shadow-gray-300 dark:shadow-none"
+          />
+          <DashCount
+            label="Valeur stock"
+            value={formatCurrency(kpis?.stock_value ?? 0)}
+            icon={<Package size={40} strokeWidth={1.5} />}
+            bg="bg-emerald-500"
+            shadow="shadow-emerald-200 dark:shadow-none"
+          />
+        </div>
+      )}
+
+      {/* ── SALES / CASHIER / SALES_CASHIER — raccourcis ── */}
       {(role === 'SALES' || role === 'CASHIER' || role === 'SALES_CASHIER') && (
         <div className="flex flex-wrap gap-3">
           {(role === 'SALES' || role === 'SALES_CASHIER') && (
-            <a
-              href="/pos"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            <Link
+              to="/pos"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold shadow-sm hover:bg-primary-dark transition-colors"
             >
               <ShoppingCart size={16} />
               Nouvelle vente (POS)
-            </a>
+            </Link>
           )}
           {(role === 'CASHIER' || role === 'SALES_CASHIER') && (
-            <a
-              href="/cashier"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+            <Link
+              to="/cashier"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-semibold shadow-sm hover:bg-emerald-700 transition-colors"
             >
               <DollarSign size={16} />
               Ouvrir la caisse
-            </a>
+            </Link>
           )}
         </div>
       )}
 
-      {/* Section 2 — Charts (Admin/Manager) */}
+      {/* ── Section 3 — Charts (Admin/Manager) ── */}
       {showAdvanced && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
           {isVisible('salesTrend') && kpis?.sales_trend && kpis.sales_trend.length > 0 && (
             <SalesTrendChart data={kpis.sales_trend} />
           )}
@@ -301,28 +396,46 @@ export default function DashboardPage() {
         <SalesTrendChart data={kpis.sales_trend} />
       )}
 
-      {/* Section 3 — Top Products + Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* ── Section 4 — Top Products + Alerts ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {isVisible('topProducts') && kpis?.top_products && kpis.top_products.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Top produits</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            {/* Card header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Top Produits</h2>
+              <Link
+                to="/sales"
+                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+              >
+                Voir tout <ArrowRight size={12} />
+              </Link>
+            </div>
+            {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full pread-table">
                 <thead>
-                  <tr className="border-b border-gray-100 dark:border-gray-700">
-                    <th className="text-left py-2 text-gray-500 dark:text-gray-400 font-medium">#</th>
-                    <th className="text-left py-2 text-gray-500 dark:text-gray-400 font-medium">Produit</th>
-                    <th className="text-right py-2 text-gray-500 dark:text-gray-400 font-medium">Qte</th>
-                    <th className="text-right py-2 text-gray-500 dark:text-gray-400 font-medium">CA</th>
+                  <tr>
+                    <th className="text-left">#</th>
+                    <th className="text-left">Produit</th>
+                    <th className="text-right">Qte</th>
+                    <th className="text-right">CA</th>
                   </tr>
                 </thead>
                 <tbody>
                   {kpis.top_products.map((product, i) => (
-                    <tr key={i} className="border-b border-gray-50 dark:border-gray-700">
-                      <td className="py-2 text-gray-400 dark:text-gray-500">{i + 1}</td>
-                      <td className="py-2 font-medium text-gray-900 dark:text-gray-100">{product.product__name}</td>
-                      <td className="py-2 text-right text-gray-700 dark:text-gray-300">{product.total_quantity}</td>
-                      <td className="py-2 text-right font-medium text-gray-900 dark:text-gray-100">
+                    <tr key={i}>
+                      <td>
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                          {i + 1}
+                        </span>
+                      </td>
+                      <td className="font-semibold text-gray-800 dark:text-gray-100 truncate max-w-[180px]">
+                        {product.product__name}
+                      </td>
+                      <td className="text-right text-gray-600 dark:text-gray-300">
+                        {product.total_quantity}
+                      </td>
+                      <td className="text-right font-bold text-gray-900 dark:text-gray-100">
                         {formatCurrency(product.total_revenue)}
                       </td>
                     </tr>
@@ -341,7 +454,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Section 4 — Projections (Admin/Manager) */}
+      {/* ── Section 5 — Projections (Admin/Manager) ── */}
       {showAdvanced && (
         <>
           {isVisible('forecast') && <ForecastSection storeId={storeId} />}
@@ -349,7 +462,7 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* Section 5 — AI Insights (Admin/Manager) */}
+      {/* ── Section 6 — AI Insights (Admin/Manager) ── */}
       {showAdvanced && isVisible('aiInsights') && (
         <AiInsightsPanel data={strategic} isLoading={strategicLoading} />
       )}

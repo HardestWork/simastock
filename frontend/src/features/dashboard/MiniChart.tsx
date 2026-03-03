@@ -1,3 +1,6 @@
+/**
+ * Chart widgets — PreAdmin-inspired card style with border + clean header.
+ */
 import {
   AreaChart,
   Area,
@@ -16,7 +19,41 @@ import {
 import { formatCurrency } from '@/lib/currency';
 
 /* -------------------------------------------------------------------------- */
-/*  SalesTrendChart                                                           */
+/*  Shared card wrapper                                                        */
+/* -------------------------------------------------------------------------- */
+
+function ChartCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+        <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">{title}</h2>
+      </div>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Shared Tooltip style                                                       */
+/* -------------------------------------------------------------------------- */
+
+const tooltipStyle = {
+  backgroundColor: '#212B36',
+  border: 'none',
+  borderRadius: '8px',
+  color: '#F9FAFB',
+  fontSize: '12px',
+  padding: '8px 12px',
+};
+
+/* -------------------------------------------------------------------------- */
+/*  SalesTrendChart                                                            */
 /* -------------------------------------------------------------------------- */
 
 interface SalesTrendChartProps {
@@ -31,34 +68,39 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
   }));
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-        Tendance des ventes
-      </h2>
-      <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-          <YAxis tick={{ fontSize: 12 }} />
+    <ChartCard title="Tendance des ventes">
+      <ResponsiveContainer width="100%" height={270}>
+        <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#0F4C9A" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#0F4C9A" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+          <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} width={50} />
           <Tooltip
-            formatter={(value) => formatCurrency(value as number)}
-            labelFormatter={(label) => `Date: ${String(label)}`}
+            formatter={(value) => [formatCurrency(value as number), 'Ventes']}
+            labelFormatter={(label) => `${String(label)}`}
+            contentStyle={tooltipStyle}
+            cursor={{ stroke: '#0F4C9A', strokeWidth: 1, strokeDasharray: '4 2' }}
           />
           <Area
             type="monotone"
             dataKey="total"
             stroke="#0F4C9A"
-            fill="#0F4C9A"
-            fillOpacity={0.1}
+            strokeWidth={2.5}
+            fill="url(#salesGrad)"
           />
         </AreaChart>
       </ResponsiveContainer>
-    </div>
+    </ChartCard>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*  PaymentMethodChart                                                        */
+/*  PaymentMethodChart                                                         */
 /* -------------------------------------------------------------------------- */
 
 interface PaymentMethodChartProps {
@@ -66,10 +108,10 @@ interface PaymentMethodChartProps {
 }
 
 const PAYMENT_METHOD_COLORS: Record<string, string> = {
-  CASH: '#10B981',
-  MOBILE_MONEY: '#3B82F6',
-  BANK_TRANSFER: '#8B5CF6',
-  CREDIT: '#F59E0B',
+  CASH: '#059669',
+  MOBILE_MONEY: '#0F4C9A',
+  BANK_TRANSFER: '#7C3AED',
+  CREDIT: '#D97706',
 };
 const PAYMENT_METHOD_DEFAULT_COLOR = '#6B7280';
 
@@ -89,11 +131,8 @@ export function PaymentMethodChart({ data }: PaymentMethodChartProps) {
   }));
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-        Modes de paiement
-      </h2>
-      <ResponsiveContainer width="100%" height={300}>
+    <ChartCard title="Modes de paiement">
+      <ResponsiveContainer width="100%" height={270}>
         <PieChart>
           <Pie
             data={chartData}
@@ -101,7 +140,7 @@ export function PaymentMethodChart({ data }: PaymentMethodChartProps) {
             nameKey="name"
             innerRadius={60}
             outerRadius={100}
-            label={({ name }) => name ?? ''}
+            paddingAngle={3}
           >
             {chartData.map((entry) => (
               <Cell
@@ -114,17 +153,23 @@ export function PaymentMethodChart({ data }: PaymentMethodChartProps) {
             ))}
           </Pie>
           <Tooltip
-            formatter={(value) => formatCurrency(value as number)}
+            formatter={(value) => [formatCurrency(value as number), '']}
+            contentStyle={tooltipStyle}
           />
-          <Legend verticalAlign="bottom" />
+          <Legend
+            verticalAlign="bottom"
+            iconType="circle"
+            iconSize={8}
+            wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }}
+          />
         </PieChart>
       </ResponsiveContainer>
-    </div>
+    </ChartCard>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*  CategoryBarChart                                                          */
+/*  CategoryBarChart                                                           */
 /* -------------------------------------------------------------------------- */
 
 interface CategoryBarChartProps {
@@ -142,39 +187,41 @@ export function CategoryBarChart({ data }: CategoryBarChartProps) {
   }));
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-        Chiffre d'affaires par categorie
-      </h2>
+    <ChartCard title="CA par categorie">
       <ResponsiveContainer
         width="100%"
-        height={Math.max(200, data.length * 40)}
+        height={Math.max(220, data.length * 44)}
       >
-        <BarChart layout="vertical" data={chartData}>
-          <XAxis type="number" tick={{ fontSize: 12 }} />
+        <BarChart layout="vertical" data={chartData} margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
+          <XAxis type="number" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
           <YAxis
             type="category"
             dataKey="name"
-            width={120}
-            tick={{ fontSize: 12 }}
+            width={110}
+            tick={{ fontSize: 11, fill: '#646B72' }}
+            axisLine={false}
+            tickLine={false}
           />
           <Tooltip
-            formatter={(value) => formatCurrency(value as number)}
+            formatter={(value) => [formatCurrency(value as number), 'Revenu']}
+            contentStyle={tooltipStyle}
+            cursor={{ fill: '#F9FAFB' }}
           />
           <Bar
             dataKey="revenue"
             fill="#0F4C9A"
-            barSize={20}
+            barSize={18}
             radius={[0, 4, 4, 0]}
           />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </ChartCard>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*  SellerBarChart                                                            */
+/*  SellerBarChart                                                             */
 /* -------------------------------------------------------------------------- */
 
 interface SellerBarChartProps {
@@ -192,25 +239,25 @@ export function SellerBarChart({ data }: SellerBarChartProps) {
   }));
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-        Ventes par vendeur
-      </h2>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData}>
-          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-          <YAxis tick={{ fontSize: 12 }} />
+    <ChartCard title="Ventes par vendeur">
+      <ResponsiveContainer width="100%" height={270}>
+        <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
           <Tooltip
-            formatter={(value) => formatCurrency(value as number)}
+            formatter={(value) => [formatCurrency(value as number), 'Ventes']}
+            contentStyle={tooltipStyle}
+            cursor={{ fill: '#F9FAFB' }}
           />
           <Bar
             dataKey="sales"
-            fill="#21A8F6"
-            barSize={30}
+            fill="#3EB780"
+            barSize={32}
             radius={[4, 4, 0, 0]}
           />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </ChartCard>
   );
 }

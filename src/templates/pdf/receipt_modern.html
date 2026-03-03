@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A5 portrait; margin: 10mm; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #0f172a; }
+
+        .sheet {
+            border: 1px solid #dbe3ef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0f4c9a, #1f6fbe);
+            color: #fff;
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .brand h1 {
+            font-size: 14pt;
+            line-height: 1.2;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+        .brand .meta {
+            margin-top: 6px;
+            font-size: 8pt;
+            line-height: 1.45;
+            opacity: 0.95;
+        }
+
+        .logo {
+            width: 62px;
+            height: 62px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.14);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 7px;
+        }
+        .logo img { max-width: 100%; max-height: 100%; }
+
+        .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px 10px;
+            border-bottom: 1px solid #e5eaf2;
+        }
+        .title-row h2 { font-size: 12pt; letter-spacing: 0.5px; }
+        .badge {
+            border: 1px solid #c7d3e5;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 8pt;
+            color: #334155;
+            background: #f8fbff;
+        }
+
+        .content { padding: 12px 16px 14px; }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 14px;
+            margin-bottom: 12px;
+        }
+        .meta-card {
+            border: 1px solid #e7edf6;
+            border-radius: 8px;
+            padding: 7px 8px;
+        }
+        .meta-card small { display: block; color: #64748b; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.4px; }
+        .meta-card strong { display: block; margin-top: 3px; font-size: 9.5pt; }
+
+        table { width: 100%; border-collapse: collapse; }
+        .items thead th {
+            text-align: left;
+            font-size: 8pt;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 1px solid #dce4f0;
+            padding: 6px 2px;
+        }
+        .items th.r, .items td.r { text-align: right; }
+        .items td {
+            border-bottom: 1px solid #edf2f8;
+            padding: 7px 2px;
+            font-size: 9pt;
+        }
+        .items td:first-child { font-weight: 600; color: #1e293b; }
+
+        .summary {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 12px;
+        }
+        .card {
+            border: 1px solid #e7edf6;
+            border-radius: 8px;
+            padding: 8px 10px;
+        }
+        .totals td { padding: 3px 0; }
+        .totals td:last-child { text-align: right; }
+        .totals .total td {
+            border-top: 1px solid #cfd8e6;
+            padding-top: 6px;
+            font-weight: 700;
+            font-size: 10.5pt;
+        }
+
+        .payments h3 {
+            font-size: 8.5pt;
+            margin-bottom: 6px;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .payments .line {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 8.5pt;
+            padding: 3px 0;
+        }
+
+        .verify {
+            margin-top: 12px;
+            border-top: 1px dashed #d4deec;
+            padding-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .verify img { width: 58px; height: 58px; }
+        .verify .txt { font-size: 7.5pt; color: #64748b; word-break: break-all; }
+
+        .footer {
+            margin-top: 10px;
+            border-top: 1px solid #e4ebf5;
+            padding-top: 8px;
+            text-align: center;
+            font-size: 8pt;
+            color: #475569;
+        }
+        .compliance {
+            margin-top: 4px;
+            font-size: 7pt;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="sheet">
+        <div class="header">
+            <div class="brand">
+                <h1>{{ invoice_config.business_name }}</h1>
+                <div class="meta">
+                    {% if invoice_config.address %}<div>{{ invoice_config.address }}</div>{% endif %}
+                    {% if invoice_config.phone %}<div>{{ invoice_config.phone }}</div>{% endif %}
+                    {% if invoice_config.email %}<div>{{ invoice_config.email }}</div>{% endif %}
+                    {% if invoice_config.registration_number or invoice_config.tax_id %}
+                    <div>
+                        {% if invoice_config.registration_number %}RCCM: {{ invoice_config.registration_number }}{% endif %}
+                        {% if invoice_config.registration_number and invoice_config.tax_id %} | {% endif %}
+                        {% if invoice_config.tax_id %}NIF: {{ invoice_config.tax_id }}{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% if invoice_config.logo_uri %}
+            <div class="logo">
+                <img src="{{ invoice_config.logo_uri }}" alt="Logo">
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="title-row">
+            <h2>RECU DE PAIEMENT</h2>
+            <span class="badge">{{ sale.invoice_number }}</span>
+        </div>
+
+        <div class="content">
+            <div class="meta-grid">
+                <div class="meta-card">
+                    <small>Date vente</small>
+                    <strong>{{ sale.created_at|date:"d/m/Y H:i" }}</strong>
+                </div>
+                <div class="meta-card">
+                    <small>Client</small>
+                    <strong>{% if sale.customer %}{{ sale.customer.full_name }}{% else %}Client comptoir{% endif %}</strong>
+                    {% if sale.customer and sale.customer.company %}
+                    <small>{{ sale.customer.company }}</small>
+                    {% endif %}
+                    {% if sale.customer and sale.customer.tax_id %}
+                    <small>NIF client: {{ sale.customer.tax_id }}</small>
+                    {% endif %}
+                </div>
+                <div class="meta-card">
+                    <small>Vendeur</small>
+                    <strong>{{ sale.seller.get_full_name }}</strong>
+                </div>
+                <div class="meta-card">
+                    <small>Caissier</small>
+                    <strong>{% if cashier_name %}{{ cashier_name }}{% else %}{{ sale.seller.get_full_name }}{% endif %}</strong>
+                </div>
+            </div>
+
+            <table class="items">
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th class="r">Qte</th>
+                        <th class="r">PU</th>
+                        <th class="r">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in sale.items.all %}
+                    <tr>
+                        <td>{{ item.product_name }}</td>
+                        <td class="r">{{ item.quantity }}</td>
+                        <td class="r">{{ item.unit_price|floatformat:0 }}</td>
+                        <td class="r">{{ item.line_total|floatformat:0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="summary">
+                <div class="card">
+                    <table class="totals">
+                        <tr>
+                            <td>Base HT</td>
+                            <td>{{ sale.subtotal|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+                        </tr>
+                        {% if sale.discount_amount > 0 %}
+                        <tr>
+                            <td>Remise</td>
+                            <td>-{{ sale.discount_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if sale.tax_amount > 0 %}
+                        <tr>
+                            <td>TVA{% if invoice_config.vat_enabled and invoice_config.vat_rate %} ({{ invoice_config.vat_rate|floatformat:2 }}%){% endif %}</td>
+                            <td>{{ sale.tax_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr class="total">
+                            <td>Total TTC</td>
+                            <td>{{ sale.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="card payments">
+                    <h3>Paiements</h3>
+                    {% for payment in payments %}
+                    <div class="line">
+                        <span>{{ payment.get_method_display }}</span>
+                        <strong>{{ payment.amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</strong>
+                    </div>
+                    {% endfor %}
+                    {% if change > 0 %}
+                    <div class="line">
+                        <span>Monnaie rendue</span>
+                        <strong>{{ change|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if verify_url and qr_data_uri %}
+            <div class="verify">
+                <img src="{{ qr_data_uri }}" alt="QR verification">
+                <div class="txt">
+                    <div>Verification:</div>
+                    {% if verify_hash %}<div>{{ verify_hash }}</div>{% endif %}
+                    <div>{{ verify_url }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="footer">
+                <div>{% if invoice_config.footer %}{{ invoice_config.footer }}{% else %}Merci pour votre confiance.{% endif %}</div>
+                <div>{{ now|date:"d/m/Y H:i" }}</div>
+                <div class="compliance">Piece justificative de caisse a conserver dans la comptabilite (SYSCOHADA/AUDCIF).</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

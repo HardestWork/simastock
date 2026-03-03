@@ -241,6 +241,10 @@ class EnterpriseSerializer(serializers.ModelSerializer):
     effective_feature_flags = serializers.JSONField(read_only=True)
 
     subscription_status = serializers.CharField(read_only=True)
+    stores_count = serializers.SerializerMethodField(read_only=True)
+
+    def get_stores_count(self, obj):
+        return obj.stores.count()
 
     class Meta:
         model = Enterprise
@@ -252,10 +256,10 @@ class EnterpriseSerializer(serializers.ModelSerializer):
             'invoice_primary_color', 'invoice_secondary_color',
             'offer_validity_days', 'invoice_terms', 'invoice_footer',
             'analytics_feature_flags', 'effective_feature_flags',
-            'can_create_stores',
+            'can_create_stores', 'stores_count',
             'subscription_start', 'subscription_end', 'subscription_status',
         ]
-        read_only_fields = ['id', 'subscription_status']
+        read_only_fields = ['id', 'subscription_status', 'stores_count']
 
     def validate_analytics_feature_flags(self, value):
         from stores.models import FEATURE_FLAG_DEFAULTS

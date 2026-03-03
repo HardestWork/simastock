@@ -4,6 +4,7 @@ import io
 import logging
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 from uuid import UUID
 
 from django.contrib import messages
@@ -34,6 +35,13 @@ def _wants_json_response(request) -> bool:
     accept = (request.headers.get("Accept") or "").lower()
     requested_with = (request.headers.get("X-Requested-With") or "").lower()
     return "application/json" in accept or requested_with == "xmlhttprequest"
+
+
+def _parse_receipt_template(value: str) -> str:
+    candidate = (value or "").strip().lower()
+    if candidate in {"ticket", "compact", "modern"}:
+        return candidate
+    return ""
 
 
 # ==================================================================
@@ -181,6 +189,7 @@ class PendingSalesView(CashierOrManagerMixin, StoreRequiredMixin, ListView):
         context["print_document_url"] = None
         raw_sale_id = (self.request.GET.get("print_sale") or "").strip()
         document_type = (self.request.GET.get("print_document") or "").strip().lower()
+        receipt_template = _parse_receipt_template(self.request.GET.get("print_template"))
         if document_type not in {"receipt", "invoice", "proforma", "quote"}:
             document_type = "receipt"
         if raw_sale_id:
@@ -192,7 +201,10 @@ class PendingSalesView(CashierOrManagerMixin, StoreRequiredMixin, ListView):
                 from sales.models import Sale
                 if Sale.objects.filter(pk=sale_id, store=self.request.current_store).exists():
                     if document_type == "receipt":
-                        context["print_document_url"] = reverse("sales:sale-receipt", kwargs={"pk": sale_id})
+                        receipt_url = reverse("sales:sale-receipt", kwargs={"pk": sale_id})
+                        if receipt_template:
+                            receipt_url = f"{receipt_url}?{urlencode({'template': receipt_template})}"
+                        context["print_document_url"] = receipt_url
                     else:
                         invoice_url = reverse("sales:sale-invoice", kwargs={"pk": sale_id})
                         if document_type in {"proforma", "quote"}:
@@ -444,10 +456,13 @@ class ProcessPaymentView(CashierOrManagerMixin, StoreRequiredMixin, View):
                         f"Monnaie a rendre: {change_due} {request.current_store.currency}.",
                     )
                 print_document = (request.POST.get("print_document") or "").strip().lower()
+                print_template = _parse_receipt_template(request.POST.get("print_template"))
                 print_url = None
                 if print_document in {"receipt", "invoice", "proforma", "quote"}:
                     if print_document == "receipt":
                         print_url = reverse("sales:sale-receipt", kwargs={"pk": sale.pk})
+                        if print_template:
+                            print_url = f"{print_url}?{urlencode({'template': print_template})}"
                     else:
                         print_url = reverse("sales:sale-invoice", kwargs={"pk": sale.pk})
                         if print_document in {"proforma", "quote"}:
@@ -456,9 +471,13 @@ class ProcessPaymentView(CashierOrManagerMixin, StoreRequiredMixin, View):
                 if wants_json:
                     redirect_url = reverse("cashier:pending-sales")
                     if print_document in {"receipt", "invoice", "proforma", "quote"}:
-                        redirect_url = (
-                            f"{redirect_url}?print_sale={sale.pk}&print_document={print_document}"
-                        )
+                        query = {
+                            "print_sale": str(sale.pk),
+                            "print_document": print_document,
+                        }
+                        if print_document == "receipt" and print_template:
+                            query["print_template"] = print_template
+                        redirect_url = f"{redirect_url}?{urlencode(query)}"
                     return JsonResponse(
                         {
                             "message": (
@@ -476,7 +495,13 @@ class ProcessPaymentView(CashierOrManagerMixin, StoreRequiredMixin, View):
 
                 if print_document in {"receipt", "invoice", "proforma", "quote"}:
                     pending_url = reverse("cashier:pending-sales")
-                    return redirect(f"{pending_url}?print_sale={sale.pk}&print_document={print_document}")
+                    query = {
+                        "print_sale": str(sale.pk),
+                        "print_document": print_document,
+                    }
+                    if print_document == "receipt" and print_template:
+                        query["print_template"] = print_template
+                    return redirect(f"{pending_url}?{urlencode(query)}")
                 return redirect("cashier:pending-sales")
 
             except ValueError as e:

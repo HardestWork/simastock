@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: 80mm auto; margin: 4mm; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 8pt; color: #0b1628; width: 72mm; }
+
+        .header { text-align: center; margin-bottom: 5px; }
+        .logo { max-height: 26px; margin: 0 auto 3px; display: block; }
+        .name { font-size: 10.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+        .contact { font-size: 7pt; color: #4b5563; line-height: 1.35; margin-top: 2px; }
+
+        .title {
+            margin: 6px 0 5px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 8.5pt;
+            padding: 3px 0;
+            border-top: 1px solid #0b1628;
+            border-bottom: 1px solid #0b1628;
+            letter-spacing: 0.8px;
+        }
+
+        .meta { margin-bottom: 5px; }
+        .meta-row { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; }
+        .meta-label { color: #4b5563; }
+        .meta-value { font-weight: 600; text-align: right; }
+
+        .items { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        .items th {
+            text-align: left;
+            padding: 2px 0;
+            border-bottom: 1px solid #cbd5e1;
+            font-size: 7pt;
+            text-transform: uppercase;
+            color: #334155;
+        }
+        .items th.r, .items td.r { text-align: right; }
+        .items td { padding: 2px 0; border-bottom: 1px dashed #e5e7eb; vertical-align: top; }
+        .items .product { max-width: 30mm; font-weight: 600; }
+
+        .totals { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        .totals td { padding: 2px 0; }
+        .totals td.r { text-align: right; }
+        .totals .total td {
+            border-top: 1px solid #0b1628;
+            font-weight: 700;
+            font-size: 10pt;
+            padding-top: 4px;
+        }
+
+        .payments { margin-top: 5px; padding-top: 4px; border-top: 1px dashed #cbd5e1; }
+        .payment-row { padding: 1px 0; }
+        .payment-row strong { font-weight: 700; }
+
+        .verify { text-align: center; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #cbd5e1; }
+        .verify img { width: 56px; height: 56px; margin: 0 auto; display: block; }
+        .verify small { display: block; margin-top: 2px; font-size: 6pt; color: #64748b; word-break: break-word; }
+
+        .footer {
+            text-align: center;
+            margin-top: 7px;
+            padding-top: 5px;
+            border-top: 1px solid #0b1628;
+            font-size: 7pt;
+            color: #374151;
+        }
+        .thanks { font-size: 8pt; font-weight: 700; margin-bottom: 2px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if invoice_config.logo_uri %}
+        <img class="logo" src="{{ invoice_config.logo_uri }}" alt="Logo">
+        {% endif %}
+        <div class="name">{{ invoice_config.business_name }}</div>
+        <div class="contact">
+            {% if invoice_config.address %}<div>{{ invoice_config.address }}</div>{% endif %}
+            {% if invoice_config.phone %}<div>{{ invoice_config.phone }}</div>{% endif %}
+            {% if invoice_config.email %}<div>{{ invoice_config.email }}</div>{% endif %}
+            {% if invoice_config.registration_number or invoice_config.tax_id %}
+            <div>
+                {% if invoice_config.registration_number %}RCCM: {{ invoice_config.registration_number }}{% endif %}
+                {% if invoice_config.registration_number and invoice_config.tax_id %} | {% endif %}
+                {% if invoice_config.tax_id %}NIF: {{ invoice_config.tax_id }}{% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="title">RECU DE PAIEMENT</div>
+
+    <div class="meta">
+        <div class="meta-row">
+            <span class="meta-label">N:</span>
+            <span class="meta-value">{{ sale.invoice_number }}</span>
+        </div>
+        <div class="meta-row">
+            <span class="meta-label">Date:</span>
+            <span class="meta-value">{{ sale.created_at|date:"d/m/Y H:i" }}</span>
+        </div>
+        <div class="meta-row">
+            <span class="meta-label">Client:</span>
+            <span class="meta-value">{% if sale.customer %}{{ sale.customer.full_name }}{% else %}Client comptoir{% endif %}</span>
+        </div>
+        {% if sale.customer and sale.customer.tax_id %}
+        <div class="meta-row">
+            <span class="meta-label">NIF client:</span>
+            <span class="meta-value">{{ sale.customer.tax_id }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <table class="items">
+        <thead>
+            <tr>
+                <th>Produit</th>
+                <th class="r">Qte</th>
+                <th class="r">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in sale.items.all %}
+            <tr>
+                <td class="product">{{ item.product_name }}</td>
+                <td class="r">{{ item.quantity }}</td>
+                <td class="r">{{ item.line_total|floatformat:0 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table class="totals">
+        <tr>
+            <td>Sous-total</td>
+            <td class="r">{{ sale.subtotal|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+        </tr>
+        {% if sale.discount_amount > 0 %}
+        <tr>
+            <td>Remise</td>
+            <td class="r">-{{ sale.discount_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+        </tr>
+        {% endif %}
+        {% if sale.tax_amount > 0 %}
+        <tr>
+            <td>Taxes</td>
+            <td class="r">{{ sale.tax_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+        </tr>
+        {% endif %}
+        <tr class="total">
+            <td>Total</td>
+            <td class="r">{{ sale.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</td>
+        </tr>
+    </table>
+
+    <div class="payments">
+        {% for payment in payments %}
+        <div class="payment-row">
+            <strong>{{ payment.get_method_display }}:</strong>
+            {{ payment.amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}
+        </div>
+        {% endfor %}
+        {% if change > 0 %}
+        <div class="payment-row">
+            <strong>Monnaie rendue:</strong>
+            {{ change|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}
+        </div>
+        {% endif %}
+    </div>
+
+    {% if verify_url and qr_data_uri %}
+    <div class="verify">
+        <img src="{{ qr_data_uri }}" alt="QR verification">
+        {% if verify_hash %}<small>{{ verify_hash }}</small>{% endif %}
+        <small>{{ verify_url }}</small>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <div class="thanks">{% if invoice_config.footer %}{{ invoice_config.footer }}{% else %}Merci pour votre confiance.{% endif %}</div>
+        <div>{{ now|date:"d/m/Y H:i" }}</div>
+        <div>Piece justificative de caisse - SYSCOHADA</div>
+    </div>
+</body>
+</html>

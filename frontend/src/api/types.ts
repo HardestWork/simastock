@@ -171,13 +171,14 @@ export interface Enterprise {
   analytics_feature_flags?: FeatureFlags;
   effective_feature_flags?: FeatureFlags;
   can_create_stores: boolean;
+  stores_count?: number;
   subscription_start: string | null;
   subscription_end: string | null;
   subscription_status: 'active' | 'expired' | 'scheduled' | 'inactive';
   is_active: boolean;
 }
 
-export type InvoiceTemplate = 'CLASSIC' | 'MODERN' | 'SIMPLE';
+export type InvoiceTemplate = 'CLASSIC' | 'MODERN' | 'SIMPLE' | 'CORPORATE' | 'BORDERED' | 'PRESTIGE';
 
 export type EnterpriseSubscriptionBillingCycle = 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM';
 export type EnterpriseSubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED';

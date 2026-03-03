@@ -2,6 +2,7 @@
 import json
 from decimal import Decimal, InvalidOperation
 import logging
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
@@ -79,16 +80,33 @@ def _parse_print_document(value: str) -> str | None:
     return None
 
 
-def _build_print_document_url(sale_pk, document_type: str) -> str:
+def _parse_receipt_template(value: str) -> str:
+    """Normalize receipt template code used by printable endpoints."""
+    candidate = (value or "").strip().lower()
+    if candidate in {"ticket", "compact", "modern"}:
+        return candidate
+    return ""
+
+
+def _build_print_document_url(sale_pk, document_type: str, receipt_template: str = "") -> str:
     """Build the printable URL according to the requested document type."""
     if document_type == "receipt":
-        return reverse("sales:sale-receipt", kwargs={"pk": sale_pk})
+        base = reverse("sales:sale-receipt", kwargs={"pk": sale_pk})
+        template_code = _parse_receipt_template(receipt_template)
+        if template_code:
+            return f"{base}?{urlencode({'template': template_code})}"
+        return base
     if document_type in {"invoice", "proforma", "quote"}:
         base = reverse("sales:sale-invoice", kwargs={"pk": sale_pk})
         if document_type in {"proforma", "quote"}:
             return f"{base}?kind={document_type}"
         return base
     return ""
+
+
+def _parse_bool_flag(value: str | None) -> bool:
+    candidate = (value or "").strip().lower()
+    return candidate in {"1", "true", "yes", "on"}
 
 
 def _wants_json_response(request) -> bool:
@@ -539,8 +557,13 @@ class SaleDetailView(LoginRequiredMixin, DetailView):
         ctx["refunds"] = sale.refunds.all()
         ctx["max_discount"] = _max_discount_for_user(user)
         document_type = _parse_print_document(self.request.GET.get("print_document"))
+        receipt_template = _parse_receipt_template(self.request.GET.get("print_template"))
         ctx["auto_print_document"] = document_type is not None
-        ctx["print_document_url"] = _build_print_document_url(sale.pk, document_type or "")
+        ctx["print_document_url"] = _build_print_document_url(
+            sale.pk,
+            document_type or "",
+            receipt_template=receipt_template,
+        )
         ctx["sale_snapshot_json"] = json.dumps(
             _build_sale_snapshot(sale, user),
             cls=DjangoJSONEncoder,
@@ -770,8 +793,13 @@ class SaleSubmitView(LoginRequiredMixin, View):
             return redirect("sales:sale-detail", pk=sale.pk)
 
         print_document = _parse_print_document(request.POST.get("print_document"))
+        print_template = _parse_receipt_template(request.POST.get("print_template"))
         if _wants_json_response(request):
-            print_url = _build_print_document_url(sale.pk, print_document or "")
+            print_url = _build_print_document_url(
+                sale.pk,
+                print_document or "",
+                receipt_template=print_template,
+            )
             return _json_sale_response(
                 sale,
                 request.user,
@@ -782,7 +810,10 @@ class SaleSubmitView(LoginRequiredMixin, View):
 
         if print_document:
             detail_url = reverse("sales:sale-detail", kwargs={"pk": sale.pk})
-            return redirect(f"{detail_url}?print_document={print_document}")
+            query = {"print_document": print_document}
+            if print_document == "receipt" and print_template:
+                query["print_template"] = print_template
+            return redirect(f"{detail_url}?{urlencode(query)}")
 
         return redirect("sales:sale-detail", pk=sale.pk)
 
@@ -811,11 +842,15 @@ class SaleReceiptView(LoginRequiredMixin, View):
             return HttpResponseForbidden("Acces refuse.")
 
         try:
+            template_code = (request.GET.get("template") or "").strip()
+            as_attachment = _parse_bool_flag(request.GET.get("download"))
             return generate_receipt_pdf(
                 sale=sale,
                 store=request.current_store,
                 payments=sale.payments.all().order_by("created_at"),
                 cashier_name=request.user.get_full_name(),
+                template_code=template_code,
+                as_attachment=as_attachment,
             )
         except Exception:
             logger.exception("Error generating ticket for sale %s", sale.pk)

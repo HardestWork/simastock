@@ -38,7 +38,7 @@ export default function AppLayout() {
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
   return (
-    <div className="h-screen bg-canvas dark:bg-gray-900 md:flex overflow-hidden">
+    <div className="h-screen bg-canvas dark:bg-gray-900 flex flex-col md:flex-row overflow-hidden">
       {/* Mobile backdrop — only rendered when drawer is open */}
       {mobileOpen && (
         <div

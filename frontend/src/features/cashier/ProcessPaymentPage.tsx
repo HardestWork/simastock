@@ -31,6 +31,8 @@ interface PaymentLine {
   reference: string;
 }
 
+type ReceiptTemplate = 'ticket' | 'compact' | 'modern';
+
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: typeof Banknote }[] = [
   { value: 'CASH', label: 'Especes', icon: Banknote },
   { value: 'MOBILE_MONEY', label: 'Mobile Money', icon: Smartphone },
@@ -47,10 +49,35 @@ const METHOD_LABELS: Record<PaymentMethod | string, string> = {
   CHEQUE: 'Cheque',
 };
 
+const RECEIPT_TEMPLATE_STORAGE_KEY = 'simastock:receipt-template';
+const RECEIPT_TEMPLATE_OPTIONS: Array<{ value: ReceiptTemplate; label: string }> = [
+  { value: 'ticket', label: 'Ticket classique' },
+  { value: 'compact', label: 'Ticket compact' },
+  { value: 'modern', label: 'Recu A5 proche facture (SYSCOHADA)' },
+];
+
 let nextLineId = 1;
 
 function createEmptyLine(): PaymentLine {
   return { id: nextLineId++, method: 'CASH', amount: '', reference: '' };
+}
+
+function normalizeReceiptTemplate(value: string | null | undefined): ReceiptTemplate {
+  const candidate = (value ?? '').trim().toLowerCase();
+  if (candidate === 'compact' || candidate === 'modern') {
+    return candidate;
+  }
+  return 'ticket';
+}
+
+function triggerReceiptDownload(url: string) {
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  window.setTimeout(() => {
+    iframe.remove();
+  }, 12_000);
 }
 
 // ---------------------------------------------------------------------------
@@ -65,6 +92,14 @@ export default function ProcessPaymentPage() {
   // State
   const [lines, setLines] = useState<PaymentLine[]>(() => [createEmptyLine()]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [receiptTemplate, setReceiptTemplate] = useState<ReceiptTemplate>(() => {
+    if (typeof window === 'undefined') return 'ticket';
+    return normalizeReceiptTemplate(window.localStorage.getItem(RECEIPT_TEMPLATE_STORAGE_KEY));
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(RECEIPT_TEMPLATE_STORAGE_KEY, receiptTemplate);
+  }, [receiptTemplate]);
 
   // Fetch sale details
   const {
@@ -117,7 +152,17 @@ export default function ProcessPaymentPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.cashShifts.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.creditAccounts.all });
-      navigate(`/cashier/receipt/${saleId}`);
+      const paidSaleId = saleId ?? sale?.id;
+      if (!paidSaleId) {
+        navigate('/cashier');
+        return;
+      }
+      const query = new URLSearchParams({
+        template: receiptTemplate,
+        download: '1',
+      });
+      triggerReceiptDownload(`/api/v1/sales/${paidSaleId}/receipt/?${query.toString()}`);
+      navigate(`/cashier/receipt/${paidSaleId}?template=${encodeURIComponent(receiptTemplate)}`);
     },
     onError: (err: unknown) => {
       const msg = extractApiError(err);
@@ -553,6 +598,26 @@ export default function ProcessPaymentPage() {
             <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
               Recapitulatif
             </h2>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Template de recu
+              </label>
+              <select
+                value={receiptTemplate}
+                onChange={(e) => setReceiptTemplate(normalizeReceiptTemplate(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100 bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+              >
+                {RECEIPT_TEMPLATE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Le PDF sera telecharge automatiquement apres validation.
+              </p>
+            </div>
 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">

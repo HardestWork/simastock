@@ -1233,7 +1233,7 @@ class StoreViewSet(viewsets.ModelViewSet):
 
     serializer_class = StoreSerializer
     queryset = Store.objects.all()
-    filterset_fields = ['is_active']
+    filterset_fields = ['is_active', 'enterprise']
     search_fields = ['name', 'code']
     ordering_fields = ['name', 'created_at']
 
@@ -1258,12 +1258,16 @@ class StoreViewSet(viewsets.ModelViewSet):
         return qs.filter(id__in=_user_store_ids(user)).distinct()
 
     def perform_create(self, serializer):
-        # Force enterprise scoping from the creator context to prevent
-        # cross-tenant store creation.
-        enterprise_id = _require_user_enterprise_id(self.request.user)
+        user = self.request.user
 
-        # Check if the enterprise allows store creation (superusers bypass).
-        if not getattr(self.request.user, "is_superuser", False):
+        if getattr(user, "is_superuser", False):
+            # Superusers must pass enterprise explicitly in request body.
+            enterprise_id = self.request.data.get('enterprise')
+            if not enterprise_id:
+                raise ValidationError({"enterprise": "Ce champ est requis pour les super-administrateurs."})
+        else:
+            # Regular users: scoped to their own enterprise.
+            enterprise_id = _require_user_enterprise_id(user)
             enterprise = Enterprise.objects.filter(pk=enterprise_id).first()
             if enterprise and not enterprise.can_create_stores:
                 raise PermissionDenied(
@@ -1271,12 +1275,13 @@ class StoreViewSet(viewsets.ModelViewSet):
                 )
 
         store = serializer.save(enterprise_id=enterprise_id)
-        # Ensure the creator can actually access the store they just created.
-        StoreUser.objects.get_or_create(
-            store=store,
-            user=self.request.user,
-            defaults={"is_default": False},
-        )
+        # For non-superusers, ensure the creator has access to the store.
+        if not getattr(user, "is_superuser", False):
+            StoreUser.objects.get_or_create(
+                store=store,
+                user=user,
+                defaults={"is_default": False},
+            )
 
     @action(detail=True, methods=['post'], url_path='assign-users')
     def assign_users(self, request, pk=None):
@@ -3149,8 +3154,17 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"], url_path="receipt")
     def receipt(self, request, pk=None):
-        """Generate and return a receipt/ticket PDF for a sale."""
+        """Generate and return a receipt/ticket PDF for a sale.
+
+        Query params:
+        - template: ticket | compact | modern (also accepts invoice aliases).
+        - download: 1/true/on to force attachment download.
+        """
         sale = self.get_object()
+        template_code = (request.query_params.get("template") or "").strip()
+        as_attachment = (request.query_params.get("download") or "").strip().lower() in {
+            "1", "true", "yes", "on",
+        }
         try:
             payments = sale.payments.all().order_by("created_at")
         except Exception:
@@ -3161,6 +3175,8 @@ class SaleViewSet(viewsets.ModelViewSet):
                 store=sale.store,
                 payments=payments,
                 cashier_name=request.user.get_full_name(),
+                template_code=template_code,
+                as_attachment=as_attachment,
             )
         except Exception:
             return Response(

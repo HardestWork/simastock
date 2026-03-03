@@ -134,6 +134,7 @@ window.addEventListener('load', function () {
         const url = new URL(window.location.href);
         url.searchParams.delete('print_sale');
         url.searchParams.delete('print_document');
+        url.searchParams.delete('print_template');
         window.history.replaceState({}, '', url.pathname + url.search);
     }
 });

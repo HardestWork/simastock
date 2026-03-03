@@ -7,14 +7,16 @@ import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreStore } from '@/store-context/store-store';
 import { useAuthStore } from '@/auth/auth-store';
+import { useCapabilities } from '@/lib/capabilities';
 import StatusBadge from '@/components/shared/StatusBadge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import Pagination from '@/components/shared/Pagination';
 import { useSort } from '@/hooks/use-sort';
 import SortableHeader from '@/components/shared/SortableHeader';
-import { Plus, Download, Trash2 } from 'lucide-react';
+import { Plus, Download, Trash2, RotateCcw } from 'lucide-react';
 import { downloadCsv } from '@/lib/export';
 import { toast } from '@/lib/toast';
+import RefundCreateModal from '@/features/sales/RefundCreateModal';
 import type { Sale } from '@/api/types';
 
 const PAGE_SIZE = 25;
@@ -24,7 +26,9 @@ const CANCELLABLE = new Set(['DRAFT', 'PENDING_PAYMENT', 'PARTIALLY_PAID']);
 export default function SaleListPage() {
   const currentStore = useStoreStore((s) => s.currentStore);
   const user = useAuthStore((s) => s.user);
+  const capabilities = useCapabilities();
   const canCancel = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const canRefund = capabilities.includes('CAN_REFUND');
 
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
@@ -32,6 +36,7 @@ export default function SaleListPage() {
 
   const [cancelTarget, setCancelTarget] = useState<Sale | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [refundTarget, setRefundTarget] = useState<Sale | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -125,7 +130,7 @@ export default function SaleListPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Source</th>
                 <SortableHeader field="created_at" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Docs</th>
-                {canCancel && <th className="text-center px-4 py-3 font-medium text-gray-600 dark:text-gray-400 w-16" />}
+                {(canCancel || canRefund) && <th className="text-center px-4 py-3 font-medium text-gray-600 dark:text-gray-400 w-24" />}
               </tr>
             </thead>
             <tbody>
@@ -172,24 +177,35 @@ export default function SaleListPage() {
                       )}
                     </div>
                   </td>
-                  {canCancel && (
+                  {(canCancel || canRefund) && (
                     <td className="px-4 py-3 text-center">
-                      {CANCELLABLE.has(sale.status) && (
-                        <button
-                          onClick={() => { setCancelTarget(sale); setCancelReason(''); }}
-                          title="Annuler cette vente"
-                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
+                      <div className="flex items-center justify-center gap-1">
+                        {canRefund && (sale.status === 'PAID' || sale.status === 'PARTIALLY_PAID') && (
+                          <button
+                            onClick={() => setRefundTarget(sale)}
+                            title="Rembourser cette vente"
+                            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+                        )}
+                        {canCancel && CANCELLABLE.has(sale.status) && (
+                          <button
+                            onClick={() => { setCancelTarget(sale); setCancelReason(''); }}
+                            title="Annuler cette vente"
+                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>
               ))}
               {data?.results.length === 0 && (
                 <tr>
-                  <td colSpan={canCancel ? 10 : 9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={(canCancel || canRefund) ? 10 : 9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     Aucune vente trouvee.
                   </td>
                 </tr>
@@ -200,6 +216,15 @@ export default function SaleListPage() {
       </div>
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      {/* Refund modal */}
+      {refundTarget && (
+        <RefundCreateModal
+          sale={refundTarget}
+          onClose={() => setRefundTarget(null)}
+          onSuccess={() => setRefundTarget(null)}
+        />
+      )}
 
       {/* Cancel confirmation dialog */}
       <ConfirmDialog

@@ -1,8 +1,8 @@
-﻿/** Login page style: balanced split layout with branded left panel. */
+/** Login page style: balanced split layout with branded left panel. */
 import axios from 'axios';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Mail, Eye, EyeOff } from 'lucide-react';
+import { Mail, Eye, EyeOff, BarChart3, Bell, Users, ShoppingBag } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/auth/auth-store';
 
@@ -24,6 +24,13 @@ function extractLoginErrorMessage(error: unknown): string {
   }
   return 'Email ou mot de passe incorrect.';
 }
+
+const FEATURES = [
+  { icon: BarChart3, label: 'Ventes en temps réel' },
+  { icon: Bell, label: 'Alertes stock instantanées' },
+  { icon: ShoppingBag, label: 'Gestion multi-boutiques' },
+  { icon: Users, label: 'Équipes & permissions' },
+];
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -52,166 +59,197 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      className="relative flex min-h-screen overflow-hidden"
-      style={{
-        background: 'linear-gradient(120deg, #0B1F36 0%, #154A80 52%, #2B7FC8 100%)',
-      }}
-    >
-      <div className="pointer-events-none absolute -left-24 top-24 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-10 left-1/3 h-64 w-64 rounded-full bg-blue-100/10 blur-3xl" />
-      <div className="pointer-events-none absolute -right-20 top-16 h-80 w-80 rounded-full bg-sky-200/20 blur-3xl" />
+    <div className="relative flex min-h-screen overflow-hidden bg-[#0d1f38]">
+      {/* ── Ambient glows ── */}
+      <div className="pointer-events-none absolute -left-32 -top-16 h-96 w-96 rounded-full bg-blue-500/20 blur-[100px]" />
+      <div className="pointer-events-none absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-cyan-400/10 blur-[80px]" />
+      <div className="pointer-events-none absolute -right-20 top-1/3 h-80 w-80 rounded-full bg-sky-400/15 blur-[90px]" />
 
-      <section className="relative z-10 hidden lg:flex lg:w-[55%]">
-        <div className="flex h-full w-full flex-col justify-between px-14 py-12 text-white">
-          <div className="flex items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <img
-                src="/logo-icon.png"
-                alt="Logo SimaStock"
-                className="h-24 w-auto object-contain drop-shadow-[0_10px_24px_rgba(2,6,23,0.35)]"
-              />
-              <div className="inline-flex items-center rounded-full border border-white/30 bg-white/12 px-5 py-1.5 backdrop-blur-sm">
-                <span className="text-2xl font-extrabold tracking-[0.08em] text-white">Simastock</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="max-w-xl">
-            <h1 className="text-4xl font-semibold leading-tight text-slate-50">
-              Pilotez votre boutique sans zones mortes.
-            </h1>
-            <p className="mt-4 text-base leading-relaxed text-blue-100/90">
-              Centralisez les ventes, le stock et vos equipes dans une interface plus lisible et plus rapide.
-            </p>
-            <div className="mt-8 grid gap-3 text-sm text-blue-50/90 sm:grid-cols-2">
-              <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">Suivi des ventes en temps reel</div>
-              <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">Alertes stock immediates</div>
-              <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">Tableaux de bord clairs</div>
-              <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">Gestion multi-utilisateurs</div>
-            </div>
-          </div>
-
-          <p className="text-sm text-blue-100/80">Systeme de gestion commercial</p>
+      {/* ════════════════════════════════════════
+          LEFT PANEL  (visible lg+)
+      ════════════════════════════════════════ */}
+      <section className="relative z-10 hidden lg:flex lg:w-[52%] flex-col px-12 py-10">
+        {/* ── Logo row (top-left) ── */}
+        <div className="flex items-center gap-3 mb-12">
+          <img
+            src="/logo-icon.png"
+            alt="Logo SimaStock"
+            className="h-11 w-auto object-contain drop-shadow-[0_4px_16px_rgba(56,189,248,0.4)]"
+          />
+          <span className="text-[22px] font-extrabold tracking-[0.06em] text-white">
+            Simastock
+          </span>
         </div>
+
+        {/* ── Main headline ── */}
+        <div className="flex-1 flex flex-col justify-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-sky-400 mb-3">
+            Système de gestion commerciale
+          </p>
+          <h1 className="text-[2.9rem] font-bold leading-[1.15] text-white mb-5">
+            Pilotez votre&nbsp;boutique<br />
+            <span className="bg-gradient-to-r from-sky-300 to-blue-400 bg-clip-text text-transparent">
+              sans zones&nbsp;mortes.
+            </span>
+          </h1>
+          <p className="text-base text-blue-100/70 mb-10 max-w-sm leading-relaxed">
+            Centralisez les ventes, le stock et vos équipes dans une interface lisible et rapide.
+          </p>
+
+          {/* ── Feature chips ── */}
+          <div className="grid grid-cols-2 gap-3 max-w-sm">
+            {FEATURES.map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 backdrop-blur-sm"
+              >
+                <Icon size={16} className="text-sky-300 shrink-0" />
+                <span className="text-[13px] text-blue-50/85 leading-tight">{label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Decorative dashboard mockup ── */}
+          <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm max-w-sm">
+            {/* mini bar chart mockup */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="text-[11px] text-blue-100/60">Chiffre d'affaires — Aujourd'hui</span>
+            </div>
+            <div className="flex items-end gap-1.5 h-12">
+              {[35, 55, 40, 70, 50, 80, 65, 90, 72, 88].map((h, i) => (
+                <div
+                  key={i}
+                  className="flex-1 rounded-t"
+                  style={{
+                    height: `${h}%`,
+                    background: i === 9
+                      ? 'linear-gradient(180deg, #38BDF8 0%, #0EA5E9 100%)'
+                      : 'rgba(148,196,248,0.25)',
+                  }}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between mt-3 text-[10px] text-blue-100/40">
+              <span>8h</span><span>12h</span><span>17h</span>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-xs text-blue-100/40 mt-8">
+          &copy; {new Date().getFullYear()} SimaStock — Tous droits réservés
+        </p>
       </section>
 
-      <section className="relative z-10 w-full lg:w-[45%]">
-        <div className="flex min-h-screen items-center justify-center p-6 lg:p-10">
-          <div className="w-full max-w-[440px] rounded-2xl border border-slate-200/80 bg-white px-6 py-7 shadow-xl shadow-slate-900/15 sm:px-8 sm:py-9">
-            <div className="mb-6 flex flex-col items-center justify-center gap-1.5 lg:hidden">
-              <img src="/logo-icon.png" alt="Logo SimaStock" className="h-16 w-auto object-contain" />
-              <p className="text-lg font-bold tracking-wide text-slate-800">Simastock</p>
+      {/* ════════════════════════════════════════
+          RIGHT PANEL — Login form
+      ════════════════════════════════════════ */}
+      <section className="relative z-10 flex w-full lg:w-[48%] items-center justify-center p-6 lg:p-10">
+        {/* Glass backdrop */}
+        <div className="absolute inset-0 hidden lg:block bg-white/[0.03] border-l border-white/[0.07]" />
+
+        <div className="relative w-full max-w-[420px] rounded-2xl border border-slate-200/80 bg-white px-7 py-8 shadow-2xl shadow-slate-900/30">
+          {/* Logo shown on mobile only */}
+          <div className="mb-6 flex flex-col items-center gap-1.5 lg:hidden">
+            <img src="/logo-icon.png" alt="Logo SimaStock" className="h-14 w-auto object-contain" />
+            <p className="text-lg font-bold tracking-wide text-slate-800">Simastock</p>
+          </div>
+
+          <div className="mb-6">
+            <h3 className="text-2xl font-bold text-slate-900 mb-1.5">Connexion</h3>
+            <p className="text-[14px] text-slate-500 leading-relaxed">
+              Accédez à votre espace de gestion.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            {error && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
+            {/* Email */}
+            <div className="mb-4">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-slate-700 mb-1.5"
+              >
+                Adresse e-mail <span className="text-red-500">*</span>
+              </label>
+              <div className="flex overflow-hidden rounded-lg border border-slate-300 bg-white transition-colors focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-11 flex-1 bg-transparent px-4 text-[14px] text-slate-800 outline-none"
+                  placeholder="email@exemple.com"
+                />
+                <span className="flex items-center border-l border-slate-200 px-3 text-slate-400">
+                  <Mail size={16} />
+                </span>
+              </div>
             </div>
 
-            <div className="mb-6">
-              <h3
-                className="mb-2.5 font-bold"
-                style={{ fontSize: '24px', fontWeight: 700, color: '#0F172A' }}
+            {/* Password */}
+            <div className="mb-4">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-slate-700 mb-1.5"
               >
-                Connexion
-              </h3>
-              <p
-                style={{ fontSize: '15px', fontWeight: 400, color: '#334155', lineHeight: 1.4 }}
-              >
-                Accedez a votre espace de gestion avec votre email et mot de passe.
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit}>
-              {error && (
-                <div className="mb-4 rounded-[8px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
-
-              <div className="mb-3">
-                <label
-                  htmlFor="email"
-                  style={{ display: 'block', width: '100%', color: '#0F172A', marginBottom: '10px', fontSize: '15px', fontWeight: 400 }}
-                >
-                  Adresse e-mail <span className="text-red-500">*</span>
-                </label>
-                <div className="flex overflow-hidden rounded-[8px] border border-slate-300/80 bg-white transition-colors focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-11 flex-1 bg-white px-4 text-[14px] text-slate-800 outline-none"
-                    placeholder="email@exemple.com"
-                  />
-                  <span className="flex items-center border-l border-slate-200 px-3 text-slate-400">
-                    <Mail size={16} />
-                  </span>
-                </div>
-              </div>
-
-              <div className="mb-3">
-                <label
-                  htmlFor="password"
-                  style={{ display: 'block', width: '100%', color: '#0F172A', marginBottom: '10px', fontSize: '15px', fontWeight: 400 }}
-                >
-                  Mot de passe <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="h-11 w-full rounded-[8px] border border-slate-300/80 bg-white px-4 pr-11 text-[14px] text-slate-800 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    placeholder="Votre mot de passe"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="mb-5">
-                <div className="flex items-center justify-between">
-                  <label className="flex cursor-pointer select-none items-center gap-2 text-[14px] text-slate-500">
-                    <input type="checkbox" className="h-4 w-4 rounded accent-primary" />
-                    <span>Se souvenir de moi</span>
-                  </label>
-                  <Link
-                    to="/forgot-password"
-                    className="text-[14px] font-medium transition-colors hover:underline"
-                    style={{ color: 'var(--color-primary)' }}
-                  >
-                    Mot de passe oublie ?
-                  </Link>
-                </div>
-              </div>
-
-              <div className="mb-4">
+                Mot de passe <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-slate-300 bg-white px-4 pr-11 text-[14px] text-slate-800 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  placeholder="Votre mot de passe"
+                />
                 <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="h-11 w-full rounded-[8px] text-[14px] font-bold text-white transition-colors disabled:opacity-60"
-                  style={{
-                    background: isLoading ? '#123B68' : 'var(--color-primary)',
-                  }}
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  tabIndex={-1}
                 >
-                  {isLoading ? 'Connexion en cours...' : 'Se connecter'}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+            </div>
 
-              <div className="mt-10 flex items-center justify-center">
-                <p style={{ fontSize: '13px', color: '#475569', fontWeight: 400 }}>
-                  Copyright &copy; {new Date().getFullYear()} SimaStock
-                </p>
-              </div>
-            </form>
-          </div>
+            {/* Remember + forgot */}
+            <div className="mb-6 flex items-center justify-between">
+              <label className="flex cursor-pointer select-none items-center gap-2 text-[13px] text-slate-500">
+                <input type="checkbox" className="h-4 w-4 rounded accent-primary" />
+                <span>Se souvenir de moi</span>
+              </label>
+              <Link
+                to="/forgot-password"
+                className="text-[13px] font-medium text-primary hover:underline transition-colors"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="h-11 w-full rounded-lg text-[14px] font-bold text-white transition-colors disabled:opacity-60"
+              style={{ background: isLoading ? '#123B68' : 'var(--color-primary)' }}
+            >
+              {isLoading ? 'Connexion en cours...' : 'Se connecter'}
+            </button>
+
+            <div className="mt-8 text-center text-[12px] text-slate-400">
+              Copyright &copy; {new Date().getFullYear()} SimaStock
+            </div>
+          </form>
         </div>
       </section>
     </div>

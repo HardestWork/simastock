@@ -208,6 +208,14 @@
                     <option value="proforma">Imprimer facture proforma</option>
                     <option value="quote">Imprimer devis</option>
                 </select>
+                <div class="mb-2" x-show="printDocument === 'receipt'">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Modele de recu</label>
+                    <select x-model="printTemplate" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="ticket">Ticket classique</option>
+                        <option value="compact">Ticket compact</option>
+                        <option value="modern">Recu A5 style facture</option>
+                    </select>
+                </div>
                 <button type="button" @click="submitSale()"
                         :disabled="!sale.customer || !sale.can_submit || submittingSale"
                         class="w-full px-4 py-2 font-medium rounded-lg transition-colors bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed">
@@ -228,6 +236,7 @@ window.addEventListener('load', function () {
     if (window.history.replaceState) {
         const url = new URL(window.location.href);
         url.searchParams.delete('print_document');
+        url.searchParams.delete('print_template');
         window.history.replaceState({}, '', url.pathname + url.search);
     }
 });
@@ -272,6 +281,7 @@ function salePosApp() {
         discountValue: '',
         notes: '',
         printDocument: '',
+        printTemplate: 'ticket',
         submittingSale: false,
         init() {
             const fallbackSale = {
@@ -298,6 +308,12 @@ function salePosApp() {
                 this.sale = fallbackSale;
             }
             this.syncDraftFields();
+            try {
+                const storedTemplate = window.localStorage.getItem('simastock:receipt-template');
+                if (storedTemplate && ['ticket', 'compact', 'modern'].includes(storedTemplate)) {
+                    this.printTemplate = storedTemplate;
+                }
+            } catch (error) {}
             this.searchProducts(1);
         },
         syncDraftFields() {
@@ -623,6 +639,7 @@ function salePosApp() {
                         body: this.formBody({
                             confirm: 'on',
                             print_document: this.printDocument,
+                            print_template: this.printDocument === 'receipt' ? this.printTemplate : '',
                         }),
                     },
                     'Soumission a la caisse...',
@@ -630,6 +647,11 @@ function salePosApp() {
                 );
                 await this.applySaleFromResponse(data);
                 this.ok(data.message || 'Vente soumise.');
+                if (this.printDocument === 'receipt') {
+                    try {
+                        window.localStorage.setItem('simastock:receipt-template', this.printTemplate);
+                    } catch (error) {}
+                }
                 if (data.print_document_url) {
                     window.open(data.print_document_url, '_blank');
                 }

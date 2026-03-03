@@ -166,7 +166,7 @@ export default function StockEntryPage() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-4 lg:h-full">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link
@@ -181,7 +181,7 @@ export default function StockEntryPage() {
       </div>
 
       {/* Main 3-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:flex-1 lg:min-h-0">
 
         {/* ------------------------------------------------------------------ */}
         {/* Left column — Product search                                        */}
@@ -205,7 +205,7 @@ export default function StockEntryPage() {
           </div>
 
           {/* Results */}
-          <div className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-320px)]">
+          <div className="flex flex-col gap-2 lg:overflow-y-auto lg:max-h-[calc(100vh-320px)]">
             {searchLoading && !searchData && (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
@@ -297,7 +297,7 @@ export default function StockEntryPage() {
             )}
           </h2>
 
-          <div className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-260px)]">
+          <div className="flex flex-col gap-2 lg:overflow-y-auto lg:max-h-[calc(100vh-260px)]">
             {lines.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <PackagePlus size={36} className="text-gray-300 dark:text-gray-600 mb-3" />

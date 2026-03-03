@@ -1,10 +1,10 @@
 ﻿/** Superadmin-only page to manage all enterprises in the SaaS system. */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { enterpriseApi } from '@/api/endpoints';
-import type { Enterprise, EnterpriseResetStockStrategy, EnterpriseResetTarget } from '@/api/types';
-import { Building2, Search, Plus, Save, Loader2, Power, Calendar, Store, X, Trash2, AlertCircle, RotateCcw } from 'lucide-react';
+import { enterpriseApi, storeApi } from '@/api/endpoints';
+import type { Enterprise, EnterpriseResetStockStrategy, EnterpriseResetTarget, Store } from '@/api/types';
+import { Building2, Search, Plus, Save, Loader2, Power, Calendar, Store as StoreIcon, X, Trash2, AlertCircle, RotateCcw, Pencil, Check } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { extractApiError } from '@/lib/api-error';
 import { format } from 'date-fns';
@@ -133,11 +133,34 @@ export default function EnterpriseListPage() {
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Edit panel tabs
+  const [activeTab, setActiveTab] = useState<'settings' | 'stores'>('settings');
+
+  // Store management inside panel
+  type StoreFormMode = 'none' | 'create' | 'edit';
+  const [storeFormMode, setStoreFormMode] = useState<StoreFormMode>('none');
+  const [editingStore, setEditingStore] = useState<Store | null>(null);
+  const [storeDraft, setStoreDraft] = useState({ name: '', code: '', address: '', phone: '', email: '' });
+  const [storeDeleteTarget, setStoreDeleteTarget] = useState<Store | null>(null);
+
+  // Reset store form when enterprise changes
+  useEffect(() => {
+    setActiveTab('settings');
+    setStoreFormMode('none');
+    setEditingStore(null);
+    setStoreDeleteTarget(null);
+  }, [editingEnterprise?.id]);
+
   // ---- Query params ----
 
   const params: Record<string, string> = { page_size: '100' };
   if (search.trim()) params.search = search.trim();
   if (statusFilter) params.subscription_status = statusFilter;
+
+  const enterpriseStoreParams: Record<string, string> = {
+    enterprise: editingEnterprise?.id ?? '',
+    page_size: '50',
+  };
 
   // ---- Queries ----
 
@@ -147,6 +170,13 @@ export default function EnterpriseListPage() {
   });
 
   const enterprises = enterprisesQ.data?.results ?? [];
+
+  const enterpriseStoresQ = useQuery({
+    queryKey: ['stores', 'by-enterprise', editingEnterprise?.id],
+    queryFn: () => storeApi.list(enterpriseStoreParams),
+    enabled: !!editingEnterprise && activeTab === 'stores',
+  });
+  const enterpriseStores = enterpriseStoresQ.data?.results ?? [];
 
   // ---- Mutations ----
 
@@ -220,6 +250,41 @@ export default function EnterpriseListPage() {
     onError: (err: unknown) => {
       toast.error(extractApiError(err));
     },
+  });
+
+  const createStoreMutation = useMutation({
+    mutationFn: (data: { name: string; code: string; address?: string; phone?: string; email?: string; enterprise: string }) =>
+      storeApi.create(data),
+    onSuccess: (store) => {
+      toast.success(`Boutique créée : ${store.name}`);
+      queryClient.invalidateQueries({ queryKey: ['stores', 'by-enterprise', editingEnterprise?.id] });
+      queryClient.invalidateQueries({ queryKey: ['enterprises'] });
+      setStoreFormMode('none');
+      setStoreDraft({ name: '', code: '', address: '', phone: '', email: '' });
+    },
+    onError: (err: unknown) => toast.error(extractApiError(err)),
+  });
+
+  const updateStoreMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Store> }) => storeApi.update(id, data),
+    onSuccess: (store) => {
+      toast.success(`Boutique mise à jour : ${store.name}`);
+      queryClient.invalidateQueries({ queryKey: ['stores', 'by-enterprise', editingEnterprise?.id] });
+      setStoreFormMode('none');
+      setEditingStore(null);
+    },
+    onError: (err: unknown) => toast.error(extractApiError(err)),
+  });
+
+  const deleteStoreMutation = useMutation({
+    mutationFn: (id: string) => storeApi.delete(id),
+    onSuccess: () => {
+      toast.warning(`Boutique supprimée`);
+      queryClient.invalidateQueries({ queryKey: ['stores', 'by-enterprise', editingEnterprise?.id] });
+      queryClient.invalidateQueries({ queryKey: ['enterprises'] });
+      setStoreDeleteTarget(null);
+    },
+    onError: (err: unknown) => toast.error(extractApiError(err)),
   });
 
   // ---- Handlers ----
@@ -359,7 +424,7 @@ export default function EnterpriseListPage() {
                     <th className="px-4 py-3 font-medium">Entreprise</th>
                     <th className="px-4 py-3 font-medium hidden sm:table-cell">Statut</th>
                     <th className="px-4 py-3 font-medium hidden md:table-cell">Abonnement</th>
-                    <th className="px-4 py-3 font-medium hidden lg:table-cell">Boutiques</th>
+                    <th className="px-4 py-3 font-medium hidden lg:table-cell">Boutiques / Créa.</th>
                     <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
@@ -397,12 +462,15 @@ export default function EnterpriseListPage() {
                         </div>
                       </td>
 
-                      {/* Can create stores */}
+                      {/* Store count + can create */}
                       <td className="px-4 py-3 hidden lg:table-cell">
                         <div className="flex items-center gap-1.5">
-                          <Store size={14} className="text-gray-400" />
-                          <span className={ent.can_create_stores ? 'text-emerald-600' : 'text-gray-400'}>
-                            {ent.can_create_stores ? 'Autorise' : 'Non autorise'}
+                          <StoreIcon size={14} className="text-gray-400" />
+                          <span className="text-gray-700 dark:text-gray-300 font-medium">
+                            {ent.stores_count ?? 0}
+                          </span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${ent.can_create_stores ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+                            {ent.can_create_stores ? '+' : '✕'}
                           </span>
                         </div>
                       </td>
@@ -460,147 +528,340 @@ export default function EnterpriseListPage() {
         {/* Edit panel */}
         {editingEnterprise && (
           <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 sticky top-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 sticky top-4 overflow-hidden">
               {/* Panel header */}
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Modifier l'entreprise</h2>
+              <div className="flex items-center justify-between px-5 pt-5 pb-0">
+                <div className="min-w-0">
+                  <div className="font-semibold text-gray-900 dark:text-gray-100 truncate">{editingEnterprise.name}</div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-gray-400">{editingEnterprise.code}</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE_CLASSES[editingEnterprise.subscription_status]}`}>
+                      {STATUS_LABELS[editingEnterprise.subscription_status]}
+                    </span>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={closeEdit}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0 ml-2"
                   title="Fermer"
                 >
                   <X size={18} className="text-gray-400" />
                 </button>
               </div>
 
-              {/* Enterprise info (read-only) */}
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 mb-5">
-                <div className="font-medium text-gray-900 dark:text-gray-100">{editingEnterprise.name}</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">{editingEnterprise.code}</div>
-                <span
-                  className={`inline-flex items-center mt-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE_CLASSES[editingEnterprise.subscription_status]}`}
-                >
-                  {STATUS_LABELS[editingEnterprise.subscription_status]}
-                </span>
-              </div>
-
-              {/* Subscription dates */}
-              <div className="space-y-4 mb-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Debut d'abonnement
-                  </label>
-                  <input
-                    type="date"
-                    value={draftSubscriptionStart}
-                    onChange={(e) => {
-                      setDraftSubscriptionStart(e.target.value);
-                      setSaveSuccess(false);
-                    }}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Fin d'abonnement
-                  </label>
-                  <input
-                    type="date"
-                    value={draftSubscriptionEnd}
-                    onChange={(e) => {
-                      setDraftSubscriptionEnd(e.target.value);
-                      setSaveSuccess(false);
-                    }}
-                    className={inputClass}
-                  />
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    Laisser vide pour un abonnement illimite.
-                  </p>
-                </div>
-              </div>
-
-              {/* Toggles */}
-              <div className="space-y-4 mb-5">
-                {/* is_active toggle */}
-                <label className="flex items-center justify-between cursor-pointer">
-                  <div>
-                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Entreprise active</div>
-                    <div className="text-xs text-gray-400 dark:text-gray-500">
-                      Desactiver empeche l'acces a toute l'entreprise.
-                    </div>
-                  </div>
-                  <div className="relative flex-shrink-0 ml-4">
-                    <input
-                      type="checkbox"
-                      checked={draftIsActive}
-                      onChange={(e) => {
-                        setDraftIsActive(e.target.checked);
-                        setSaveSuccess(false);
-                      }}
-                      className="sr-only peer"
-                    />
-                    <div className="w-10 h-6 bg-gray-300 rounded-full peer-checked:bg-primary transition-colors" />
-                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform" />
-                  </div>
-                </label>
-
-                {/* can_create_stores toggle */}
-                <label className="flex items-center justify-between cursor-pointer">
-                  <div>
-                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Creation de boutiques</div>
-                    <div className="text-xs text-gray-400 dark:text-gray-500">
-                      Autoriser l'ajout de nouvelles boutiques.
-                    </div>
-                  </div>
-                  <div className="relative flex-shrink-0 ml-4">
-                    <input
-                      type="checkbox"
-                      checked={draftCanCreateStores}
-                      onChange={(e) => {
-                        setDraftCanCreateStores(e.target.checked);
-                        setSaveSuccess(false);
-                      }}
-                      className="sr-only peer"
-                    />
-                    <div className="w-10 h-6 bg-gray-300 rounded-full peer-checked:bg-primary transition-colors" />
-                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform" />
-                  </div>
-                </label>
-              </div>
-
-              {/* Feedback messages */}
-              {saveError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm mb-4">
-                  {saveError}
-                </div>
-              )}
-              {saveSuccess && (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-4 py-3 text-sm mb-4">
-                  Configuration enregistree pour {editingEnterprise.name}.
-                </div>
-              )}
-
-              {/* Save button */}
-              <div className="flex items-center justify-end">
+              {/* Tabs */}
+              <div className="flex border-b border-gray-200 dark:border-gray-700 mt-4 px-5">
                 <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={updateMutation.isPending}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                  onClick={() => setActiveTab('settings')}
+                  className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                    activeTab === 'settings'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                  }`}
                 >
-                  {updateMutation.isPending ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      Enregistrement...
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} />
-                      Enregistrer
-                    </>
+                  Paramètres
+                </button>
+                <button
+                  onClick={() => { setActiveTab('stores'); setStoreFormMode('none'); }}
+                  className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
+                    activeTab === 'stores'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                  }`}
+                >
+                  <StoreIcon size={14} />
+                  Boutiques
+                  {editingEnterprise.stores_count != null && (
+                    <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-1.5 py-0.5 rounded-full font-normal">
+                      {editingEnterprise.stores_count}
+                    </span>
                   )}
                 </button>
+              </div>
+
+              <div className="p-5">
+
+              {/* ---- TAB: SETTINGS ---- */}
+              {activeTab === 'settings' && (
+                <>
+                  {/* Subscription dates */}
+                  <div className="space-y-4 mb-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Debut d'abonnement
+                      </label>
+                      <input
+                        type="date"
+                        value={draftSubscriptionStart}
+                        onChange={(e) => {
+                          setDraftSubscriptionStart(e.target.value);
+                          setSaveSuccess(false);
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Fin d'abonnement
+                      </label>
+                      <input
+                        type="date"
+                        value={draftSubscriptionEnd}
+                        onChange={(e) => {
+                          setDraftSubscriptionEnd(e.target.value);
+                          setSaveSuccess(false);
+                        }}
+                        className={inputClass}
+                      />
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        Laisser vide pour un abonnement illimite.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggles */}
+                  <div className="space-y-4 mb-5">
+                    {/* is_active toggle */}
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div>
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Entreprise active</div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500">
+                          Desactiver empeche l'acces a toute l'entreprise.
+                        </div>
+                      </div>
+                      <div className="relative flex-shrink-0 ml-4">
+                        <input
+                          type="checkbox"
+                          checked={draftIsActive}
+                          onChange={(e) => {
+                            setDraftIsActive(e.target.checked);
+                            setSaveSuccess(false);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-10 h-6 bg-gray-300 rounded-full peer-checked:bg-primary transition-colors" />
+                        <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform" />
+                      </div>
+                    </label>
+
+                    {/* can_create_stores toggle */}
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div>
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Creation de boutiques</div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500">
+                          Autoriser l'ajout de nouvelles boutiques.
+                        </div>
+                      </div>
+                      <div className="relative flex-shrink-0 ml-4">
+                        <input
+                          type="checkbox"
+                          checked={draftCanCreateStores}
+                          onChange={(e) => {
+                            setDraftCanCreateStores(e.target.checked);
+                            setSaveSuccess(false);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-10 h-6 bg-gray-300 rounded-full peer-checked:bg-primary transition-colors" />
+                        <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform" />
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Feedback messages */}
+                  {saveError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm mb-4">
+                      {saveError}
+                    </div>
+                  )}
+                  {saveSuccess && (
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-4 py-3 text-sm mb-4">
+                      Configuration enregistree pour {editingEnterprise.name}.
+                    </div>
+                  )}
+
+                  {/* Save button */}
+                  <div className="flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={updateMutation.isPending}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                    >
+                      {updateMutation.isPending ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Enregistrement...
+                        </>
+                      ) : (
+                        <>
+                          <Save size={16} />
+                          Enregistrer
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* ---- TAB: STORES ---- */}
+              {activeTab === 'stores' && (
+                <div>
+                  {enterpriseStoresQ.isLoading ? (
+                    <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-primary" /></div>
+                  ) : (
+                    <div className="space-y-1 mb-3">
+                      {enterpriseStores.length === 0 && storeFormMode !== 'create' && (
+                        <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">
+                          Aucune boutique pour cette entreprise.
+                        </p>
+                      )}
+                      {enterpriseStores.map((store) => (
+                        <div
+                          key={store.id}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                            editingStore?.id === store.id && storeFormMode === 'edit'
+                              ? 'border-primary/40 bg-primary/5'
+                              : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{store.name}</div>
+                            <div className="text-xs text-gray-400">{store.code}</div>
+                          </div>
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${store.is_active ? 'bg-emerald-400' : 'bg-gray-300'}`} title={store.is_active ? 'Active' : 'Inactive'} />
+                          <button
+                            onClick={() => {
+                              setEditingStore(store);
+                              setStoreDraft({ name: store.name, code: store.code, address: store.address ?? '', phone: store.phone ?? '', email: store.email ?? '' });
+                              setStoreFormMode('edit');
+                            }}
+                            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            title="Modifier"
+                          >
+                            <Pencil size={13} className="text-gray-400" />
+                          </button>
+                          <button
+                            onClick={() => setStoreDeleteTarget(store)}
+                            className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 size={13} className="text-red-400" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Inline store form (create or edit) */}
+                  {storeFormMode !== 'none' && (
+                    <div className="border border-primary/30 rounded-lg p-3 bg-primary/5 space-y-2 mb-3">
+                      <div className="text-xs font-semibold text-primary mb-1">
+                        {storeFormMode === 'create' ? 'Nouvelle boutique' : `Modifier : ${editingStore?.name}`}
+                      </div>
+                      <input
+                        placeholder="Nom *"
+                        value={storeDraft.name}
+                        onChange={(e) => setStoreDraft((d) => ({ ...d, name: e.target.value }))}
+                        className={inputClass}
+                      />
+                      <input
+                        placeholder="Code *"
+                        value={storeDraft.code}
+                        onChange={(e) => setStoreDraft((d) => ({ ...d, code: e.target.value }))}
+                        className={inputClass}
+                      />
+                      <input
+                        placeholder="Adresse"
+                        value={storeDraft.address}
+                        onChange={(e) => setStoreDraft((d) => ({ ...d, address: e.target.value }))}
+                        className={inputClass}
+                      />
+                      <div className="flex gap-2">
+                        <input
+                          placeholder="Téléphone"
+                          value={storeDraft.phone}
+                          onChange={(e) => setStoreDraft((d) => ({ ...d, phone: e.target.value }))}
+                          className={inputClass}
+                        />
+                        <input
+                          placeholder="Email"
+                          value={storeDraft.email}
+                          onChange={(e) => setStoreDraft((d) => ({ ...d, email: e.target.value }))}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          onClick={() => {
+                            if (!storeDraft.name.trim() || !storeDraft.code.trim()) {
+                              toast.error('Le nom et le code sont requis.');
+                              return;
+                            }
+                            if (storeFormMode === 'create') {
+                              createStoreMutation.mutate({ ...storeDraft, enterprise: editingEnterprise.id });
+                            } else if (editingStore) {
+                              updateStoreMutation.mutate({ id: editingStore.id, data: storeDraft });
+                            }
+                          }}
+                          disabled={createStoreMutation.isPending || updateStoreMutation.isPending}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                        >
+                          {(createStoreMutation.isPending || updateStoreMutation.isPending) ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Check size={13} />
+                          )}
+                          {storeFormMode === 'create' ? 'Créer' : 'Enregistrer'}
+                        </button>
+                        <button
+                          onClick={() => { setStoreFormMode('none'); setEditingStore(null); }}
+                          className="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add store button */}
+                  {storeFormMode === 'none' && (
+                    <button
+                      onClick={() => { setStoreDraft({ name: '', code: '', address: '', phone: '', email: '' }); setStoreFormMode('create'); setEditingStore(null); }}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:border-primary hover:text-primary transition-colors"
+                    >
+                      <Plus size={15} />
+                      Ajouter une boutique
+                    </button>
+                  )}
+
+                  {/* Store delete confirmation */}
+                  {storeDeleteTarget && (
+                    <div className="mt-3 p-3 border border-red-200 rounded-lg bg-red-50 dark:bg-red-900/20">
+                      <p className="text-sm text-red-700 dark:text-red-400 mb-2">
+                        Supprimer <strong>{storeDeleteTarget.name}</strong> ? Cette action est irréversible.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => deleteStoreMutation.mutate(storeDeleteTarget.id)}
+                          disabled={deleteStoreMutation.isPending}
+                          className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-60"
+                        >
+                          {deleteStoreMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : 'Supprimer'}
+                        </button>
+                        <button
+                          onClick={() => setStoreDeleteTarget(null)}
+                          className="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               </div>
             </div>
           </div>

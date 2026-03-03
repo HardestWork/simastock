@@ -229,7 +229,7 @@ export const storeApi = {
   get: (id: string) =>
     apiClient.get<Store>(`stores/${id}/`).then((r) => r.data),
 
-  create: (data: { name: string; code: string; address?: string; phone?: string; email?: string }) =>
+  create: (data: { name: string; code: string; address?: string; phone?: string; email?: string; enterprise?: string }) =>
     apiClient.post<Store>('stores/', data).then((r) => r.data),
 
   update: (id: string, data: Partial<Store>) =>
@@ -237,6 +237,9 @@ export const storeApi = {
 
   assignUsers: (storeId: string, userIds: string[], isDefault = false) =>
     apiClient.post(`stores/${storeId}/assign-users/`, { user_ids: userIds, is_default: isDefault }).then((r) => r.data),
+
+  delete: (id: string) =>
+    apiClient.delete(`stores/${id}/`).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------
