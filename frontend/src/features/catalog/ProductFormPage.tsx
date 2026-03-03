@@ -137,7 +137,7 @@ export default function ProductFormPage() {
     setSubmitError(null);
 
     if (isEdit && !imageFile) {
-      // Edit without image â€” send JSON
+      // Edit without image — send JSON
       const jsonData: Record<string, unknown> = {
         name: name.trim(),
         sku: sku.trim(),
@@ -153,7 +153,7 @@ export default function ProductFormPage() {
       };
       updateMut.mutate(jsonData);
     } else {
-      // Create, or edit with new image â€” send FormData
+      // Create, or edit with new image — send FormData
       const formData = new FormData();
       formData.append('name', name.trim());
       formData.append('sku', sku.trim());

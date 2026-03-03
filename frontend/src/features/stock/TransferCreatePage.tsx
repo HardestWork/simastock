@@ -39,7 +39,7 @@ export default function TransferCreatePage() {
   // Destination stores: exclude currentStore
   const destinationStores = stores.filter((s) => s.id !== currentStore?.id);
 
-  // Search products query â€” only run when there's an active search line with a search term
+  // Search products query — only run when there's an active search line with a search term
   const activeSearch = activeSearchLine ? (searchTerms[activeSearchLine] ?? '') : '';
   const productSearchParams: Record<string, string> = {
     store: currentStore?.id ?? '',
@@ -275,7 +275,7 @@ export default function TransferCreatePage() {
                           >
                             <div className="font-medium">{stock.product_name}</div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">
-                              SKU: {stock.product_sku} â€” Disponible: {stock.available_qty}
+                              SKU: {stock.product_sku} — Disponible: {stock.available_qty}
                             </div>
                           </button>
                         ))}

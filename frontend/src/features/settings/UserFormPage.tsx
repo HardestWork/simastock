@@ -404,7 +404,7 @@ export default function UserFormPage() {
               </div>
             )}
 
-            {/* Actif toggle â€” edit mode only */}
+            {/* Actif toggle — edit mode only */}
             {isEdit && (
               <div className="sm:col-span-2">
                 <label className="inline-flex items-center gap-3 cursor-pointer">
@@ -425,7 +425,7 @@ export default function UserFormPage() {
               </div>
             )}
 
-            {/* Password fields â€” create mode only */}
+            {/* Password fields — create mode only */}
             {!isEdit && (
               <>
                 <div>

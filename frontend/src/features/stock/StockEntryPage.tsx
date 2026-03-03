@@ -1,4 +1,4 @@
-﻿/** Stock entry page â€” bulk IN movements for the current store. */
+﻿/** Stock entry page — bulk IN movements for the current store. */
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -184,7 +184,7 @@ export default function StockEntryPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
 
         {/* ------------------------------------------------------------------ */}
-        {/* Left column â€” Product search                                        */}
+        {/* Left column — Product search                                        */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-3">
           <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">Rechercher un produit</h2>
@@ -285,7 +285,7 @@ export default function StockEntryPage() {
         </div>
 
         {/* ------------------------------------------------------------------ */}
-        {/* Middle column â€” Entry lines                                         */}
+        {/* Middle column — Entry lines                                         */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-3">
           <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">
@@ -365,7 +365,7 @@ export default function StockEntryPage() {
         </div>
 
         {/* ------------------------------------------------------------------ */}
-        {/* Right column â€” Summary & Submit                                     */}
+        {/* Right column — Summary & Submit                                     */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-4">
           <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">Recapitulatif</h2>

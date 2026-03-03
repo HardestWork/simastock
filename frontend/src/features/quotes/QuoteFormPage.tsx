@@ -1,4 +1,4 @@
-﻿/** Quote form page â€” create or edit a draft quote. */
+﻿/** Quote form page — create or edit a draft quote. */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -372,7 +372,7 @@ export default function QuoteFormPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left â€” 2 cols: Notes, Customer search, Product search */}
+        {/* Left — 2 cols: Notes, Customer search, Product search */}
         <div className="lg:col-span-2 space-y-4">
           {/* Document type selector (only on create, not edit) */}
           {!isEditMode && !quote && (
@@ -471,13 +471,13 @@ export default function QuoteFormPage() {
                       onClick={() => handleSelectCustomer(c.id)}
                       className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     >
-                      {c.full_name} â€” {c.phone}
+                      {c.full_name} — {c.phone}
                     </button>
                   ))}
                 </div>
               )}
 
-              {/* No results â€” offer to create a new customer */}
+              {/* No results — offer to create a new customer */}
               {noCustomerResults && !showNewCustomerForm && (
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Aucun client trouve.</span>
@@ -633,7 +633,7 @@ export default function QuoteFormPage() {
           </div>
         </div>
 
-        {/* Right â€” Cart / Summary */}
+        {/* Right — Cart / Summary */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 h-fit">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Articles du devis</h2>
 

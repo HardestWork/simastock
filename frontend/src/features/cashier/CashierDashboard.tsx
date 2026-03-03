@@ -1,4 +1,4 @@
-﻿/** Cashier dashboard â€” shift status, pending sales, payment processing. */
+﻿/** Cashier dashboard — shift status, pending sales, payment processing. */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cashShiftApi, saleApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
@@ -268,7 +268,7 @@ export default function CashierDashboard() {
     </div>
   );
 
-  // No open shift â€” show open shift form (with optional success message from recent close)
+  // No open shift — show open shift form (with optional success message from recent close)
   if (!shift) {
     return (
       <div className="space-y-6">

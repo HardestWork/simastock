@@ -229,7 +229,7 @@ export default function CountDetailPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Main table â€” takes 3/4 width on large screens */}
+        {/* Main table — takes 3/4 width on large screens */}
         <div className="lg:col-span-3 space-y-4">
           {/* Search filter */}
           <div className="relative">

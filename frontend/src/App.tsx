@@ -1,4 +1,4 @@
-﻿/** Main application â€” React Router + TanStack Query providers. */
+﻿/** Main application — React Router + TanStack Query providers. */
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

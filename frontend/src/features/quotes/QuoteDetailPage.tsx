@@ -216,7 +216,7 @@ export default function QuoteDetailPage() {
           </h1>
           <StatusBadge type="quote" value={quote.status} />
           {quote.is_expired && quote.status === 'SENT' && (
-            <span className="text-xs text-red-600 font-medium">Ce devis a expirÃ©</span>
+            <span className="text-xs text-red-600 font-medium">Ce devis a expiré</span>
           )}
         </div>
       </div>
@@ -401,21 +401,21 @@ export default function QuoteDetailPage() {
 
       {/* ---- Info panel --------------------------------------------------- */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
-        <InfoRow label="Client" value={quote.customer_name || 'â€”'} />
-        <InfoRow label="CrÃ©Ã© par" value={quote.created_by_name || 'â€”'} />
+        <InfoRow label="Client" value={quote.customer_name || '—'} />
+        <InfoRow label="Créé par" value={quote.created_by_name || '—'} />
         <InfoRow
-          label="Date crÃ©ation"
+          label="Date création"
           value={format(new Date(quote.created_at), 'dd/MM/yyyy HH:mm')}
         />
         <InfoRow
-          label="ValiditÃ©"
+          label="Validité"
           value={
             quote.valid_until ? (
               <span className={quote.is_expired ? 'text-red-600' : undefined}>
                 {format(new Date(quote.valid_until), 'dd/MM/yyyy')}
               </span>
             ) : (
-              'â€”'
+              '—'
             )
           }
         />
@@ -423,19 +423,19 @@ export default function QuoteDetailPage() {
         <InfoRow label="Statut" value={<StatusBadge type="quote" value={quote.status} />} />
         {quote.sent_at && (
           <InfoRow
-            label="EnvoyÃ© le"
+            label="Envoyé le"
             value={format(new Date(quote.sent_at), 'dd/MM/yyyy HH:mm')}
           />
         )}
         {quote.accepted_at && (
           <InfoRow
-            label="AcceptÃ© le"
+            label="Accepté le"
             value={format(new Date(quote.accepted_at), 'dd/MM/yyyy HH:mm')}
           />
         )}
         {quote.refused_at && (
           <InfoRow
-            label="RefusÃ© le"
+            label="Refusé le"
             value={format(new Date(quote.refused_at), 'dd/MM/yyyy HH:mm')}
           />
         )}
@@ -481,7 +481,7 @@ export default function QuoteDetailPage() {
             <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
               <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Produit</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Prix unitaire</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">QuantitÃ©</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Quantité</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Remise</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Total ligne</th>
             </tr>

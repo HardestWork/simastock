@@ -1,4 +1,4 @@
-﻿/** Profile page â€” view/edit user info and change password. */
+﻿/** Profile page — view/edit user info and change password. */
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { authApi } from '@/api/endpoints';

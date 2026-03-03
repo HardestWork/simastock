@@ -339,7 +339,7 @@ export default function ProductListPage() {
               </div>
               {(product.category_name || product.brand_name) && (
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                  {[product.category_name, product.brand_name].filter(Boolean).join(' Â· ')}
+                  {[product.category_name, product.brand_name].filter(Boolean).join(' · ')}
                 </p>
               )}
               <p className="text-base font-bold text-primary mt-2">
@@ -428,8 +428,8 @@ export default function ProductListPage() {
                       {product.product_type === 'SERVICE' ? 'Service' : 'Produit'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.category_name || 'â€”'}</td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.brand_name || 'â€”'}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.category_name || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.brand_name || '—'}</td>
                   <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">{formatCurrency(product.cost_price)}</td>
                   <td className="px-4 py-3 text-right font-semibold text-primary">{formatCurrency(product.selling_price)}</td>
                   <td className="px-4 py-3 text-center">

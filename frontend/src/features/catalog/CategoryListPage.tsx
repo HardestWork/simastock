@@ -417,10 +417,10 @@ export default function CategoryListPage() {
                   <tr key={cat.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{cat.name}</td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400 max-w-xs truncate">
-                      {cat.description || 'â€”'}
+                      {cat.description || '—'}
                     </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {cat.parent_name || 'â€”'}
+                      {cat.parent_name || '—'}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span

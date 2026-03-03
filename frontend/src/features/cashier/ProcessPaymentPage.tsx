@@ -1,4 +1,4 @@
-﻿/** Payment processing page â€” allows the cashier to record payments for a sale. */
+﻿/** Payment processing page — allows the cashier to record payments for a sale. */
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -422,7 +422,7 @@ export default function ProcessPaymentPage() {
                       <tr key={payment.id} className="border-b border-gray-50 dark:border-gray-700">
                         <td className="py-2">{METHOD_LABELS[payment.method] ?? payment.method}</td>
                         <td className="py-2 text-right font-medium">{formatCurrency(payment.amount)}</td>
-                        <td className="py-2 text-gray-600">{payment.reference || 'â€”'}</td>
+                        <td className="py-2 text-gray-600">{payment.reference || '—'}</td>
                         <td className="py-2 text-gray-600">
                           {new Date(payment.created_at).toLocaleString('fr-FR', {
                             day: '2-digit',

@@ -1,4 +1,4 @@
-﻿/** Stock adjustment page â€” bulk ADJUST movements (positive or negative) for the current store. */
+﻿/** Stock adjustment page — bulk ADJUST movements (positive or negative) for the current store. */
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -181,7 +181,7 @@ export default function StockAdjustPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
 
         {/* ------------------------------------------------------------------ */}
-        {/* Left column â€” Product search                                        */}
+        {/* Left column — Product search                                        */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-3">
           <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">Rechercher un produit</h2>
@@ -249,7 +249,7 @@ export default function StockAdjustPage() {
         </div>
 
         {/* ------------------------------------------------------------------ */}
-        {/* Middle column â€” Adjustment lines                                    */}
+        {/* Middle column — Adjustment lines                                    */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-3">
           <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">
@@ -338,7 +338,7 @@ export default function StockAdjustPage() {
                       </div>
                     </div>
 
-                    {/* Quantity control â€” allows negatives */}
+                    {/* Quantity control — allows negatives */}
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleDecrement(line.product_id)}
@@ -376,7 +376,7 @@ export default function StockAdjustPage() {
         </div>
 
         {/* ------------------------------------------------------------------ */}
-        {/* Right column â€” Summary & Submit                                     */}
+        {/* Right column — Summary & Submit                                     */}
         {/* ------------------------------------------------------------------ */}
         <div className="flex flex-col gap-4">
           <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">Recapitulatif</h2>
@@ -410,7 +410,7 @@ export default function StockAdjustPage() {
             )}
           </div>
 
-          {/* Reason textarea â€” REQUIRED */}
+          {/* Reason textarea — REQUIRED */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Motif <span className="text-red-500">*</span>

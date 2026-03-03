@@ -228,7 +228,7 @@ export default function EnterpriseSetupPage() {
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Creer une entreprise</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Section 1 â€” Enterprise */}
+        {/* Section 1 — Enterprise */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-4">
             <Building2 size={20} className="text-primary" />
@@ -290,7 +290,7 @@ export default function EnterpriseSetupPage() {
           </div>
         </div>
 
-        {/* Section 2 â€” Store */}
+        {/* Section 2 — Store */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-4">
             <Store size={20} className="text-primary" />
@@ -324,7 +324,7 @@ export default function EnterpriseSetupPage() {
           </div>
         </div>
 
-        {/* Section 3 â€” Admin User */}
+        {/* Section 3 — Admin User */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center gap-2 mb-4">
             <UserCog size={20} className="text-primary" />
