@@ -1324,7 +1324,7 @@ class StoreViewSet(viewsets.ModelViewSet):
         return Response(
             {
                 'store': str(store.pk),
-                'assigned_count': users.count(),
+                'assigned_count': len(users),
                 'new_links': created,
             },
             status=status.HTTP_200_OK,
