@@ -47,8 +47,15 @@ export default function ForgotPasswordPage() {
       <section className="relative z-10 hidden lg:flex lg:w-[55%]">
         <div className="flex h-full w-full flex-col justify-between px-14 py-12 text-white">
           <div className="flex items-center justify-center">
-            <div className="inline-flex items-center rounded-xl bg-white/95 px-4 py-3 shadow-lg shadow-slate-900/30 ring-1 ring-white/70">
-              <img src="/logo-full.png" alt="SimaStock" className="h-16 w-auto object-contain" />
+            <div className="flex flex-col items-center gap-3">
+              <img
+                src="/logo-icon.png"
+                alt="Logo SimaStock"
+                className="h-24 w-auto object-contain drop-shadow-[0_10px_24px_rgba(2,6,23,0.35)]"
+              />
+              <div className="inline-flex items-center rounded-full border border-white/30 bg-white/12 px-5 py-1.5 backdrop-blur-sm">
+                <span className="text-2xl font-extrabold tracking-[0.08em] text-white">Simastock</span>
+              </div>
             </div>
           </div>
 
@@ -67,17 +74,16 @@ export default function ForgotPasswordPage() {
             </div>
           </div>
 
-          <p className="text-sm text-blue-100/80">systeme de gestion comercial</p>
+          <p className="text-sm text-blue-100/80">Systeme de gestion commercial</p>
         </div>
       </section>
 
       <section className="relative z-10 w-full lg:w-[45%]">
         <div className="flex min-h-screen items-center justify-center p-6 lg:p-10">
           <div className="w-full max-w-[440px] rounded-2xl border border-slate-200/80 bg-white px-6 py-7 shadow-xl shadow-slate-900/15 sm:px-8 sm:py-9">
-            <div className="mb-6 flex items-center justify-center lg:hidden">
-              <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <img src="/logo-full.png" alt="SimaStock" className="h-14 w-auto object-contain" />
-              </div>
+            <div className="mb-6 flex flex-col items-center justify-center gap-1.5 lg:hidden">
+              <img src="/logo-icon.png" alt="Logo SimaStock" className="h-16 w-auto object-contain" />
+              <p className="text-lg font-bold tracking-wide text-slate-800">Simastock</p>
             </div>
 
             <div className="mb-6">
