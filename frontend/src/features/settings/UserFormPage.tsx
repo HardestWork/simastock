@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi, roleApi, storeApi, storeUserApi } from '@/api/endpoints';
 import type { Store, StoreUserRecord } from '@/api/types';
 import { queryKeys } from '@/lib/query-keys';
-import { ArrowLeft, Save, Loader2, AlertCircle, Copy, Check, X, Mail, KeyRound, ChevronDown, ChevronUp, Building2, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, AlertCircle, Copy, Check, X, Mail, KeyRound, ChevronDown, ChevronUp, Building2, Plus, Trash2, Star } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { extractApiError } from '@/lib/api-error';
 
@@ -180,11 +180,23 @@ export default function UserFormPage() {
     onError: (err: unknown) => toast.error(extractApiError(err)),
   });
 
+  // ---- Set default store mutation ----
+  const setDefaultStoreMut = useMutation({
+    mutationFn: (storeUserId: string) => storeUserApi.update(storeUserId, { is_default: true }),
+    onSuccess: () => {
+      refetchStoreUsers();
+      toast.success('Magasin par defaut mis a jour.');
+    },
+    onError: (err: unknown) => toast.error(extractApiError(err)),
+  });
+
   // ---- Remove store assignment mutation ----
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const removeStoreMut = useMutation({
     mutationFn: (storeUserId: string) => storeUserApi.remove(storeUserId),
     onSuccess: () => {
       refetchStoreUsers();
+      setConfirmRemoveId(null);
       toast.info('Acces au magasin retire.');
     },
     onError: (err: unknown) => toast.error(extractApiError(err)),
@@ -553,18 +565,53 @@ export default function UserFormPage() {
                           </span>
                         )}
                       </div>
-                      <div className="shrink-0 ml-3">
+                      <div className="shrink-0 ml-3 flex items-center gap-1">
                         {isAssigned ? (
-                          <button
-                            type="button"
-                            onClick={() => link && removeStoreMut.mutate(link.id)}
-                            disabled={removeStoreMut.isPending || isOnlyStore}
-                            title={isOnlyStore ? 'Impossible de retirer le seul magasin assigne' : 'Retirer'}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <Trash2 size={12} />
-                            Retirer
-                          </button>
+                          <>
+                            {!isDefault && (
+                              <button
+                                type="button"
+                                onClick={() => link && setDefaultStoreMut.mutate(link.id)}
+                                disabled={setDefaultStoreMut.isPending}
+                                title="Definir comme magasin par defaut"
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded disabled:opacity-40 transition-colors"
+                              >
+                                <Star size={11} />
+                                Par defaut
+                              </button>
+                            )}
+                            {confirmRemoveId === link?.id ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Confirmer ?</span>
+                                <button
+                                  type="button"
+                                  onClick={() => link && removeStoreMut.mutate(link.id)}
+                                  disabled={removeStoreMut.isPending}
+                                  className="px-2 py-0.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded disabled:opacity-60"
+                                >
+                                  Oui
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmRemoveId(null)}
+                                  className="px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded"
+                                >
+                                  Non
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => link && setConfirmRemoveId(link.id)}
+                                disabled={isOnlyStore}
+                                title={isOnlyStore ? 'Impossible de retirer le seul magasin assigne' : 'Retirer'}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                              >
+                                <Trash2 size={12} />
+                                Retirer
+                              </button>
+                            )}
+                          </>
                         ) : (
                           <button
                             type="button"

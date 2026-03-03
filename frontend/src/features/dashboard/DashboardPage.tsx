@@ -233,6 +233,11 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* STOCKER — alertes en premier */}
+      {role === 'STOCKER' && isVisible('alerts') && (
+        <AlertsWidget alerts={alertsData?.results ?? []} isLoading={alertsLoading} />
+      )}
+
       {/* Section 1 — KPI Cards */}
       {isVisible('kpis') && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -246,6 +251,30 @@ export default function DashboardPage() {
               trend={card.trend}
             />
           ))}
+        </div>
+      )}
+
+      {/* SALES / CASHIER / SALES_CASHIER — raccourcis */}
+      {(role === 'SALES' || role === 'CASHIER' || role === 'SALES_CASHIER') && (
+        <div className="flex flex-wrap gap-3">
+          {(role === 'SALES' || role === 'SALES_CASHIER') && (
+            <a
+              href="/pos"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <ShoppingCart size={16} />
+              Nouvelle vente (POS)
+            </a>
+          )}
+          {(role === 'CASHIER' || role === 'SALES_CASHIER') && (
+            <a
+              href="/cashier"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+            >
+              <DollarSign size={16} />
+              Ouvrir la caisse
+            </a>
+          )}
         </div>
       )}
 

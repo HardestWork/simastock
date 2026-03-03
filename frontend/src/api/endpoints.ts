@@ -245,7 +245,7 @@ export const storeUserApi = {
   get: (id: string) =>
     apiClient.get<StoreUserRecord>(`store-users/${id}/`).then((r) => r.data),
 
-  update: (id: string, data: { capabilities: Capability[] }) =>
+  update: (id: string, data: { capabilities?: Capability[]; is_default?: boolean }) =>
     apiClient.patch<StoreUserRecord>(`store-users/${id}/`, data).then((r) => r.data),
 
   presets: () =>

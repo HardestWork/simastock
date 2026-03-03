@@ -1440,7 +1440,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return UserSerializer
     
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().prefetch_related('store_users__store')
         # Superusers can observe everything (Django admin / platform-level).
         if getattr(self.request.user, "is_superuser", False):
             return qs

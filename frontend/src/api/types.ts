@@ -15,6 +15,7 @@ export interface User {
   custom_role_name: string | null;
   is_active: boolean;
   is_superuser?: boolean;
+  stores_list?: { id: string; name: string; code: string; is_default: boolean }[];
 }
 
 export interface CustomRole {

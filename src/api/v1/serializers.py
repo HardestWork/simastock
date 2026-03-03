@@ -130,15 +130,23 @@ class UserSerializer(serializers.ModelSerializer):
     custom_role_name = serializers.CharField(
         source='custom_role.name', read_only=True, default=None,
     )
+    stores_list = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name',
             'phone', 'role', 'custom_role', 'custom_role_name',
-            'is_active',
+            'is_active', 'stores_list',
         ]
         read_only_fields = ['id']
+
+    def get_stores_list(self, obj):
+        links = obj.store_users.all()
+        return [
+            {'id': str(su.store_id), 'name': su.store.name, 'code': su.store.code, 'is_default': su.is_default}
+            for su in links
+        ]
 
     def update(self, instance, validated_data):
         request = self.context.get("request")

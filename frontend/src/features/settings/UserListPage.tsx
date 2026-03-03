@@ -8,7 +8,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { useSort } from '@/hooks/use-sort';
 import Pagination from '@/components/shared/Pagination';
 import SortableHeader from '@/components/shared/SortableHeader';
-import { Search, UserPlus, Pencil, UserCheck, UserX, Trash2, AlertCircle } from 'lucide-react';
+import { Search, UserPlus, Pencil, UserCheck, UserX, Trash2, AlertCircle, Download } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/auth/auth-store';
 import type { User, UserRole } from '@/api/types';
@@ -116,6 +116,30 @@ export default function UserListPage() {
 
   const totalPages = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
 
+  const handleExportCSV = async () => {
+    const all = await userApi.list({ ...params, page: '1', page_size: '1000' });
+    const headers = ['Nom', 'Prenom', 'Email', 'Telephone', 'Role', 'Statut', 'Magasins'];
+    const rows = all.results.map((u) => [
+      u.last_name,
+      u.first_name,
+      u.email,
+      u.phone || '',
+      ROLE_LABELS[u.role] ?? u.role,
+      u.is_active ? 'Actif' : 'Inactif',
+      (u.stores_list ?? []).map((s) => s.name).join(' | '),
+    ]);
+    const csv = [headers, ...rows]
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'utilisateurs.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       {/* Header */}
@@ -123,13 +147,23 @@ export default function UserListPage() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           Gestion des utilisateurs
         </h1>
-        <Link
-          to="/settings/users/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
-        >
-          <UserPlus size={18} />
-          Nouvel utilisateur
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-2 px-3 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            title="Exporter en CSV"
+          >
+            <Download size={16} />
+            <span className="hidden sm:inline">Exporter</span>
+          </button>
+          <Link
+            to="/settings/users/new"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
+          >
+            <UserPlus size={18} />
+            Nouvel utilisateur
+          </Link>
+        </div>
       </div>
 
       {/* Search + Role filter */}
@@ -200,7 +234,7 @@ export default function UserListPage() {
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 text-left text-gray-600 dark:text-gray-400">
                 <SortableHeader field="last_name" label="Utilisateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
-                <th className="px-4 py-3 font-medium">Telephone</th>
+                <th className="px-4 py-3 font-medium hidden lg:table-cell">Magasins</th>
                 <SortableHeader field="role" label="Role" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                 <SortableHeader field="is_active" label="Statut" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="center" />
                 <th className="px-4 py-3 font-medium text-right">Actions</th>
@@ -219,8 +253,22 @@ export default function UserListPage() {
                     </div>
                     <div className="text-xs text-gray-400 dark:text-gray-500">{user.email}</div>
                   </td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                    {user.phone || '\u2014'}
+                  <td className="px-4 py-3 hidden lg:table-cell">
+                    <div className="flex flex-wrap gap-1">
+                      {(user.stores_list ?? []).map((s) => (
+                        <span
+                          key={s.id}
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                            s.is_default
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                          }`}
+                          title={s.name}
+                        >
+                          {s.code}
+                        </span>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -290,7 +338,7 @@ export default function UserListPage() {
               {data?.results.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
                   >
                     Aucun utilisateur trouve.
