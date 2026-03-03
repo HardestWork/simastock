@@ -95,6 +95,11 @@ export default function SettingsPage() {
   useEffect(() => {
     if (enterprise) {
       setInvoiceDraft({
+        legal_name: enterprise.legal_name ?? '',
+        legal_form: enterprise.legal_form ?? '',
+        share_capital: enterprise.share_capital ?? '',
+        registration_number: enterprise.registration_number ?? '',
+        tax_id: enterprise.tax_id ?? '',
         bank_details: enterprise.bank_details ?? '',
         invoice_header: enterprise.invoice_header ?? 'FACTURE',
         invoice_template: enterprise.invoice_template ?? 'CLASSIC',
@@ -471,6 +476,76 @@ export default function SettingsPage() {
             {!enterprise ? (
               <div className="text-sm text-gray-500 dark:text-gray-400">Aucune structure chargee.</div>
             ) : (
+              <div className="space-y-4">
+
+              {/* ---- Identite legale SYSCOHADA ---- */}
+              <div>
+                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 pb-1 border-b border-gray-100 dark:border-gray-700">
+                  Identite legale (SYSCOHADA)
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Raison sociale</label>
+                    <input
+                      value={invoiceDraft.legal_name ?? ''}
+                      onChange={(e) => setInvoiceDraft((d) => ({ ...d, legal_name: e.target.value }))}
+                      placeholder="Ex : TechXperts Solutions"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Forme juridique</label>
+                    <select
+                      value={invoiceDraft.legal_form ?? ''}
+                      onChange={(e) => setInvoiceDraft((d) => ({ ...d, legal_form: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
+                    >
+                      <option value="">-- Selectionner --</option>
+                      <option value="SARL">SARL</option>
+                      <option value="SA">SA</option>
+                      <option value="SAS">SAS</option>
+                      <option value="SNC">SNC</option>
+                      <option value="SCS">SCS</option>
+                      <option value="GIE">GIE</option>
+                      <option value="EI">Entreprise individuelle</option>
+                      <option value="AUTRE">Autre</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Capital social</label>
+                    <input
+                      value={invoiceDraft.share_capital ?? ''}
+                      onChange={(e) => setInvoiceDraft((d) => ({ ...d, share_capital: e.target.value }))}
+                      placeholder="Ex : 1 000 000 FCFA"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">RCCM</label>
+                    <input
+                      value={invoiceDraft.registration_number ?? ''}
+                      onChange={(e) => setInvoiceDraft((d) => ({ ...d, registration_number: e.target.value }))}
+                      placeholder="Ex : BF-OUA-2024-B-12345"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">NIF / IFU</label>
+                    <input
+                      value={invoiceDraft.tax_id ?? ''}
+                      onChange={(e) => setInvoiceDraft((d) => ({ ...d, tax_id: e.target.value }))}
+                      placeholder="Ex : 00123456T"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ---- Mise en page / facturation ---- */}
+              <div>
+                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 pb-1 border-b border-gray-100 dark:border-gray-700">
+                  Mise en page
+                </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Titre facture</label>
@@ -559,6 +634,9 @@ export default function SettingsPage() {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm min-h-20 dark:bg-gray-700 dark:text-gray-100"
                   />
                 </div>
+              </div>
+              </div>
+
               </div>
             )}
           </div>

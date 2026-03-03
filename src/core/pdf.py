@@ -72,12 +72,24 @@ def _build_invoice_config(store):
         vat_enabled = False
         vat_rate = 0
 
+    # Enterprise-level legal identity (with fallback to store-level)
+    enterprise = getattr(store, "enterprise", None)
+    ent_legal_name = getattr(enterprise, "legal_name", "") if enterprise else ""
+    ent_legal_form = getattr(enterprise, "legal_form", "") if enterprise else ""
+    ent_share_capital = getattr(enterprise, "share_capital", "") if enterprise else ""
+    ent_rccm = getattr(enterprise, "registration_number", "") if enterprise else ""
+    ent_nif = getattr(enterprise, "tax_id", "") if enterprise else ""
+    ent_email = getattr(enterprise, "email", "") if enterprise else ""
+
     return {
-        "business_name": store.legal_name or store.name,
+        "business_name": ent_legal_name or store.legal_name or store.name,
+        "legal_form": ent_legal_form or getattr(store, "legal_form", ""),
+        "share_capital": ent_share_capital or getattr(store, "share_capital", ""),
+        "email": store.email or ent_email,
         "document_title": store.invoice_header or "FACTURE",
         "template": getattr(store, "invoice_template", "CLASSIC"),
-        "registration_number": store.registration_number,
-        "tax_id": store.tax_id,
+        "registration_number": ent_rccm or store.registration_number,
+        "tax_id": ent_nif or store.tax_id,
         "website": store.website,
         "logo_uri": logo_uri,
         "primary_color": _normalize_hex_color(

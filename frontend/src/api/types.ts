@@ -148,6 +148,8 @@ export interface Enterprise {
   name: string;
   code: string;
   legal_name: string;
+  legal_form?: string;
+  share_capital?: string;
   registration_number: string;
   tax_id: string;
   currency: string;

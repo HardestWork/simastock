@@ -155,6 +155,24 @@ class Enterprise(TimeStampedModel):
     name = models.CharField("nom", max_length=255)
     code = models.CharField("code", max_length=50, unique=True)
     legal_name = models.CharField("raison sociale", max_length=255, blank=True, default="")
+
+    class LegalForm(models.TextChoices):
+        SARL = "SARL", "SARL"
+        SA = "SA", "SA"
+        SAS = "SAS", "SAS"
+        SNC = "SNC", "SNC"
+        SCS = "SCS", "SCS"
+        GIE = "GIE", "GIE"
+        EI = "EI", "Entreprise individuelle"
+        OTHER = "AUTRE", "Autre"
+
+    legal_form = models.CharField(
+        "forme juridique", max_length=20, choices=LegalForm.choices, blank=True, default="",
+    )
+    share_capital = models.CharField(
+        "capital social", max_length=100, blank=True, default="",
+        help_text="Ex: 1 000 000 FCFA",
+    )
     registration_number = models.CharField(
         "numero RCCM", max_length=100, blank=True, default="",
     )

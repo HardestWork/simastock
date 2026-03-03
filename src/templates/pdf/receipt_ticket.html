@@ -72,18 +72,24 @@
         {% if invoice_config.logo_uri %}
         <img src="{{ invoice_config.logo_uri }}" alt="Logo">
         {% endif %}
-        <div class="business-name">{{ invoice_config.business_name }}</div>
-        {% if invoice_config.registration_number or invoice_config.tax_id %}
-        <div class="tagline">
-            {% if invoice_config.registration_number %}RCCM : {{ invoice_config.registration_number }}{% endif %}
-            {% if invoice_config.registration_number and invoice_config.tax_id %} &bull; {% endif %}
-            {% if invoice_config.tax_id %}NIF : {{ invoice_config.tax_id }}{% endif %}
+        <div class="business-name">
+            {{ invoice_config.business_name }}{% if invoice_config.legal_form %} {{ invoice_config.legal_form }}{% endif %}
         </div>
+        {% if invoice_config.share_capital %}
+        <div class="tagline">Capital social : {{ invoice_config.share_capital }}</div>
         {% endif %}
         <div class="contact">
             {% if store.address %}<span>{{ store.address }}</span>{% endif %}
             {% if store.phone %}<span>{{ store.phone }}</span>{% endif %}
+            {% if invoice_config.email %}<span>{{ invoice_config.email }}</span>{% endif %}
         </div>
+        {% if invoice_config.registration_number or invoice_config.tax_id %}
+        <div class="tagline" style="margin-top:3px;">
+            {% if invoice_config.registration_number %}RCCM&nbsp;: {{ invoice_config.registration_number }}{% endif %}
+            {% if invoice_config.registration_number and invoice_config.tax_id %}&nbsp;&bull;&nbsp;{% endif %}
+            {% if invoice_config.tax_id %}NIF&nbsp;: {{ invoice_config.tax_id }}{% endif %}
+        </div>
+        {% endif %}
     </div>
 
     <div class="divider"></div>
