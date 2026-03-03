@@ -229,6 +229,9 @@ export const storeApi = {
 
   update: (id: string, data: Partial<Store>) =>
     apiClient.patch<Store>(`stores/${id}/`, data).then((r) => r.data),
+
+  assignUsers: (storeId: string, userIds: string[], isDefault = false) =>
+    apiClient.post(`stores/${storeId}/assign-users/`, { user_ids: userIds, is_default: isDefault }).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------
@@ -247,6 +250,9 @@ export const storeUserApi = {
 
   presets: () =>
     apiClient.get<{ presets: Record<string, CapabilityPreset>; all_capabilities: { code: string; label: string }[] }>('store-users/presets/').then((r) => r.data),
+
+  remove: (id: string) =>
+    apiClient.delete(`store-users/${id}/`),
 };
 
 // ---------------------------------------------------------------------------

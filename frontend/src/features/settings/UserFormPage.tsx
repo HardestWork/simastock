@@ -2,9 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { userApi, roleApi } from '@/api/endpoints';
+import { userApi, roleApi, storeApi, storeUserApi } from '@/api/endpoints';
+import type { Store, StoreUserRecord } from '@/api/types';
 import { queryKeys } from '@/lib/query-keys';
-import { ArrowLeft, Save, Loader2, AlertCircle, Copy, Check, X, Mail, KeyRound, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, AlertCircle, Copy, Check, X, Mail, KeyRound, ChevronDown, ChevronUp, Building2, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { extractApiError } from '@/lib/api-error';
 
@@ -152,6 +153,42 @@ export default function UserFormPage() {
     }
     resetPasswordMut.mutate(newPassword);
   };
+
+  // ---- Stores list (edit mode) ----
+  const { data: storesData } = useQuery({
+    queryKey: ['stores', 'list-all'],
+    queryFn: () => storeApi.list({ page_size: '200' }),
+    enabled: isEdit,
+  });
+  const allStores: Store[] = storesData?.results ?? [];
+
+  // ---- User's store-user records (edit mode) ----
+  const { data: storeUsersData, refetch: refetchStoreUsers } = useQuery({
+    queryKey: ['store-users', 'by-user', id],
+    queryFn: () => storeUserApi.list({ user: id! }),
+    enabled: isEdit,
+  });
+  const userStoreLinks: StoreUserRecord[] = storeUsersData?.results ?? [];
+
+  // ---- Assign store mutation ----
+  const assignStoreMut = useMutation({
+    mutationFn: (storeId: string) => storeApi.assignUsers(storeId, [id!]),
+    onSuccess: () => {
+      refetchStoreUsers();
+      toast.success('Magasin assigne avec succes.');
+    },
+    onError: (err: unknown) => toast.error(extractApiError(err)),
+  });
+
+  // ---- Remove store assignment mutation ----
+  const removeStoreMut = useMutation({
+    mutationFn: (storeUserId: string) => storeUserApi.remove(storeUserId),
+    onSuccess: () => {
+      refetchStoreUsers();
+      toast.info('Acces au magasin retire.');
+    },
+    onError: (err: unknown) => toast.error(extractApiError(err)),
+  });
 
   const isPending = createMut.isPending || updateMut.isPending;
 
@@ -476,6 +513,74 @@ export default function UserFormPage() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Magasins assignes — edit mode only */}
+          {isEdit && allStores.length > 0 && (
+            <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Building2 size={15} className="text-gray-500 dark:text-gray-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Magasins assignes
+                </span>
+              </div>
+              <div className="space-y-2">
+                {allStores.map((store) => {
+                  const link = userStoreLinks.find((su) => su.store === store.id);
+                  const isAssigned = !!link;
+                  const isDefault = link?.is_default ?? false;
+                  const isOnlyStore = userStoreLinks.length === 1 && isAssigned;
+                  return (
+                    <div
+                      key={store.id}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm ${
+                        isAssigned
+                          ? 'border-green-200 bg-green-50 dark:border-green-700/50 dark:bg-green-900/10'
+                          : 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {store.name}
+                        </span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                          {store.code}
+                        </span>
+                        {isDefault && (
+                          <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                            Par defaut
+                          </span>
+                        )}
+                      </div>
+                      <div className="shrink-0 ml-3">
+                        {isAssigned ? (
+                          <button
+                            type="button"
+                            onClick={() => link && removeStoreMut.mutate(link.id)}
+                            disabled={removeStoreMut.isPending || isOnlyStore}
+                            title={isOnlyStore ? 'Impossible de retirer le seul magasin assigne' : 'Retirer'}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Trash2 size={12} />
+                            Retirer
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => assignStoreMut.mutate(store.id)}
+                            disabled={assignStoreMut.isPending}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 rounded disabled:opacity-40 transition-colors"
+                          >
+                            <Plus size={12} />
+                            Ajouter
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
