@@ -62,10 +62,10 @@ export default function PaymentReceiptPage() {
     return () => { document.title = prev; };
   }, [sale?.invoice_number, saleId]);
 
-  // Open enterprise-configured PDF template (no template param = backend uses enterprise default)
-  const handlePrintA5 = () => {
+  // Open full A4 invoice (same as POS "Facture" button)
+  const handlePrintInvoice = () => {
     if (!saleId) return;
-    window.open(`/api/v1/sales/${saleId}/receipt/`, '_blank', 'noopener,noreferrer');
+    window.open(`/api/v1/sales/${saleId}/invoice/?kind=invoice`, '_blank', 'noopener,noreferrer');
   };
 
 
@@ -118,11 +118,11 @@ export default function PaymentReceiptPage() {
           </Link>
           <div className="flex items-center gap-2">
             <button
-              onClick={handlePrintA5}
+              onClick={handlePrintInvoice}
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
-              title="Imprimer format A5"
+              title="Imprimer la facture (format A4)"
             >
-              <Printer size={15} /> Reçu A5
+              <Printer size={15} /> Facture
             </button>
             <button
               onClick={handlePrint80mm}

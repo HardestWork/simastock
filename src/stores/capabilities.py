@@ -57,6 +57,7 @@ ROLE_CAPABILITY_MAP = {
     ],
     "CASHIER": [
         "CAN_CASH",
+        "CAN_OVERRIDE_PRICE",
         "CAN_CREATE_EXPENSE",
         "CAN_VIEW_EXPENSE_REPORTS",
     ],
