@@ -171,6 +171,24 @@
                 </div>
             </div>
 
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 class="font-semibold text-gray-900 mb-3">
+                    <i class="fab fa-whatsapp mr-2 text-green-600"></i>Partage WhatsApp
+                </h3>
+                {% if whatsapp_share_url %}
+                <a href="{{ whatsapp_share_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="inline-flex items-center justify-center w-full px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium">
+                    <i class="fab fa-whatsapp mr-2"></i>Envoyer les documents
+                </a>
+                {% else %}
+                <p class="text-xs text-amber-700">
+                    Ajoutez un client avec numero de telephone pour partager les documents sur WhatsApp.
+                </p>
+                {% endif %}
+            </div>
+
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5" x-show="sale.status === 'DRAFT'">
                 <h3 class="font-semibold text-gray-900 mb-3">Remise</h3>
                 <div class="grid grid-cols-2 gap-2">

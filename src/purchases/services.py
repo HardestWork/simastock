@@ -317,6 +317,7 @@ def receive_goods(
             .select_related("product")
             .get(pk=entry["purchase_order_line_id"])
         )
+
         qty = int(entry["quantity_received"])
         if qty <= 0:
             raise ValueError("La quantite recue doit etre positive.")
@@ -342,7 +343,14 @@ def receive_goods(
             reason=f"Reception achat {purchase_order.po_number}",
             actor=actor,
             reference=receipt.receipt_number,
+            unit_cost=pol.unit_cost,
         )
+
+        # Keep the product default cost aligned with latest supplier cost.
+        latest_unit_cost = _safe_decimal(pol.unit_cost).quantize(Decimal("0.01"))
+        if _safe_decimal(pol.product.cost_price) != latest_unit_cost:
+            pol.product.cost_price = latest_unit_cost
+            pol.product.save(update_fields=["cost_price", "updated_at"])
 
     if received_lines == 0:
         raise ValueError("Aucune ligne de reception valide.")

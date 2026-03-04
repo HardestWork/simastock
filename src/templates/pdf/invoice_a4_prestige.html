@@ -122,6 +122,10 @@ body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a2e
 .status-badge.paid { background: #ecfdf5; color: #059669; border: 1px solid #6ee7b7; }
 .status-badge.pending { background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
 .status-badge.partial { background: #eff6ff; color: #2563eb; border: 1px solid #93c5fd; }
+.status-badge.unpaid { background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
+.status-badge.refunded { background: #eef2ff; color: #4338ca; border: 1px solid #a5b4fc; }
+.status-badge.cancelled { background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
+.status-badge.na { background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
 
 /* ---- ITEMS TABLE ---- */
 .items-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
@@ -287,13 +291,12 @@ body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a2e
     </div>
 
     <!-- STATUS -->
-    {% if sale.payment_status == 'PAID' %}
-    <div class="status-badge paid">&#10003; PAYÉE</div>
-    {% elif sale.credit_balance and sale.credit_balance > 0 %}
-    <div class="status-badge partial">Solde dû : {{ sale.credit_balance|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
-    {% else %}
-    <div class="status-badge pending">EN ATTENTE</div>
-    {% endif %}
+    <div class="status-badge {{ payment_status_meta.tone }}">
+      {{ payment_status_meta.label }}
+      {% if payment_status_meta.show_due %}
+      - Solde dû : {{ payment_status_meta.amount_due|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}
+      {% endif %}
+    </div>
 
     <!-- ITEMS TABLE -->
     <table class="items-table">

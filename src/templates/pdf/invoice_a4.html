@@ -47,6 +47,9 @@
         .status-paid { background: #dcfce7; color: #166534; }
         .status-partial { background: #fef3c7; color: #92400e; }
         .status-unpaid { background: #fee2e2; color: #991b1b; }
+        .status-refunded { background: #e0e7ff; color: #3730a3; }
+        .status-cancelled { background: #f3f4f6; color: #374151; }
+        .status-na { background: #f3f4f6; color: #374151; }
     </style>
 </head>
 <body>
@@ -77,13 +80,7 @@
             <div><span class="label">Validite</span> <span class="value">{{ invoice_config.offer_validity_days }} jours (jusqu'au {{ document.valid_until|date:"d/m/Y" }})</span></div>
             {% endif %}
             <div style="margin-top: 8px;">
-                {% if sale.status == 'PAID' %}
-                <span class="status-badge status-paid">PAYEE</span>
-                {% elif sale.status == 'PARTIALLY_PAID' %}
-                <span class="status-badge status-partial">PARTIEL</span>
-                {% else %}
-                <span class="status-badge status-unpaid">IMPAYEE</span>
-                {% endif %}
+                <span class="status-badge status-{{ payment_status_meta.tone }}">{{ payment_status_meta.label }}</span>
             </div>
         </div>
     </div>

@@ -129,6 +129,11 @@ body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a2e
 .status-strip.paid { background: #ecfdf5; color: #059669; border-left: 4px solid #059669; }
 .status-strip.pending { background: #fffbeb; color: #d97706; border-left: 4px solid #d97706; }
 .status-strip.credit { background: #fef2f2; color: #dc2626; border-left: 4px solid #dc2626; }
+.status-strip.unpaid { background: #fffbeb; color: #d97706; border-left: 4px solid #d97706; }
+.status-strip.partial { background: #fef2f2; color: #dc2626; border-left: 4px solid #dc2626; }
+.status-strip.refunded { background: #eef2ff; color: #4338ca; border-left: 4px solid #4338ca; }
+.status-strip.cancelled { background: #f3f4f6; color: #4b5563; border-left: 4px solid #9ca3af; }
+.status-strip.na { background: #f3f4f6; color: #4b5563; border-left: 4px solid #9ca3af; }
 
 /* ---- FOOTER SECTION ---- */
 .footer-section {
@@ -306,13 +311,12 @@ body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a2e
   </div>
 
   <!-- STATUS -->
-  {% if sale.payment_status == 'PAID' %}
-  <div class="status-strip paid avoid-break">&#10003; Facture entièrement réglée</div>
-  {% elif sale.credit_balance and sale.credit_balance > 0 %}
-  <div class="status-strip credit avoid-break">Solde restant dû : {{ sale.credit_balance|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
-  {% else %}
-  <div class="status-strip pending avoid-break">En attente de paiement</div>
-  {% endif %}
+  <div class="status-strip {{ payment_status_meta.tone }} avoid-break">
+    {{ payment_status_meta.description }}
+    {% if payment_status_meta.show_due %}
+    : {{ payment_status_meta.amount_due|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}
+    {% endif %}
+  </div>
 
   <!-- FOOTER SECTION -->
   <div class="footer-section avoid-break">

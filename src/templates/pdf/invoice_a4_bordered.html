@@ -199,6 +199,20 @@ body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a2e
         <div class="mc-label">Vendeur</div>
         <div class="mc-value">{{ sale.seller.get_full_name }}</div>
       </div>
+      <div class="meta-cell">
+        <div class="mc-label">Statut paiement</div>
+        <div class="mc-value">{{ payment_status_meta.label }}</div>
+      </div>
+      <div class="meta-cell">
+        <div class="mc-label">Reste a payer</div>
+        <div class="mc-value">
+          {% if payment_status_meta.show_due %}
+          {{ payment_status_meta.amount_due|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}
+          {% else %}
+          -
+          {% endif %}
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -291,6 +305,18 @@ body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a2e
         <span class="tb-label">TOTAL TTC</span>
         <span>{{ sale.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
       </div>
+      {% if payment_status_meta.show_paid %}
+      <div class="tb-row">
+        <span class="tb-label">Paye</span>
+        <span>{{ payment_status_meta.amount_paid|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+      </div>
+      {% endif %}
+      {% if payment_status_meta.show_due %}
+      <div class="tb-row discount">
+        <span class="tb-label">Reste a payer</span>
+        <span>{{ payment_status_meta.amount_due|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+      </div>
+      {% endif %}
     </div>
     <!-- Signature -->
     <div style="margin-top:16px; text-align:center; font-size:7.5pt; color:#555;">

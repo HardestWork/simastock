@@ -452,7 +452,31 @@ class SaleItem(TimeStampedModel):
         ) - self.discount_amount
         if self.line_total < 0:
             self.line_total = Decimal("0.00")
+
+        # When callers use update_fields, ensure line_total is persisted too.
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            fields = set(update_fields)
+            fields.add("line_total")
+            kwargs["update_fields"] = list(fields)
+
         super().save(*args, **kwargs)
+
+        # Keep sale totals in sync for any direct quantity/price/discount edit.
+        from sales.services import recalculate_sale
+
+        recalculate_sale(self.sale)
+
+    def delete(self, *args, **kwargs):
+        sale = self.sale
+        result = super().delete(*args, **kwargs)
+
+        # Recompute totals after removing a line item.
+        if sale and sale.pk:
+            from sales.services import recalculate_sale
+
+            recalculate_sale(sale)
+        return result
 
 
 # ---------------------------------------------------------------------------

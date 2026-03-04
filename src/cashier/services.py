@@ -612,7 +612,7 @@ def _decrement_stock_for_sale(sale, actor):
         for item in sale.items.select_related("product"):
             if not bool(getattr(item.product, "track_stock", True)):
                 continue
-            adjust_stock(
+            _movement, fifo_details = adjust_stock(
                 store=sale.store,
                 product=item.product,
                 qty_delta=-item.quantity,
@@ -620,7 +620,12 @@ def _decrement_stock_for_sale(sale, actor):
                 reason=f"Vente {sale.invoice_number or sale.pk}",
                 actor=actor,
                 reference=str(sale.pk),
+                return_details=True,
             )
+            fifo_unit_cost = fifo_details.get("applied_unit_cost")
+            if fifo_unit_cost is not None:
+                item.cost_price = Decimal(str(fifo_unit_cost)).quantize(Decimal("0.01"))
+                item.save(update_fields=["cost_price", "updated_at"])
         _sync_reserved_stock_for_sale_products(sale)
     except ImportError:
         # Fallback: direct stock update

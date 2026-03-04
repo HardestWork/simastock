@@ -111,7 +111,6 @@ def add_item_to_sale(
         existing_item.quantity += qty
         existing_item.discount_amount += Decimal(str(discount))
         existing_item.save()
-        recalculate_sale(sale)
         logger.info(
             "Updated qty for product %s on sale %s (new qty=%d)",
             product.pk, sale.pk, existing_item.quantity,
@@ -129,8 +128,6 @@ def add_item_to_sale(
         discount_amount=Decimal(str(discount)),
     )
     item.save()
-
-    recalculate_sale(sale)
     logger.info(
         "Added product %s (qty=%d) to sale %s",
         product.pk, qty, sale.pk,
@@ -169,7 +166,6 @@ def remove_item_from_sale(sale: Sale, item_id, actor=None) -> None:
 
     product_name = item.product_name
     item.delete()
-    recalculate_sale(sale)
     logger.info(
         "Removed item '%s' from sale %s",
         product_name, sale.pk,
@@ -217,7 +213,6 @@ def update_item_quantity(sale: Sale, item_id, new_qty: int, actor=None) -> SaleI
 
     item.quantity = new_qty
     item.save()
-    recalculate_sale(sale)
     logger.info(
         "Updated qty for item %s on sale %s to %d",
         item_id, sale.pk, new_qty,
@@ -251,7 +246,6 @@ def update_item_unit_price(
 
     item.unit_price = unit_price
     item.save()
-    recalculate_sale(sale)
 
     if sale.amount_paid > sale.total:
         raise ValueError(
@@ -594,6 +588,43 @@ def _create_audit_log(
         )
 
 
+def _sync_objectives_after_refund(refund: Refund) -> None:
+    """Best-effort objective + leaderboard sync after a refund."""
+    sale = getattr(refund, "sale", None)
+    if sale is None or not getattr(sale, "seller_id", None):
+        return
+
+    period = (refund.created_at or timezone.now()).strftime("%Y-%m")
+
+    try:
+        from objectives.engine import ObjectiveCalculationEngine
+
+        engine = ObjectiveCalculationEngine(store_id=str(sale.store_id))
+        engine.compute_for_seller(
+            seller_id=str(sale.seller_id),
+            period=period,
+            trigger="MANUAL",
+        )
+    except Exception:
+        logger.debug(
+            "Objectif vendeur non synchronise apres remboursement %s.",
+            refund.pk,
+            exc_info=True,
+        )
+        return
+
+    try:
+        from objectives.leaderboard import LeaderboardEngine
+
+        LeaderboardEngine(store_id=str(sale.store_id)).compute_snapshot(period=period)
+    except Exception:
+        logger.debug(
+            "Classement vendeur non synchronise apres remboursement %s.",
+            refund.pk,
+            exc_info=True,
+        )
+
+
 def _reverse_stock_for_sale(sale: Sale, actor) -> None:
     """Re-introduce stock for each line item (used on cancellation or refund)."""
     try:
@@ -609,6 +640,7 @@ def _reverse_stock_for_sale(sale: Sale, actor) -> None:
                 reason=f"Annulation vente {sale.invoice_number or sale.pk}",
                 actor=actor,
                 reference=str(sale.pk),
+                unit_cost=item.cost_price,
             )
     except ImportError:
         logger.exception("Stock service indisponible pendant l'annulation %s", sale.pk)
@@ -689,6 +721,7 @@ def create_refund(
                     reason=f"Remboursement vente {sale.invoice_number or sale.pk} (avoir {credit_note_number})",
                     actor=processed_by or approved_by,
                     reference=str(refund.pk),
+                    unit_cost=item.cost_price,
                 )
         except ImportError:
             logger.exception("Stock service indisponible pendant le remboursement %s", refund.pk)
@@ -709,6 +742,8 @@ def create_refund(
             "amount_due": str(sale.amount_due),
         },
     )
+
+    _sync_objectives_after_refund(refund)
 
     logger.info("Refund %s created for sale %s (amount=%s)", refund.pk, sale.pk, refund.amount)
     return refund

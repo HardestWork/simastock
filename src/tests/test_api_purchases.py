@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from catalog.models import Product
 from purchases.models import PurchaseOrder, Supplier
-from stock.models import ProductStock
+from stock.models import ProductStock, StockLot
 
 
 def _make_product(enterprise, *, name: str, sku: str, cost: str = "1000.00", sell: str = "1500.00"):
@@ -112,3 +112,46 @@ def test_receive_goods_updates_stock_and_purchase_status(manager_client, store):
 
     stock = ProductStock.objects.get(store=store, product=product)
     assert stock.quantity == 4
+
+
+def test_receive_goods_creates_fifo_lot_and_updates_latest_cost(manager_client, store):
+    supplier = Supplier.objects.create(enterprise=store.enterprise, name="Fournisseur FIFO")
+    product = _make_product(store.enterprise, name="Switch FIFO", sku="FIFO-001", cost="100.00", sell="200.00")
+    ProductStock.objects.create(store=store, product=product, quantity=10, reserved_qty=0)
+
+    po_resp = manager_client.post(
+        "/api/v1/purchase-orders/",
+        {
+            "store": str(store.id),
+            "supplier": str(supplier.id),
+            "submit_now": True,
+            "lines": [{"product_id": str(product.id), "quantity_ordered": 10, "unit_cost": "200.00"}],
+        },
+        format="json",
+    )
+    assert po_resp.status_code == 201, po_resp.data
+    line_id = po_resp.data["lines"][0]["id"]
+    po_id = po_resp.data["id"]
+
+    receipt_resp = manager_client.post(
+        "/api/v1/goods-receipts/",
+        {
+            "store": str(store.id),
+            "purchase_order": po_id,
+            "notes": "Reception avec nouveau prix",
+            "lines": [{"purchase_order_line_id": line_id, "quantity_received": 10}],
+        },
+        format="json",
+    )
+    assert receipt_resp.status_code == 201, receipt_resp.data
+
+    product.refresh_from_db()
+    stock = ProductStock.objects.get(store=store, product=product)
+    lots = StockLot.objects.filter(store=store, product=product).order_by("received_at", "created_at")
+
+    assert stock.quantity == 20
+    assert product.cost_price == Decimal("200.00")
+    assert lots.count() == 1
+    assert lots.first().quantity_initial == 10
+    assert lots.first().quantity_remaining == 10
+    assert lots.first().unit_cost == Decimal("200.00")

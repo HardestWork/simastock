@@ -390,9 +390,12 @@
                     {% else %}
                     <div class="meta-row"><span class="meta-label">Statut :</span>
                         <span class="meta-value">
-                            {% if sale.status == "PAID" %}Payee{% elif sale.status == "PARTIALLY_PAID" %}Partielle{% else %}En attente{% endif %}
+                            {{ payment_status_meta.label }}
                         </span>
                     </div>
+                    {% if payment_status_meta.show_due %}
+                    <div class="meta-row"><span class="meta-label">Reste :</span> <span class="meta-value">{{ payment_status_meta.amount_due|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span></div>
+                    {% endif %}
                     {% endif %}
                 </div>
             </div>

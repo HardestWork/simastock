@@ -54,6 +54,62 @@ class ProductStock(TimeStampedModel):
         return f"{self.product} @ {self.store} — {self.quantity} en stock"
 
 
+class StockLot(TimeStampedModel):
+    """FIFO lot for product valuation and traceable stock consumption."""
+
+    class SourceType(models.TextChoices):
+        PURCHASE = "PURCHASE", "Achat"
+        MANUAL_IN = "MANUAL_IN", "Entree manuelle"
+        TRANSFER_IN = "TRANSFER_IN", "Transfert entrant"
+        RETURN = "RETURN", "Retour"
+        ADJUST = "ADJUST", "Ajustement"
+        UNKNOWN = "UNKNOWN", "Autre"
+
+    store = models.ForeignKey(
+        "stores.Store",
+        on_delete=models.PROTECT,
+        related_name="stock_lots",
+        verbose_name="boutique",
+    )
+    product = models.ForeignKey(
+        "catalog.Product",
+        on_delete=models.PROTECT,
+        related_name="stock_lots",
+        verbose_name="produit",
+    )
+    quantity_initial = models.IntegerField("quantite initiale")
+    quantity_remaining = models.IntegerField("quantite restante")
+    unit_cost = models.DecimalField("cout unitaire", max_digits=12, decimal_places=2)
+    source_type = models.CharField(
+        "source",
+        max_length=20,
+        choices=SourceType.choices,
+        default=SourceType.UNKNOWN,
+        db_index=True,
+    )
+    source_reference = models.CharField("reference source", max_length=255, blank=True, default="")
+    received_at = models.DateTimeField("recu le", db_index=True)
+
+    class Meta:
+        ordering = ["received_at", "created_at"]
+        verbose_name = "lot de stock"
+        verbose_name_plural = "lots de stock"
+        indexes = [
+            models.Index(fields=["store", "product", "received_at"], name="stklot_store_prod_recv_idx"),
+            models.Index(fields=["store", "product", "quantity_remaining"], name="stklot_store_prod_qty_idx"),
+        ]
+
+    @property
+    def is_depleted(self) -> bool:
+        return self.quantity_remaining <= 0
+
+    def __str__(self):
+        return (
+            f"Lot {self.product} @ {self.store} - "
+            f"{self.quantity_remaining}/{self.quantity_initial} a {self.unit_cost}"
+        )
+
+
 class InventoryMovement(TimeStampedModel):
     """Records every stock movement for full traceability."""
 

@@ -4,6 +4,7 @@ from django.contrib import admin
 from .models import (
     InventoryMovement,
     ProductStock,
+    StockLot,
     StockCount,
     StockCountLine,
     StockTransfer,
@@ -48,6 +49,24 @@ class InventoryMovementAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at",)
     date_hierarchy = "created_at"
     list_select_related = ("product", "store", "actor")
+
+
+@admin.register(StockLot)
+class StockLotAdmin(admin.ModelAdmin):
+    list_display = (
+        "product",
+        "store",
+        "quantity_initial",
+        "quantity_remaining",
+        "unit_cost",
+        "source_type",
+        "source_reference",
+        "received_at",
+    )
+    list_filter = ("store", "product", "source_type", "received_at")
+    search_fields = ("product__name", "product__sku", "source_reference")
+    list_select_related = ("product", "store")
+    date_hierarchy = "received_at"
 
 
 @admin.register(StockTransfer)

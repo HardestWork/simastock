@@ -2,6 +2,7 @@
 import logging
 import re
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 from io import BytesIO
 from django.conf import settings
@@ -191,6 +192,68 @@ def _verification_context(obj):
     }
 
 
+def _to_decimal_amount(value) -> Decimal:
+    try:
+        return Decimal(str(value or "0"))
+    except Exception:
+        return Decimal("0")
+
+
+def _build_payment_status_meta(sale):
+    """Build normalized payment status data for invoice templates."""
+    lifecycle_status = (getattr(sale, "status", "") or "").strip().upper()
+    payment_status = (getattr(sale, "payment_status", "") or "").strip().upper()
+    amount_paid = _to_decimal_amount(getattr(sale, "amount_paid", 0))
+    amount_due = _to_decimal_amount(getattr(sale, "amount_due", 0))
+
+    if lifecycle_status == "REFUNDED":
+        code = "REFUNDED"
+        tone = "refunded"
+        label = "REMBOURSEE"
+        description = "Vente remboursee"
+    elif lifecycle_status == "CANCELLED":
+        code = "CANCELLED"
+        tone = "cancelled"
+        label = "ANNULEE"
+        description = "Vente annulee"
+    elif lifecycle_status == "DRAFT":
+        code = "DRAFT"
+        tone = "na"
+        label = "BROUILLON"
+        description = "Brouillon non encaisse"
+    elif payment_status == "PAID" or lifecycle_status == "PAID":
+        code = "PAID"
+        tone = "paid"
+        label = "PAYEE"
+        description = "Facture entierement reglee"
+    elif payment_status == "PARTIAL" or lifecycle_status == "PARTIALLY_PAID":
+        code = "PARTIAL"
+        tone = "partial"
+        label = "PARTIELLEMENT PAYEE"
+        description = "Paiement partiel"
+    elif payment_status == "UNPAID" or lifecycle_status == "PENDING_PAYMENT":
+        code = "UNPAID"
+        tone = "unpaid"
+        label = "IMPAYEE"
+        description = "En attente de paiement"
+    else:
+        code = "UNKNOWN"
+        tone = "na"
+        label = "STATUT INCONNU"
+        description = "Statut de paiement non determine"
+
+    return {
+        "code": code,
+        "tone": tone,
+        "label": label,
+        "description": description,
+        "amount_paid": amount_paid,
+        "amount_due": amount_due,
+        "show_paid": amount_paid > 0 and tone in {"paid", "partial", "unpaid"},
+        "show_due": amount_due > 0 and tone in {"partial", "unpaid"},
+    }
+
+
 def generate_invoice_pdf(sale, store, document_kind="invoice"):
     """Generate A4 invoice PDF for a sale."""
     from django.utils import timezone
@@ -215,6 +278,7 @@ def generate_invoice_pdf(sale, store, document_kind="invoice"):
         "store": store,
         "invoice_config": invoice_config,
         "document": document,
+        "payment_status_meta": _build_payment_status_meta(sale),
         "now": now,
         **_verification_context(sale),
     }

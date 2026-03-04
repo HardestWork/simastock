@@ -27,6 +27,25 @@ def test_pos_create_creates_draft_and_redirects_to_detail(client, sales_user, st
 
 
 @pytest.mark.django_db
+def test_sale_detail_shows_whatsapp_share_button_when_customer_has_phone(
+    client,
+    store,
+    sales_user,
+    store_user_sales,
+    customer,
+):
+    client.force_login(sales_user)
+    sale = create_sale(store=store, seller=sales_user, customer=customer)
+
+    response = client.get(f"/pos/{sale.pk}/")
+
+    assert response.status_code == 200
+    html = response.content.decode("utf-8")
+    assert "Envoyer les documents" in html
+    assert "https://wa.me/237699999999" in html
+
+
+@pytest.mark.django_db
 def test_pos_create_requires_active_store_membership(client, sales_user):
     client.force_login(sales_user)
 

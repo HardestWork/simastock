@@ -2,6 +2,7 @@
 import json
 from decimal import Decimal, InvalidOperation
 import logging
+import re
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -102,6 +103,53 @@ def _build_print_document_url(sale_pk, document_type: str, receipt_template: str
             return f"{base}?kind={document_type}"
         return base
     return ""
+
+
+def _normalize_whatsapp_phone(phone: str) -> str:
+    """Return a WhatsApp-compatible phone format (digits only)."""
+    return re.sub(r"\D+", "", (phone or "").strip())
+
+
+def _build_whatsapp_share_url(request, sale: Sale) -> str:
+    """Build a WhatsApp deep link to share sale documents with the customer."""
+    customer = getattr(sale, "customer", None)
+    customer_phone = _normalize_whatsapp_phone(getattr(customer, "phone", "") if customer else "")
+    if not customer_phone:
+        return ""
+
+    customer_name = (getattr(customer, "full_name", "") or "client").strip()
+    sale_ref = sale.invoice_number or str(sale.pk)
+    currency = getattr(sale.store, "effective_currency", "") or getattr(sale.store, "currency", "FCFA")
+    total_display = f"{sale.total} {currency}"
+
+    if sale.status == Sale.Status.DRAFT:
+        proforma_path = reverse("sales:sale-invoice", kwargs={"pk": sale.pk})
+        proforma_url = request.build_absolute_uri(f"{proforma_path}?kind=proforma")
+        quote_url = request.build_absolute_uri(f"{proforma_path}?kind=quote")
+        lines = [
+            f"Bonjour {customer_name},",
+            f"Voici vos documents provisoires pour la vente {sale_ref}:",
+            f"- Facture proforma: {proforma_url}",
+            f"- Devis: {quote_url}",
+            f"Montant estime: {total_display}",
+        ]
+    else:
+        invoice_url = request.build_absolute_uri(
+            reverse("sales:sale-invoice", kwargs={"pk": sale.pk})
+        )
+        receipt_url = request.build_absolute_uri(
+            reverse("sales:sale-receipt", kwargs={"pk": sale.pk})
+        )
+        lines = [
+            f"Bonjour {customer_name},",
+            f"Voici vos documents pour la vente {sale_ref}:",
+            f"- Facture: {invoice_url}",
+            f"- Recu: {receipt_url}",
+            f"Montant: {total_display}",
+        ]
+
+    payload = {"text": "\n".join(lines)}
+    return f"https://wa.me/{customer_phone}?{urlencode(payload)}"
 
 
 def _parse_bool_flag(value: str | None) -> bool:
@@ -568,6 +616,7 @@ class SaleDetailView(LoginRequiredMixin, DetailView):
             _build_sale_snapshot(sale, user),
             cls=DjangoJSONEncoder,
         )
+        ctx["whatsapp_share_url"] = _build_whatsapp_share_url(self.request, sale)
         return ctx
 
 

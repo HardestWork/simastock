@@ -246,6 +246,7 @@
             <p class="doc-title">{{ document.title }}</p>
             <p class="meta-line"><span class="label">Numero:</span> <span class="value">{{ document.number }}</span></p>
             <p class="meta-line"><span class="label">Date:</span> <span class="value">{{ sale.created_at|date:"d/m/Y" }}</span></p>
+            <p class="meta-line"><span class="label">Statut:</span> <span class="value">{{ payment_status_meta.label }}</span></p>
             {% if document.valid_until %}
             <p class="meta-line"><span class="label">Validite:</span> <span class="value">{{ invoice_config.offer_validity_days }} jours</span></p>
             {% endif %}
@@ -317,6 +318,18 @@
             <div class="total-label">TOTAL TTC:</div>
             <div class="total-value">{{ sale.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
         </div>
+        {% if payment_status_meta.show_paid %}
+        <div class="total-row">
+            <div class="total-label">Montant paye:</div>
+            <div class="total-value">{{ payment_status_meta.amount_paid|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
+        </div>
+        {% endif %}
+        {% if payment_status_meta.show_due %}
+        <div class="total-row" style="color:#b91c1c; font-weight:700;">
+            <div class="total-label" style="color:#b91c1c;">Reste a payer:</div>
+            <div class="total-value">{{ payment_status_meta.amount_due|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
+        </div>
+        {% endif %}
     </div>
 
     {% if invoice_config.terms or sale.notes %}
