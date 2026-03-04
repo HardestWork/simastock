@@ -2273,6 +2273,7 @@ class InventoryMovementViewSet(
                 actor=request.user,
                 reference=d.get('reference', ''),
                 batch_id=batch_id,
+                unit_cost=entry.get('unit_cost'),
             )
             movements.append(mv)
 

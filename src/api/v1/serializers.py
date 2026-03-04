@@ -739,14 +739,18 @@ class ProductStockSerializer(serializers.ModelSerializer):
     available_qty = serializers.IntegerField(read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_sku = serializers.CharField(source='product.sku', read_only=True)
+    product_cost_price = serializers.DecimalField(
+        source='product.cost_price', read_only=True, max_digits=12, decimal_places=2,
+    )
 
     class Meta:
         model = ProductStock
         fields = [
             'id', 'store', 'product', 'product_name', 'product_sku',
             'quantity', 'reserved_qty', 'min_qty', 'available_qty',
+            'product_cost_price',
         ]
-        read_only_fields = ['id', 'quantity', 'reserved_qty', 'available_qty']
+        read_only_fields = ['id', 'quantity', 'reserved_qty', 'available_qty', 'product_cost_price']
 
 
 class InventoryMovementSerializer(serializers.ModelSerializer):
@@ -888,6 +892,9 @@ class StockCountUpdateLinesSerializer(serializers.Serializer):
 class _StockEntryItemSerializer(serializers.Serializer):
     product_id = serializers.UUIDField()
     quantity = serializers.IntegerField(min_value=1)
+    unit_cost = serializers.DecimalField(
+        max_digits=12, decimal_places=2, required=False, allow_null=True, default=None,
+    )
 
 
 class BulkStockEntrySerializer(serializers.Serializer):

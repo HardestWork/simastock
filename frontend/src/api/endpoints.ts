@@ -547,7 +547,7 @@ export const stockApi = {
   createMovement: (data: Partial<InventoryMovement>) =>
     apiClient.post<InventoryMovement>('stock-movements/', data).then((r) => r.data),
 
-  bulkEntry: (data: { store_id: string; entries: { product_id: string; quantity: number }[]; reference?: string; reason?: string }) =>
+  bulkEntry: (data: { store_id: string; entries: { product_id: string; quantity: number; unit_cost?: string | null }[]; reference?: string; reason?: string }) =>
     apiClient.post<{ batch_id: string; count: number }>('stock-movements/bulk-entry/', data).then((r) => r.data),
 
   bulkAdjust: (data: { store_id: string; adjustments: { product_id: string; quantity: number }[]; reason: string }) =>

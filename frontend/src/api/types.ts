@@ -471,6 +471,7 @@ export interface ProductStock {
   reserved_qty: number;
   min_qty: number;
   available_qty: number;
+  product_cost_price?: string;
 }
 
 export type MovementType =

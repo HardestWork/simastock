@@ -20,6 +20,7 @@ interface EntryLine {
   product_sku: string;
   current_stock: number;
   quantity: number;
+  unit_cost: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -108,6 +109,7 @@ export default function StockEntryPage() {
           product_sku: stock.product_sku,
           current_stock: stock.quantity,
           quantity: 1,
+          unit_cost: stock.product_cost_price ?? '0',
         },
       ];
     });
@@ -143,11 +145,21 @@ export default function StockEntryPage() {
     );
   };
 
+  const handleUnitCostChange = (productId: string, value: string) => {
+    setLines((prev) =>
+      prev.map((l) => (l.product_id === productId ? { ...l, unit_cost: value } : l))
+    );
+  };
+
   const handleSubmit = () => {
     if (!currentStore || lines.length === 0) return;
     mutation.mutate({
       store_id: currentStore.id,
-      entries: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })),
+      entries: lines.map((l) => ({
+        product_id: l.product_id,
+        quantity: l.quantity,
+        unit_cost: l.unit_cost && parseFloat(l.unit_cost) > 0 ? l.unit_cost : null,
+      })),
       reference: reference.trim() || undefined,
       reason: reason.trim() || undefined,
     });
@@ -327,36 +339,55 @@ export default function StockEntryPage() {
                   </button>
                 </div>
 
-                {/* Stock info + quantity control */}
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Stock actuel</p>
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{line.current_stock}</p>
-                  </div>
-
-                  {/* Quantity control */}
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleDecrement(line.product_id)}
-                      className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      <Minus size={12} />
-                    </button>
+                {/* Price + Stock + Quantity */}
+                <div className="flex flex-col gap-2">
+                  {/* Unit cost input */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-500 dark:text-gray-400 shrink-0">Prix achat</label>
                     <input
                       type="number"
-                      min={1}
-                      value={line.quantity}
-                      onChange={(e) =>
-                        handleQuantityChange(line.product_id, parseInt(e.target.value) || 1)
-                      }
-                      className="w-16 text-center text-sm font-semibold border border-gray-200 dark:border-gray-600 rounded-md py-1 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary dark:bg-gray-700 dark:text-gray-100"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={line.unit_cost}
+                      onChange={(e) => handleUnitCostChange(line.product_id, e.target.value)}
+                      className="flex-1 px-2 py-1 text-sm text-right border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary dark:bg-gray-700 dark:text-gray-100"
+                      placeholder="0"
                     />
-                    <button
-                      onClick={() => handleIncrement(line.product_id)}
-                      className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      <Plus size={12} />
-                    </button>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">FCFA</span>
+                  </div>
+
+                  {/* Stock info + quantity control */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Stock actuel</p>
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{line.current_stock}</p>
+                    </div>
+
+                    {/* Quantity control */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleDecrement(line.product_id)}
+                        className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        value={line.quantity}
+                        onChange={(e) =>
+                          handleQuantityChange(line.product_id, parseInt(e.target.value) || 1)
+                        }
+                        className="w-16 text-center text-sm font-semibold border border-gray-200 dark:border-gray-600 rounded-md py-1 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary dark:bg-gray-700 dark:text-gray-100"
+                      />
+                      <button
+                        onClick={() => handleIncrement(line.product_id)}
+                        className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

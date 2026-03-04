@@ -53,15 +53,7 @@ function createEmptyLine(): PaymentLine {
   return { id: nextLineId++, method: 'CASH', amount: '', reference: '' };
 }
 
-function triggerReceiptDownload(url: string) {
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  iframe.src = url;
-  document.body.appendChild(iframe);
-  window.setTimeout(() => {
-    iframe.remove();
-  }, 12_000);
-}
+
 
 // ---------------------------------------------------------------------------
 // Component
@@ -139,7 +131,6 @@ export default function ProcessPaymentPage() {
         navigate('/cashier');
         return;
       }
-      triggerReceiptDownload(`/api/v1/sales/${paidSaleId}/receipt/?download=1`);
       navigate(`/cashier/receipt/${paidSaleId}`);
     },
     onError: (err: unknown) => {
