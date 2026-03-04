@@ -167,6 +167,10 @@ urlpatterns = [
     path('objectives/seller/credit-quality/', objective_api_views.SellerCreditQualityView.as_view(), name='objective-seller-credit-quality'),
     path('objectives/seller/product-mix/', objective_api_views.SellerProductMixView.as_view(), name='objective-seller-product-mix'),
     path('objectives/seller/coaching/', objective_api_views.SellerCoachingView.as_view(), name='objective-seller-coaching'),
+    path('objectives/hall-of-fame/', objective_api_views.HallOfFameView.as_view(), name='objective-hall-of-fame'),
+    path('objectives/podium/', objective_api_views.PodiumLiveView.as_view(), name='objective-podium'),
+    path('objectives/monthly-rewards/', objective_api_views.MonthlyRewardViewSet.as_view({'get': 'list', 'post': 'create'}), name='objective-monthly-rewards'),
+    path('objectives/monthly-rewards/<uuid:pk>/', objective_api_views.MonthlyRewardViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update'}), name='objective-monthly-reward-detail'),
 
     # Cashier analytics
     path('cashier-analytics/dashboard/', cashier_analytics_views.CashierAnalyticsDashboardView.as_view(), name='cashier-analytics-dashboard'),

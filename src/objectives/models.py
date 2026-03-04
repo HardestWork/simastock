@@ -420,6 +420,53 @@ class LeaderboardSnapshot(TimeStampedModel):
         ordering = ["-period"]
 
 
+class MonthlyReward(TimeStampedModel):
+    """Recompense mensuelle configurable pour le meilleur vendeur."""
+
+    store = models.ForeignKey(
+        "stores.Store",
+        on_delete=models.CASCADE,
+        related_name="monthly_rewards",
+    )
+    period = models.CharField("periode (YYYY-MM)", max_length=7)
+    reward_amount = models.DecimalField(
+        "montant recompense",
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0"),
+    )
+    description = models.TextField("description", blank=True)
+    winner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="monthly_rewards_won",
+    )
+    awarded_at = models.DateTimeField("attribue le", null=True, blank=True)
+    awarded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="monthly_rewards_awarded",
+    )
+
+    class Meta:
+        verbose_name = "recompense mensuelle"
+        verbose_name_plural = "recompenses mensuelles"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["store", "period"],
+                name="uniq_monthly_reward",
+            ),
+        ]
+        ordering = ["-period"]
+
+    def __str__(self) -> str:
+        return f"Recompense {self.period} — {self.store} ({self.reward_amount} FCFA)"
+
+
 class SellerSprint(TimeStampedModel):
     """Time-boxed competition between sellers within a store."""
 

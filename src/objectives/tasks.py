@@ -98,7 +98,7 @@ def close_month_objectives():
 
         top = (
             SellerMonthlyStats.objects.filter(store_id=store_id, period=period)
-            .order_by("-gross_amount")
+            .order_by("-net_amount")
             .first()
         )
         if top:
@@ -109,6 +109,27 @@ def close_month_objectives():
                 period=period,
                 defaults={"label": f"Meilleur vendeur {period}", "icon": "trophy"},
             )
+
+            # Auto-award monthly reward if configured
+            from objectives.models import MonthlyReward, SellerBonusHistory
+            reward = MonthlyReward.objects.filter(
+                store_id=store_id, period=period, winner__isnull=True
+            ).first()
+            if reward and reward.reward_amount > 0:
+                from django.utils import timezone as tz
+                reward.winner = top.seller
+                reward.awarded_at = tz.now()
+                reward.save(update_fields=["winner", "awarded_at"])
+                SellerBonusHistory.objects.create(
+                    stats=top,
+                    amount=reward.reward_amount,
+                    status=SellerBonusHistory.BonusStatus.PENDING,
+                    notes=f"Recompense meilleur vendeur {period}",
+                )
+                logger.info(
+                    "Monthly reward %s FCFA awarded to seller=%s store=%s period=%s",
+                    reward.reward_amount, top.seller_id, store_id, period,
+                )
 
 
 @shared_task

@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import TYPE_CHECKING
 
 from django.db.models import Count, Q, Sum
@@ -128,7 +128,15 @@ class ObjectiveCalculationEngine:
                 max_allowed_rank = min(hard_cap_ranks)
                 if reached_tier.rank > max_allowed_rank:
                     capped_tiers = [t for t in tiers if t.rank == max_allowed_rank]
-                    reached_tier = capped_tiers[0] if capped_tiers else None
+                    if capped_tiers:
+                        reached_tier = capped_tiers[0]
+                    else:
+                        logger.warning(
+                            "HARD_CAP penalty references tier rank %s which does not exist "
+                            "in rule for store %s — seller %s bonus set to 0.",
+                            max_allowed_rank, self.store_id, seller_id,
+                        )
+                        reached_tier = None
 
             # Recompute bonus after HARD_CAP adjustments to keep tier/bonus consistent.
             bonus = self._compute_bonus(net, reached_tier)
@@ -315,7 +323,7 @@ class ObjectiveCalculationEngine:
         if tier.bonus_amount > 0:
             return tier.bonus_amount
         if tier.bonus_rate > 0:
-            return (net * tier.bonus_rate / Decimal("100")).quantize(Decimal("1"))
+            return (net * tier.bonus_rate / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         return Decimal("0")
 
     # ------------------------------------------------------------------

@@ -9,6 +9,7 @@ from rest_framework import serializers
 from objectives.models import (
     LeaderboardSettings,
     LeaderboardSnapshot,
+    MonthlyReward,
     ObjectiveRule,
     ObjectiveTier,
     SellerBadge,
@@ -129,6 +130,7 @@ class SellerMonthlyStatsSerializer(serializers.ModelSerializer):
         max_digits=14, decimal_places=2, read_only=True
     )
     seller_name = serializers.SerializerMethodField()
+    achievement_pct = serializers.SerializerMethodField()
 
     class Meta:
         model = SellerMonthlyStats
@@ -138,11 +140,26 @@ class SellerMonthlyStatsSerializer(serializers.ModelSerializer):
             "sale_count", "cancellation_count", "avg_basket", "credit_recovered",
             "current_tier_rank", "current_tier_name", "bonus_earned",
             "tier_snapshot", "is_final", "last_trigger", "computed_at",
+            "achievement_pct",
         ]
         read_only_fields = ["id", "computed_at"]
 
     def get_seller_name(self, obj) -> str:
         return obj.seller.get_full_name() or obj.seller.email
+
+    def get_achievement_pct(self, obj) -> float:
+        """Overall achievement % = net_amount / max_tier_threshold * 100."""
+        tiers = obj.tier_snapshot or []
+        if not tiers:
+            return 0.0
+        max_threshold = max(
+            (Decimal(str(t.get("threshold", 0))) for t in tiers),
+            default=Decimal("0"),
+        )
+        if max_threshold <= 0:
+            return 0.0
+        net = obj.net_amount
+        return float(min((net / max_threshold * 100).quantize(Decimal("0.1")), Decimal("999.9")))
 
 
 # ────────────────────────────────────────────────────────────
@@ -219,11 +236,23 @@ class SellerDashboardSerializer(serializers.Serializer):
         if next_threshold is not None:
             remaining_to_next = max(Decimal("0"), next_threshold - net)
 
+        # Overall achievement % against max tier threshold
+        max_threshold = max(
+            (Decimal(str(t.get("threshold", 0))) for t in tiers),
+            default=Decimal("0"),
+        )
+        achievement_pct = 0.0
+        if max_threshold > 0:
+            achievement_pct = float(
+                min((net / max_threshold * 100).quantize(Decimal("0.1")), Decimal("999.9"))
+            )
+
         return {
             "net_amount": str(net),
             "current_tier_rank": stats.current_tier_rank,
             "current_tier_name": stats.current_tier_name,
             "progress_pct": pct,
+            "achievement_pct": achievement_pct,
             "remaining_to_next": str(remaining_to_next),
         }
 
@@ -428,3 +457,27 @@ class SellerSprintSerializer(serializers.ModelSerializer):
             "status", "prize_description", "created_by", "results", "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+# ────────────────────────────────────────────────────────────
+# Monthly Reward
+# ────────────────────────────────────────────────────────────
+
+class MonthlyRewardSerializer(serializers.ModelSerializer):
+    winner_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MonthlyReward
+        fields = [
+            "id", "store", "period", "reward_amount", "description",
+            "winner", "winner_name", "awarded_at", "awarded_by", "created_at",
+        ]
+        read_only_fields = [
+            "id", "store", "winner", "winner_name",
+            "awarded_at", "awarded_by", "created_at",
+        ]
+
+    def get_winner_name(self, obj) -> str | None:
+        if obj.winner:
+            return obj.winner.get_full_name() or obj.winner.email
+        return None

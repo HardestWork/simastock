@@ -297,16 +297,13 @@ export default function PosPage() {
     if (!sale || !discountValue) return;
     if (discountMode === 'percent') {
       const val = Math.min(100, Math.max(0, parseFloat(discountValue) || 0));
-      updateSaleMut.mutate({ discount_percent: val.toString() });
+      updateSaleMut.mutate({ discount_percent: val.toString(), discount_amount: '0' });
     }
-    // For fixed amount discount, the backend uses discount_percent on the Sale model.
-    // We calculate the equivalent percentage from the subtotal.
     if (discountMode === 'fixed') {
       const subtotal = parseFloat(sale.subtotal) || 0;
       if (subtotal > 0) {
         const fixedAmt = Math.min(subtotal, Math.max(0, parseFloat(discountValue) || 0));
-        const pct = (fixedAmt / subtotal) * 100;
-        updateSaleMut.mutate({ discount_percent: pct.toFixed(2) });
+        updateSaleMut.mutate({ discount_amount: fixedAmt.toFixed(2), discount_percent: '0' });
       }
     }
   }

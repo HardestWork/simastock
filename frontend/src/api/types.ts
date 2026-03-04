@@ -1901,6 +1901,68 @@ export interface LeaderboardData {
   computed_at: string;
 }
 
+// Hall of Fame
+export interface HallOfFameEntry {
+  period: string;
+  seller_id: string;
+  seller_name: string;
+  seller_initials: string;
+  net_amount: string;
+  sale_count: number;
+  current_tier_name: string;
+  current_tier_rank: number;
+  bonus_earned: string;
+  reward_amount: string;
+  is_final: boolean;
+}
+
+export interface HallOfFameData {
+  year: string;
+  entries: HallOfFameEntry[];
+}
+
+// Podium Live
+export interface PodiumEntry {
+  position: number;
+  seller_id: string;
+  seller_name: string;
+  seller_initials: string;
+  net_amount: string;
+  sale_count: number;
+  current_tier_name: string;
+  rank_change: number;
+}
+
+export interface PodiumMyPosition {
+  rank: number;
+  net_amount: string;
+  gap_to_podium: string;
+  is_on_podium: boolean;
+}
+
+export interface PodiumData {
+  period: string;
+  reward_amount: string;
+  podium: PodiumEntry[];
+  my_position: PodiumMyPosition;
+  total_sellers: number;
+  computed_at: string;
+}
+
+// Monthly Reward
+export interface MonthlyReward {
+  id: string;
+  store: string;
+  period: string;
+  reward_amount: string;
+  description: string;
+  winner: string | null;
+  winner_name: string | null;
+  awarded_at: string | null;
+  awarded_by: string | null;
+  created_at: string;
+}
+
 export interface SellerMonthlyStats {
   id: string;
   store: string;
@@ -1921,6 +1983,7 @@ export interface SellerMonthlyStats {
   is_final: boolean;
   last_trigger: string;
   computed_at: string | null;
+  achievement_pct: number;
 }
 
 export interface SellerPenaltyType {

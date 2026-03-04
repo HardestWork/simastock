@@ -19,6 +19,8 @@ import ProfileBadge from './components/ProfileBadge';
 import CoachingWidget from './components/CoachingWidget';
 import CreditQualityWidget from './components/CreditQualityWidget';
 import ProductMixWidget from './components/ProductMixWidget';
+import PodiumLive from './components/PodiumLive';
+import HallOfFame from './components/HallOfFame';
 
 function formatPeriod(year: number, month: number) {
   return `${year}-${String(month).padStart(2, '0')}`;
@@ -47,6 +49,7 @@ const TABS = [
   { id: 'credit', label: 'Credit' },
   { id: 'products', label: 'Produits' },
   { id: 'badges', label: 'Badges' },
+  { id: 'palmares', label: 'Palmares' },
   { id: 'history', label: 'Historique' },
   { id: 'discipline', label: 'Discipline' },
 ] as const;
@@ -69,6 +72,7 @@ export default function SellerObjectivePage() {
   const [period, setPeriod] = useState(() => formatPeriod(now.getFullYear(), now.getMonth() + 1));
   const [activeTab, setActiveTab] = useState<TabId>('progress');
   const [historyYear, setHistoryYear] = useState(now.getFullYear());
+  const [hallOfFameYear, setHallOfFameYear] = useState(now.getFullYear());
 
   const isCurrentMonth = period === currentPeriod;
 
@@ -116,6 +120,19 @@ export default function SellerObjectivePage() {
     queryKey: ['objective-product-mix', storeId, period],
     queryFn: () => objectiveApi.productMix({ store: storeId, period }),
     enabled: activeTab === 'products' && !!storeId,
+  });
+
+  const podiumQuery = useQuery({
+    queryKey: ['objective-podium', storeId, period],
+    queryFn: () => objectiveApi.podium({ store: storeId, period }),
+    enabled: activeTab === 'leaderboard' && !!storeId,
+    refetchInterval: activeTab === 'leaderboard' && isCurrentMonth ? 30000 : false,
+  });
+
+  const hallOfFameQuery = useQuery({
+    queryKey: ['objective-hall-of-fame', storeId, hallOfFameYear],
+    queryFn: () => objectiveApi.hallOfFame({ store: storeId, year: String(hallOfFameYear) }),
+    enabled: activeTab === 'palmares' && !!storeId,
   });
 
   const data = dashboardQuery.data;
@@ -224,7 +241,15 @@ export default function SellerObjectivePage() {
 
       {/* ── Tab: Classement ── */}
       {activeTab === 'leaderboard' && (
-        <>
+        <div className="space-y-4">
+          {/* Podium Live widget */}
+          {podiumQuery.isLoading ? (
+            <TabLoader />
+          ) : podiumQuery.data ? (
+            <PodiumLive data={podiumQuery.data} />
+          ) : null}
+
+          {/* Multi-period ranking */}
           {leaderboardQuery.isLoading ? (
             <TabLoader />
           ) : leaderboardQuery.data ? (
@@ -234,7 +259,7 @@ export default function SellerObjectivePage() {
               Impossible de charger le classement.
             </div>
           ) : null}
-        </>
+        </div>
       )}
 
       {/* ── Tab: Performance ── */}
@@ -297,6 +322,21 @@ export default function SellerObjectivePage() {
             <TabLoader />
           ) : (
             <BadgeShowcase badges={badgesQuery.data ?? []} />
+          )}
+        </>
+      )}
+
+      {/* ── Tab: Palmares ── */}
+      {activeTab === 'palmares' && (
+        <>
+          {hallOfFameQuery.isLoading ? (
+            <TabLoader />
+          ) : (
+            <HallOfFame
+              data={hallOfFameQuery.data ?? { year: String(hallOfFameYear), entries: [] }}
+              currentYear={hallOfFameYear}
+              onYearChange={setHallOfFameYear}
+            />
           )}
         </>
       )}

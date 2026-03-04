@@ -78,6 +78,9 @@ import type {
   CreditQuality,
   ProductMix,
   CoachingData,
+  HallOfFameData,
+  PodiumData,
+  MonthlyReward,
   CashierDashboardData,
   CashierTeamData,
   StockDashboardData,
@@ -1146,6 +1149,22 @@ export const objectiveApi = {
   // Coaching missions
   coaching: (params?: { period?: string; store?: string }) =>
     apiClient.get<CoachingData>('objectives/seller/coaching/', { params }).then((r) => r.data),
+
+  // Hall of Fame
+  hallOfFame: (params?: { year?: string; store?: string }) =>
+    apiClient.get<HallOfFameData>('objectives/hall-of-fame/', { params }).then((r) => r.data),
+
+  // Podium Live
+  podium: (params?: { period?: string; store?: string }) =>
+    apiClient.get<PodiumData>('objectives/podium/', { params }).then((r) => r.data),
+
+  // Monthly rewards
+  monthlyRewards: (params?: { store?: string }) =>
+    apiClient.get<MonthlyReward[]>('objectives/monthly-rewards/', { params }).then((r) => r.data),
+  createMonthlyReward: (data: { period: string; reward_amount: string; description?: string }, params?: { store?: string }) =>
+    apiClient.post<MonthlyReward>('objectives/monthly-rewards/', data, { params }).then((r) => r.data),
+  updateMonthlyReward: (id: string, data: Partial<MonthlyReward>) =>
+    apiClient.patch<MonthlyReward>(`objectives/monthly-rewards/${id}/`, data).then((r) => r.data),
 };
 
 export const cashierAnalyticsApi = {

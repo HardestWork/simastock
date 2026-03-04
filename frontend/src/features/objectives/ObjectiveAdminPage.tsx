@@ -5,7 +5,7 @@ import { objectiveApi } from '@/api/endpoints';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from '@/lib/toast';
 import { useStoreStore } from '@/store-context/store-store';
-import type { ObjectiveRule, SellerMonthlyStats, SellerPenaltyType } from '@/api/types';
+import type { ObjectiveRule, SellerMonthlyStats, SellerPenaltyType, MonthlyReward } from '@/api/types';
 import { Settings, Users, BarChart2, AlertTriangle, Plus, Edit2, Trash2, RefreshCw, CheckCircle, XCircle, DollarSign, ShoppingBag, Receipt, Percent, Wallet, Trophy, Search, ArrowDownUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import ObjectiveRuleForm from './components/admin/ObjectiveRuleForm';
 import SellerPerformanceBoard from './components/admin/SellerPerformanceBoard';
@@ -174,7 +174,7 @@ function computeSellerEfficiency(
   const cancellationRate = getSellerCancellationRate(stat);
   const basket = toAmount(stat.avg_basket);
 
-  const achievementPct = target > 0 ? (net / target) * 100 : net > 0 ? 70 : 0;
+  const achievementPct = stat.achievement_pct ?? (target > 0 ? (net / target) * 100 : net > 0 ? 70 : 0);
   const achievementIndex = clamp(achievementPct);
   const volumeIndex = context.maxNet > 0 ? clamp((net / context.maxNet) * 100) : 0;
   const basketIndex = context.teamAverageBasket > 0
@@ -330,6 +330,149 @@ function buildSellerMetrics(stats: SellerMonthlyStats[]): SellerMetricSummary {
     topSellerNet: Math.max(topSellerNet, 0),
     tierBreakdown,
   };
+}
+
+function MonthlyRewardConfig({
+  rewards,
+  onCreateReward,
+  onUpdateReward,
+  isLoading,
+}: {
+  rewards: MonthlyReward[];
+  onCreateReward: (data: { period: string; reward_amount: string; description?: string }) => void;
+  onUpdateReward: (data: { id: string; reward_amount?: string; description?: string }) => void;
+  isLoading: boolean;
+}) {
+  const now = new Date();
+  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const [selectedPeriod, setSelectedPeriod] = useState(currentPeriod);
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+
+  const existing = rewards.find((r) => r.period === selectedPeriod);
+
+  // Sync form when switching periods
+  const handlePeriodChange = (p: string) => {
+    setSelectedPeriod(p);
+    const r = rewards.find((rw) => rw.period === p);
+    setAmount(r ? r.reward_amount : '');
+    setDescription(r ? r.description : '');
+  };
+
+  // Generate period options: last 3 months + current + next 2
+  const periods: string[] = [];
+  for (let i = -3; i <= 2; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+
+  const handleSave = () => {
+    if (!amount || parseFloat(amount) <= 0) {
+      return;
+    }
+    if (existing) {
+      onUpdateReward({ id: existing.id, reward_amount: amount, description });
+    } else {
+      onCreateReward({ period: selectedPeriod, reward_amount: amount, description });
+    }
+  };
+
+  if (isLoading) return null;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <Trophy size={18} className="text-amber-500" />
+        <h3 className="font-semibold text-gray-800 dark:text-gray-100">
+          Récompense meilleur vendeur
+        </h3>
+      </div>
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        Configurez le montant de la récompense pour le meilleur vendeur de chaque mois.
+        Le gagnant est automatiquement déterminé à la clôture du mois.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Période
+          </label>
+          <select
+            value={selectedPeriod}
+            onChange={(e) => handlePeriodChange(e.target.value)}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
+            {periods.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Montant (FCFA)
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="1000"
+            value={amount || (existing?.reward_amount ?? '')}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Ex: 25000"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Description
+          </label>
+          <input
+            type="text"
+            value={description || (existing?.description ?? '')}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Ex: Prime meilleur vendeur"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <button
+          onClick={handleSave}
+          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium"
+        >
+          {existing ? 'Mettre à jour' : 'Enregistrer'}
+        </button>
+
+        {existing?.winner_name && (
+          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+            <Trophy size={14} />
+            <span>
+              Gagnant : <strong>{existing.winner_name}</strong>
+              {existing.awarded_at && ` — ${new Date(existing.awarded_at).toLocaleDateString('fr-FR')}`}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Past rewards summary */}
+      {rewards.filter((r) => r.winner_name).length > 0 && (
+        <div className="border-t border-gray-100 dark:border-gray-700 pt-3 mt-3">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Historique des récompenses attribuées</p>
+          <div className="space-y-1">
+            {rewards
+              .filter((r) => r.winner_name)
+              .slice(0, 6)
+              .map((r) => (
+                <div key={r.id} className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                  <span>{r.period} — {r.winner_name}</span>
+                  <span className="font-medium">{formatCurrency(parseFloat(r.reward_amount))}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ObjectiveAdminPage() {
@@ -597,6 +740,33 @@ export default function ObjectiveAdminPage() {
       qc.invalidateQueries({ queryKey: ['leaderboard-settings'] });
       toast.success('Paramètres du classement mis à jour.');
     },
+  });
+
+  // Monthly rewards
+  const monthlyRewardsQuery = useQuery({
+    queryKey: ['monthly-rewards', storeId],
+    queryFn: () => objectiveApi.monthlyRewards({ store: storeId }),
+    enabled: activeTab === 'leaderboard' && !!storeId,
+  });
+
+  const createRewardMutation = useMutation({
+    mutationFn: (data: { period: string; reward_amount: string; description?: string }) =>
+      objectiveApi.createMonthlyReward(data, { store: storeId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['monthly-rewards'] });
+      toast.success('Récompense mensuelle enregistrée.');
+    },
+    onError: () => toast.error('Erreur lors de la création de la récompense.'),
+  });
+
+  const updateRewardMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; reward_amount?: string; description?: string }) =>
+      objectiveApi.updateMonthlyReward(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['monthly-rewards'] });
+      toast.success('Récompense mise à jour.');
+    },
+    onError: () => toast.error('Erreur lors de la mise à jour.'),
   });
 
   // Penalty types
@@ -1358,6 +1528,14 @@ export default function ObjectiveAdminPage() {
               </div>
             </div>
           ) : null}
+
+          {/* Monthly Reward Configuration */}
+          <MonthlyRewardConfig
+            rewards={monthlyRewardsQuery.data ?? []}
+            onCreateReward={(data) => createRewardMutation.mutate(data)}
+            onUpdateReward={(data) => updateRewardMutation.mutate(data)}
+            isLoading={monthlyRewardsQuery.isLoading}
+          />
         </div>
       )}
 

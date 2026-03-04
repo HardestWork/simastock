@@ -113,7 +113,7 @@ export default function SaleListPage() {
   const capabilities = useCapabilities();
   const canCancel = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const canRefund = capabilities.includes('CAN_REFUND');
-  const canAdminAdvancedFilters = user?.role === 'ADMIN';
+  const canAdminAdvancedFilters = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const todayIso = useMemo(() => toLocalIsoDate(new Date()), []);
 
   const [page, setPage] = useState(1);

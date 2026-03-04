@@ -17,6 +17,7 @@ from objectives.leaderboard import LeaderboardEngine
 from objectives.models import (
     LeaderboardSettings,
     LeaderboardSnapshot,
+    MonthlyReward,
     ObjectiveRule,
     SellerBadge,
     SellerMonthlyStats,
@@ -28,6 +29,7 @@ from objectives.models import (
 )
 from objectives.objective_serializers import (
     LeaderboardSettingsSerializer,
+    MonthlyRewardSerializer,
     ObjectiveRuleSerializer,
     ObjectiveRuleWriteSerializer,
     SellerBadgeSerializer,
@@ -877,3 +879,234 @@ class SellerCoachingView(APIView):
                 "missions_total": len(missions),
             },
         })
+
+
+# ────────────────────────────────────────────────────────────
+# Helpers: visibility masking & initials
+# ────────────────────────────────────────────────────────────
+
+def _seller_initials(full_name: str) -> str:
+    parts = full_name.strip().split()
+    if len(parts) >= 2:
+        return (parts[0][0] + parts[-1][0]).upper()
+    return full_name[:2].upper() if full_name else "?"
+
+
+def _apply_visibility(entries: list, settings_obj, me_id: str, *, is_admin: bool = False) -> list:
+    """Apply leaderboard visibility masking to a list of entry dicts."""
+    if is_admin:
+        return entries
+    visibility = settings_obj.visibility
+    masked = []
+    for entry in entries:
+        item = dict(entry)
+        is_me = str(item.get("seller_id", "")) == me_id
+        if visibility == "ANONYMOUS":
+            item["seller_name"] = f"Vendeur #{item.get('position', item.get('rank', '?'))}"
+            item["seller_initials"] = "?"
+            item["seller_id"] = ""
+        elif visibility == "RANK_ONLY":
+            item["seller_name"] = f"Vendeur #{item.get('position', item.get('rank', '?'))}"
+            item["seller_initials"] = "?"
+            if not is_me:
+                item["seller_id"] = ""
+        elif visibility == "TIER_AND_RANK":
+            if not is_me:
+                item["seller_name"] = f"Vendeur #{item.get('position', item.get('rank', '?'))}"
+                item["seller_initials"] = "?"
+                item["seller_id"] = ""
+        if not settings_obj.show_amounts:
+            item.pop("net_amount", None)
+            item.pop("bonus_earned", None)
+            item.pop("reward_amount", None)
+        if not settings_obj.show_tier:
+            item.pop("current_tier_rank", None)
+            item.pop("current_tier_name", None)
+        masked.append(item)
+    return masked
+
+
+# ────────────────────────────────────────────────────────────
+# Hall of Fame
+# ────────────────────────────────────────────────────────────
+
+class HallOfFameView(APIView):
+    """
+    GET /api/v1/objectives/hall-of-fame/?year=2026
+    Returns the monthly best sellers (BEST_MONTH badge winners) for a store.
+    """
+    permission_classes = [permissions.IsAuthenticated, ModuleSellerPerformanceEnabled]
+
+    def get(self, request):
+        store = _resolve_store(request)
+        if not store:
+            return Response({"detail": "Boutique introuvable."}, status=404)
+
+        year = request.query_params.get("year", str(date.today().year))
+
+        badges = (
+            SellerBadge.objects
+            .filter(store=store, badge_type="BEST_MONTH", period__startswith=year)
+            .select_related("seller")
+            .order_by("period")
+        )
+
+        # Batch-fetch stats and rewards for all periods
+        periods = [b.period for b in badges]
+        stats_map = {
+            s.period: s
+            for s in SellerMonthlyStats.objects.filter(
+                store=store,
+                seller_id__in=[b.seller_id for b in badges],
+                period__in=periods,
+            ).select_related("seller")
+            if s.seller_id == next(
+                (b.seller_id for b in badges if b.period == s.period), None
+            )
+        }
+        rewards_map = {
+            r.period: r
+            for r in MonthlyReward.objects.filter(store=store, period__in=periods)
+        }
+
+        me_id = str(request.user.id)
+        is_admin = getattr(request.user, "role", None) in ("ADMIN", "MANAGER") or request.user.is_superuser
+        settings_obj, _ = LeaderboardSettings.objects.get_or_create(store=store)
+
+        entries = []
+        for badge in badges:
+            seller = badge.seller
+            seller_name = seller.get_full_name() or seller.email
+            stats = stats_map.get(badge.period)
+            reward = rewards_map.get(badge.period)
+
+            entry = {
+                "period": badge.period,
+                "seller_id": str(seller.id),
+                "seller_name": seller_name,
+                "seller_initials": _seller_initials(seller_name),
+                "net_amount": str(stats.net_amount) if stats else "0.00",
+                "sale_count": stats.sale_count if stats else 0,
+                "current_tier_name": stats.current_tier_name if stats else "",
+                "current_tier_rank": stats.current_tier_rank if stats else 0,
+                "bonus_earned": str(stats.bonus_earned) if stats else "0.00",
+                "reward_amount": str(reward.reward_amount) if reward else "0.00",
+                "is_final": stats.is_final if stats else True,
+            }
+            entries.append(entry)
+
+        entries = _apply_visibility(entries, settings_obj, me_id, is_admin=is_admin)
+
+        return Response({
+            "year": year,
+            "entries": entries,
+        })
+
+
+# ────────────────────────────────────────────────────────────
+# Podium Live
+# ────────────────────────────────────────────────────────────
+
+class PodiumLiveView(APIView):
+    """
+    GET /api/v1/objectives/podium/?period=YYYY-MM
+    Returns Top 3 podium + current user position for the live podium widget.
+    """
+    permission_classes = [permissions.IsAuthenticated, ModuleSellerPerformanceEnabled]
+
+    def get(self, request):
+        store = _resolve_store(request)
+        if not store:
+            return Response({"detail": "Boutique introuvable."}, status=404)
+
+        period = request.query_params.get("period") or _current_period()
+        me_id = str(request.user.id)
+        is_admin = getattr(request.user, "role", None) in ("ADMIN", "MANAGER") or request.user.is_superuser
+
+        # Get leaderboard snapshot (same logic as LeaderboardView)
+        lb_engine = LeaderboardEngine(store_id=str(store.id))
+        settings_obj, _ = LeaderboardSettings.objects.get_or_create(store=store)
+        snapshot = lb_engine.get_cached_snapshot(
+            period=period,
+            max_age_minutes=settings_obj.refresh_interval_minutes,
+        )
+        if not snapshot:
+            snapshot = lb_engine.compute_snapshot(period=period)
+
+        all_entries = snapshot.data or []
+
+        # Monthly reward
+        reward = MonthlyReward.objects.filter(store=store, period=period).first()
+        reward_amount = str(reward.reward_amount) if reward else "0.00"
+
+        # Build podium (top 3)
+        podium = []
+        for entry in all_entries[:3]:
+            seller_name = entry.get("seller_name", "")
+            podium.append({
+                "position": entry["rank"],
+                "seller_id": entry["seller_id"],
+                "seller_name": seller_name,
+                "seller_initials": _seller_initials(seller_name),
+                "net_amount": str(entry.get("net_amount", "0")),
+                "sale_count": entry.get("sale_count", 0),
+                "current_tier_name": entry.get("current_tier_name", ""),
+                "rank_change": entry.get("rank_change", 0),
+            })
+
+        podium = _apply_visibility(podium, settings_obj, me_id, is_admin=is_admin)
+
+        # Find current user position
+        my_position = {
+            "rank": 0,
+            "net_amount": "0.00",
+            "gap_to_podium": "0.00",
+            "is_on_podium": False,
+        }
+        third_place_amount = float(all_entries[2]["net_amount"]) if len(all_entries) >= 3 else 0
+        for entry in all_entries:
+            if entry["seller_id"] == me_id:
+                my_net = float(entry.get("net_amount", 0))
+                my_rank = entry["rank"]
+                my_position = {
+                    "rank": my_rank,
+                    "net_amount": str(entry.get("net_amount", "0")),
+                    "gap_to_podium": str(max(0, third_place_amount - my_net)) if my_rank > 3 else "0.00",
+                    "is_on_podium": my_rank <= 3,
+                }
+                break
+
+        return Response({
+            "period": period,
+            "reward_amount": reward_amount,
+            "podium": podium,
+            "my_position": my_position,
+            "total_sellers": len(all_entries),
+            "computed_at": snapshot.computed_at.isoformat(),
+        })
+
+
+# ────────────────────────────────────────────────────────────
+# Monthly Reward CRUD
+# ────────────────────────────────────────────────────────────
+
+class MonthlyRewardViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for monthly reward configuration.
+    Admin/Manager can set reward amounts per month.
+    """
+    permission_classes = [permissions.IsAuthenticated, ModuleSellerPerformanceEnabled, IsAdminOrManager]
+    serializer_class = MonthlyRewardSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        store = _resolve_store(self.request)
+        if not store:
+            return MonthlyReward.objects.none()
+        return MonthlyReward.objects.filter(store=store).select_related("winner")
+
+    def perform_create(self, serializer):
+        store = _resolve_store(self.request)
+        if store is None:
+            raise serializers.ValidationError({"store": "Boutique introuvable."})
+        serializer.save(store=store)

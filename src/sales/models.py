@@ -1,5 +1,5 @@
 """Models for the sales app."""
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -317,14 +317,14 @@ class Sale(TimeStampedModel):
         if self.discount_percent > 0:
             self.discount_amount = (
                 self.subtotal * self.discount_percent / Decimal("100")
-            ).quantize(Decimal("0.01"))
+            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         else:
             # Fixed discount mode: keep amount but enforce valid bounds.
             if self.discount_amount < 0:
                 self.discount_amount = Decimal("0.00")
             if self.discount_amount > self.subtotal:
                 self.discount_amount = self.subtotal
-            self.discount_amount = self.discount_amount.quantize(Decimal("0.01"))
+            self.discount_amount = self.discount_amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         taxable_base = self.subtotal - self.discount_amount
         if taxable_base < Decimal("0.00"):
@@ -345,7 +345,7 @@ class Sale(TimeStampedModel):
             vat_rate = Decimal(str(getattr(store, "effective_vat_rate", Decimal("0.00")) or Decimal("0.00")))
 
         if vat_enabled and vat_rate > Decimal("0.00"):
-            self.tax_amount = (taxable_base * vat_rate / Decimal("100")).quantize(Decimal("0.01"))
+            self.tax_amount = (taxable_base * vat_rate / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         else:
             self.tax_amount = Decimal("0.00")
 

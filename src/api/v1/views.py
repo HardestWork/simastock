@@ -2857,9 +2857,10 @@ class SaleViewSet(viewsets.ModelViewSet):
         store_ids = _user_store_ids(self.request.user)
         qs = qs.filter(store_id__in=store_ids)
 
-        # Sales role should only see its own sales in POS lists.
-        if self.action == "list" and getattr(self.request.user, "role", None) == "SALES":
-            qs = qs.filter(seller=self.request.user)
+        # Sales / sales-cashier roles should only see their own sales in POS lists.
+        user_role = getattr(self.request.user, "role", None)
+        if self.action == "list" and user_role in ("SALES", "SALES_CASHIER"):
+            qs = qs.filter(Q(seller=self.request.user) | Q(payments__cashier=self.request.user)).distinct()
 
         # Optional multi-status filter used by cashier queues.
         status_in = self.request.query_params.get("status_in")
@@ -2893,6 +2894,15 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         """Override to recalculate totals when discount/fields change."""
+        sale = self.get_object()
+        discount_changed = (
+            'discount_percent' in serializer.validated_data
+            or 'discount_amount' in serializer.validated_data
+        )
+        if discount_changed and sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
+            raise ValidationError(
+                "Impossible de modifier la remise apres un paiement partiel ou total."
+            )
         sale = serializer.save()
         from sales.services import recalculate_sale
         recalculate_sale(sale)
