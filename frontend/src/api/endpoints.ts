@@ -824,7 +824,7 @@ export const creditApi = {
   ledger: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<CreditLedgerEntry>>('credit-ledger/', { params }).then((r) => r.data),
 
-  pay: (accountId: string, data: { amount: string; reference?: string }) =>
+  pay: (accountId: string, data: { amount: string; reference?: string; sale_id?: string }) =>
     apiClient.post<CreditPaymentResult>(`credit-accounts/${accountId}/pay/`, data).then((r) => r.data),
 
   schedules: (params?: Record<string, string>) =>

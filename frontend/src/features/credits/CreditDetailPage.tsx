@@ -1,5 +1,5 @@
 ﻿/** Detail view for a single credit account with ledger history and payment form. */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -84,6 +84,45 @@ function getAmountColor(entry: CreditLedgerEntry) {
   return 'text-gray-700';
 }
 
+type InvoiceHistoryRow = {
+  saleId: string;
+  invoiceNumber: string;
+  totalCredit: number;
+  totalPaid: number;
+  remaining: number;
+};
+
+function buildInvoiceHistory(entries: CreditLedgerEntry[]): InvoiceHistoryRow[] {
+  const grouped = new Map<string, InvoiceHistoryRow>();
+
+  entries.forEach((entry) => {
+    if (!entry.sale) return;
+    const saleId = entry.sale;
+    const invoiceNumber = entry.sale_invoice_number || `FACTURE-${saleId.slice(0, 8).toUpperCase()}`;
+    const amount = Number(entry.amount) || 0;
+
+    if (!grouped.has(saleId)) {
+      grouped.set(saleId, {
+        saleId,
+        invoiceNumber,
+        totalCredit: 0,
+        totalPaid: 0,
+        remaining: 0,
+      });
+    }
+
+    const row = grouped.get(saleId)!;
+    if (amount > 0) {
+      row.totalCredit += amount;
+    } else if (amount < 0) {
+      row.totalPaid += Math.abs(amount);
+    }
+    row.remaining = row.totalCredit - row.totalPaid;
+  });
+
+  return Array.from(grouped.values()).sort((a, b) => b.invoiceNumber.localeCompare(a.invoiceNumber));
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -96,6 +135,7 @@ export default function CreditDetailPage() {
   // --- Payment form state ---
   const [amount, setAmount] = useState('');
   const [reference, setReference] = useState('');
+  const [selectedSaleId, setSelectedSaleId] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [latestReceiptUrl, setLatestReceiptUrl] = useState<string | null>(null);
 
@@ -129,8 +169,9 @@ export default function CreditDetailPage() {
     error: paymentError,
   } = useMutation({
     mutationFn: () => {
-      const payload: { amount: string; reference?: string } = { amount };
+      const payload: { amount: string; reference?: string; sale_id?: string } = { amount };
       if (reference.trim()) payload.reference = reference.trim();
+      if (selectedSaleId) payload.sale_id = selectedSaleId;
       return creditApi.pay(accountId, payload);
     },
     onSuccess: (result) => {
@@ -145,6 +186,7 @@ export default function CreditDetailPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.creditLedger.all });
       setAmount('');
       setReference('');
+      setSelectedSaleId('');
       setLatestReceiptUrl(receiptUrl);
       setSuccessMessage(`Paiement enregistre pour ${account?.customer_name ?? account?.customer ?? 'le client'}.`);
       setTimeout(() => setSuccessMessage(''), 4000);
@@ -177,6 +219,13 @@ export default function CreditDetailPage() {
   const balance = parseFloat(account.balance);
   const healthBanner = getHealthBanner(account);
   const ledgerEntries = ledgerData?.results ?? [];
+  const invoiceHistory = useMemo(() => buildInvoiceHistory(ledgerEntries), [ledgerEntries]);
+  const unassignedPaymentTotal = useMemo(
+    () => ledgerEntries
+      .filter((entry) => entry.entry_type === 'CREDIT_PAYMENT' && !entry.sale)
+      .reduce((sum, entry) => sum + Math.abs(Number(entry.amount) || 0), 0),
+    [ledgerEntries],
+  );
   const schedules = schedulesData?.results ?? [];
 
   return (
@@ -260,8 +309,8 @@ export default function CreditDetailPage() {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
               <label htmlFor="pay-amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Montant <span className="text-red-500">*</span>
               </label>
@@ -277,7 +326,7 @@ export default function CreditDetailPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
-            <div className="flex-1">
+            <div>
               <label htmlFor="pay-ref" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Reference
               </label>
@@ -290,7 +339,30 @@ export default function CreditDetailPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
-            <div className="flex items-end">
+            <div>
+              <label htmlFor="pay-sale" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Facture (optionnel)
+              </label>
+              <select
+                id="pay-sale"
+                value={selectedSaleId}
+                onChange={(e) => setSelectedSaleId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
+              >
+                <option value="">Paiement global (non assigne)</option>
+                {invoiceHistory
+                  .filter((row) => row.remaining > 0)
+                  .map((row) => (
+                    <option key={row.saleId} value={row.saleId}>
+                      {row.invoiceNumber} - Reste {formatCurrency(String(row.remaining))}
+                    </option>
+                  ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Selectionnez une facture pour separer clairement l'historique client.
+              </p>
+            </div>
+            <div className="md:col-span-3 flex justify-end">
               <button
                 onClick={() => submitPayment()}
                 disabled={paymentPending || !amount || parseFloat(amount) <= 0 || parseFloat(amount) > balance}
@@ -300,6 +372,44 @@ export default function CreditDetailPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Invoice history summary */}
+      {invoiceHistory.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Historique par facture</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Facture</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Credit</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Paye</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Reste</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoiceHistory.map((row) => (
+                  <tr key={row.saleId} className="border-b border-gray-50 dark:border-gray-700">
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{row.invoiceNumber}</td>
+                    <td className="px-4 py-3 text-right text-red-600">{formatCurrency(String(row.totalCredit))}</td>
+                    <td className="px-4 py-3 text-right text-emerald-600">{formatCurrency(String(row.totalPaid))}</td>
+                    <td className={`px-4 py-3 text-right font-semibold ${row.remaining > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {formatCurrency(String(row.remaining))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {unassignedPaymentTotal > 0 && (
+            <div className="px-6 py-3 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+              Paiements non assignes a une facture: {formatCurrency(String(unassignedPaymentTotal))}
+            </div>
+          )}
         </div>
       )}
 
@@ -317,6 +427,7 @@ export default function CreditDetailPage() {
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Date</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Type</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Facture</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Montant</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Solde apres</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Reference</th>
@@ -331,6 +442,9 @@ export default function CreditDetailPage() {
                   </td>
                   <td className="px-4 py-3">
                     {ENTRY_TYPE_LABELS[entry.entry_type] ?? entry.entry_type}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                    {entry.sale_invoice_number || '-'}
                   </td>
                   <td className={`px-4 py-3 text-right font-medium ${getAmountColor(entry)}`}>
                     {formatCurrency(entry.amount)}
@@ -359,7 +473,7 @@ export default function CreditDetailPage() {
               ))}
               {ledgerEntries.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                     Aucune ecriture.
                   </td>
                 </tr>
@@ -420,4 +534,3 @@ export default function CreditDetailPage() {
     </div>
   );
 }
-

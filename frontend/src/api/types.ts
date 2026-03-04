@@ -703,6 +703,7 @@ export interface Sale {
   store: string;
   seller: string;
   seller_name: string | null;
+  cashier_name?: string | null;
   customer: string | null;
   customer_name: string | null;
   customer_is_default?: boolean;
@@ -908,6 +909,7 @@ export interface CreditLedgerEntry {
   reference: string;
   notes: string;
   sale: string | null;
+  sale_invoice_number: string | null;
   created_by: string | null;
   created_at: string;
 }

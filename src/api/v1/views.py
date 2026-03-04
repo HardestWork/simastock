@@ -2781,7 +2781,7 @@ class SaleViewSet(viewsets.ModelViewSet):
     serializer_class = SaleSerializer
     queryset = Sale.objects.select_related(
         'store', 'seller', 'customer', 'source_quote',
-    ).prefetch_related('items', 'items__product')
+    ).prefetch_related('items', 'items__product', 'payments__cashier')
     filterset_fields = ['store', 'status', 'seller', 'customer', 'is_credit_sale']
     search_fields = [
         'invoice_number',
@@ -2792,7 +2792,15 @@ class SaleViewSet(viewsets.ModelViewSet):
         'seller__last_name',
         'seller__email',
     ]
-    ordering_fields = ['created_at', 'total', 'invoice_number', 'status', 'amount_due']
+    ordering_fields = [
+        'created_at',
+        'total',
+        'invoice_number',
+        'status',
+        'amount_due',
+        'seller__last_name',
+        'seller__first_name',
+    ]
     pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
@@ -2808,6 +2816,10 @@ class SaleViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset()
         store_ids = _user_store_ids(self.request.user)
         qs = qs.filter(store_id__in=store_ids)
+
+        # Sales role should only see its own sales in POS lists.
+        if self.action == "list" and getattr(self.request.user, "role", None) == "SALES":
+            qs = qs.filter(seller=self.request.user)
 
         # Optional multi-status filter used by cashier queues.
         status_in = self.request.query_params.get("status_in")
@@ -2832,6 +2844,10 @@ class SaleViewSet(viewsets.ModelViewSet):
             qs = qs.filter(created_at__date__gte=date_from)
         if date_to:
             qs = qs.filter(created_at__date__lte=date_to)
+
+        cashier_id = self.request.query_params.get('cashier')
+        if cashier_id:
+            qs = qs.filter(payments__cashier_id=cashier_id).distinct()
 
         return qs
 
@@ -3544,6 +3560,7 @@ class CustomerAccountViewSet(viewsets.ModelViewSet):
 
         amount = request.data.get('amount')
         reference = request.data.get('reference', '')
+        sale_id = request.data.get('sale_id')
 
         if not amount:
             raise ValidationError({'amount': 'Ce champ est requis.'})
@@ -3553,6 +3570,31 @@ class CustomerAccountViewSet(viewsets.ModelViewSet):
         except Exception:
             raise ValidationError({'amount': 'Montant invalide.'})
 
+        sale = None
+        if sale_id:
+            try:
+                sale = Sale.objects.get(pk=sale_id)
+            except Sale.DoesNotExist:
+                raise ValidationError({'sale_id': 'Facture introuvable.'})
+
+            if sale.store_id != account.store_id or sale.customer_id != account.customer_id:
+                raise ValidationError(
+                    {'sale_id': "La facture selectionnee n'appartient pas a ce client dans cette boutique."},
+                )
+
+            has_credit_entry_for_sale = CreditLedgerEntry.objects.filter(
+                account=account,
+                sale=sale,
+                entry_type=CreditLedgerEntry.EntryType.SALE_ON_CREDIT,
+            ).exists()
+            if not has_credit_entry_for_sale:
+                raise ValidationError(
+                    {'sale_id': "Cette facture n'est pas enregistree dans l'historique credit du client."},
+                )
+
+            if not reference and sale.invoice_number:
+                reference = f"Paiement facture {sale.invoice_number}"
+
         try:
             from credits.services import record_credit_payment
             entry = record_credit_payment(
@@ -3560,6 +3602,7 @@ class CustomerAccountViewSet(viewsets.ModelViewSet):
                 amount=amount,
                 reference=reference,
                 actor=request.user,
+                sale=sale,
             )
         except ValueError as e:
             raise ValidationError({'detail': str(e)})
@@ -3627,7 +3670,7 @@ class CreditLedgerViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CreditLedgerEntry.objects.select_related(
         'account', 'account__store', 'account__customer', 'sale', 'created_by',
     )
-    filterset_fields = ['account']
+    filterset_fields = ['account', 'sale']
     ordering_fields = ['created_at']
     permission_classes = [IsAuthenticated, FeatureCreditManagementEnabled]
 

@@ -988,6 +988,7 @@ class SaleSerializer(serializers.ModelSerializer):
     customer_name = serializers.SerializerMethodField()
     customer_is_default = serializers.SerializerMethodField()
     seller_name = serializers.SerializerMethodField()
+    cashier_name = serializers.SerializerMethodField()
     source_quote_number = serializers.SerializerMethodField()
     payment_status = serializers.CharField(read_only=True)
 
@@ -999,6 +1000,7 @@ class SaleSerializer(serializers.ModelSerializer):
             'invoice_number', 'status', 'payment_status', 'subtotal', 'discount_amount',
             'discount_percent', 'tax_amount', 'total', 'amount_paid',
             'amount_due', 'items', 'is_credit_sale', 'notes',
+            'cashier_name',
             'source_quote', 'source_quote_number', 'submitted_at', 'created_at',
             'verification_token', 'coupon_code',
         ]
@@ -1021,6 +1023,21 @@ class SaleSerializer(serializers.ModelSerializer):
     def get_seller_name(self, obj):
         if obj.seller:
             return obj.seller.get_full_name()
+        return None
+
+    def get_cashier_name(self, obj):
+        prefetched = getattr(obj, "_prefetched_objects_cache", {}).get("payments")
+        if prefetched is not None:
+            first_payment = min(prefetched, key=lambda p: p.created_at) if prefetched else None
+        else:
+            first_payment = (
+                obj.payments
+                .select_related('cashier')
+                .order_by('created_at')
+                .first()
+            )
+        if first_payment and first_payment.cashier:
+            return first_payment.cashier.get_full_name()
         return None
 
     def get_source_quote_number(self, obj):
@@ -1221,12 +1238,18 @@ class CustomerAccountSerializer(serializers.ModelSerializer):
 
 class CreditLedgerEntrySerializer(serializers.ModelSerializer):
     """Serializer for CreditLedgerEntry model."""
+    sale_invoice_number = serializers.CharField(
+        source="sale.invoice_number",
+        read_only=True,
+        allow_null=True,
+        default=None,
+    )
 
     class Meta:
         model = CreditLedgerEntry
         fields = [
             'id', 'account', 'entry_type', 'amount', 'balance_after',
-            'reference', 'sale', 'notes', 'created_by', 'created_at',
+            'reference', 'sale', 'sale_invoice_number', 'notes', 'created_by', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
 
