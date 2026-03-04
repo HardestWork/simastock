@@ -1056,7 +1056,7 @@ class SaleAddItemSerializer(serializers.Serializer):
     )
     unit_price_override = serializers.DecimalField(
         max_digits=12, decimal_places=2, required=False, allow_null=True, default=None,
-        help_text="Prix unitaire personnalise (MANAGER/ADMIN uniquement).",
+        help_text="Prix unitaire personnalise (utilisateur autorise a modifier les prix).",
     )
 
     def validate_product_id(self, value):

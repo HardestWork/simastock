@@ -403,10 +403,13 @@ def _can_override_price_for_store(user, store) -> bool:
         return True
     if not store:
         return False
-    if not store.is_feature_enabled("advanced_permissions"):
-        return False
     membership = user.store_users.filter(store=store).first()
-    return bool(membership and membership.has_capability("CAN_OVERRIDE_PRICE"))
+    if membership and membership.has_capability("CAN_OVERRIDE_PRICE"):
+        return True
+
+    from stores.capabilities import ROLE_CAPABILITY_MAP
+
+    return "CAN_OVERRIDE_PRICE" in ROLE_CAPABILITY_MAP.get(user.role, [])
 
 
 def _filter_queryset_by_enterprise(qs, user, *, field_name: str = "enterprise_id"):
@@ -2793,8 +2796,10 @@ class SaleViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
-        if self.action in ('create', 'add_item', 'set_item_quantity', 'set_item_unit_price', 'remove_item', 'submit', 'apply_coupon', 'remove_coupon'):
+        if self.action in ('create', 'add_item', 'set_item_quantity', 'remove_item', 'submit', 'apply_coupon', 'remove_coupon'):
             return [IsSales(), FeatureSalesPOSEnabled()]
+        if self.action == 'set_item_unit_price':
+            return [IsAuthenticated(), FeatureSalesPOSEnabled()]
         if self.action == 'cancel':
             return [IsManagerOrAdmin(), FeatureSalesPOSEnabled()]
         return [IsAuthenticated(), FeatureSalesPOSEnabled()]
@@ -3087,12 +3092,17 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='set-item-unit-price')
     def set_item_unit_price(self, request, pk=None):
-        """Set an exact unit price for one item in a draft sale."""
+        """Set an exact unit price for one item in an editable sale."""
         sale = self.get_object()
 
-        if sale.status != Sale.Status.DRAFT:
+        editable_statuses = {
+            Sale.Status.DRAFT,
+            Sale.Status.PENDING_PAYMENT,
+            Sale.Status.PARTIALLY_PAID,
+        }
+        if sale.status not in editable_statuses:
             return Response(
-                {'detail': 'Le prix ne peut etre modifie que sur des ventes en brouillon.'},
+                {'detail': 'Le prix ne peut etre modifie que sur des ventes en brouillon, en attente ou partiellement payees.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

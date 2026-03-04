@@ -19,7 +19,7 @@ from stores.services import create_audit_log
 from .models import CashShift, Payment
 
 logger = logging.getLogger("boutique")
-ALLOWED_CASHIER_ROLES = ("CASHIER", "MANAGER", "ADMIN")
+ALLOWED_CASHIER_ROLES = ("CASHIER", "SALES_CASHIER", "MANAGER", "ADMIN")
 
 
 def _can_cash(user, store) -> bool:

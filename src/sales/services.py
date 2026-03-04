@@ -232,11 +232,18 @@ def update_item_unit_price(
     new_unit_price: Decimal | int | float,
     actor=None,
 ) -> SaleItem:
-    """Update the unit price of an item on a DRAFT sale."""
+    """Update the unit price of an item on an editable sale."""
     sale = Sale.objects.select_for_update().get(pk=sale.pk)
 
-    if sale.status != Sale.Status.DRAFT:
-        raise ValueError("Impossible de modifier le prix: la vente n'est pas en brouillon.")
+    editable_statuses = {
+        Sale.Status.DRAFT,
+        Sale.Status.PENDING_PAYMENT,
+        Sale.Status.PARTIALLY_PAID,
+    }
+    if sale.status not in editable_statuses:
+        raise ValueError(
+            "Impossible de modifier le prix pour ce statut de vente."
+        )
 
     try:
         item = sale.items.select_for_update().get(pk=item_id)
@@ -250,6 +257,12 @@ def update_item_unit_price(
     item.unit_price = unit_price
     item.save()
     recalculate_sale(sale)
+
+    if sale.amount_paid > sale.total:
+        raise ValueError(
+            "Impossible de definir ce prix: il est inferieur au montant deja encaisse."
+        )
+
     logger.info(
         "Updated unit price for item %s on sale %s to %s",
         item_id, sale.pk, unit_price,

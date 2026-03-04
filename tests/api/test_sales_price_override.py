@@ -2,6 +2,7 @@ from decimal import Decimal
 
 import pytest
 
+from accounts.models import User
 from catalog.models import Product
 from stock.models import ProductStock
 from stores.models import Store, StoreUser
@@ -133,3 +134,93 @@ def test_set_item_unit_price_allows_sales_with_capability(
     assert price_resp.status_code == 200, price_resp.json()
     payload = price_resp.json()
     assert payload["items"][0]["unit_price"] == "42000.00"
+
+
+@pytest.mark.django_db
+def test_set_item_unit_price_allows_cashier_during_checkout(
+    client,
+    sales_user,
+    cashier_user,
+    store,
+    store_user_sales,
+    store_user_cashier,
+    product,
+    product_stock,
+):
+    store_user_sales.capabilities = ["CAN_SELL"]
+    store_user_sales.save(update_fields=["capabilities"])
+    store_user_cashier.capabilities = ["CAN_CASH", "CAN_OVERRIDE_PRICE"]
+    store_user_cashier.save(update_fields=["capabilities"])
+
+    client.force_login(sales_user)
+    create_resp = client.post("/api/v1/sales/", {"store_id": str(store.pk)})
+    assert create_resp.status_code == 201, create_resp.json()
+    sale_id = create_resp.json()["id"]
+
+    add_resp = client.post(
+        f"/api/v1/sales/{sale_id}/add-item/",
+        {"product_id": str(product.pk), "quantity": 1},
+    )
+    assert add_resp.status_code == 200, add_resp.json()
+    item_id = add_resp.json()["items"][0]["id"]
+
+    submit_resp = client.post(f"/api/v1/sales/{sale_id}/submit/")
+    assert submit_resp.status_code == 200, submit_resp.json()
+
+    client.force_login(cashier_user)
+    price_resp = client.post(
+        f"/api/v1/sales/{sale_id}/set-item-unit-price/",
+        {"item_id": item_id, "unit_price": "42000.00"},
+    )
+    assert price_resp.status_code == 200, price_resp.json()
+    assert price_resp.json()["items"][0]["unit_price"] == "42000.00"
+
+
+@pytest.mark.django_db
+def test_set_item_unit_price_allows_sales_cashier_during_checkout(
+    client,
+    sales_user,
+    store,
+    store_user_sales,
+    product,
+    product_stock,
+):
+    sales_cashier_user = User.objects.create_user(
+        email="salescashier@test.com",
+        password="testpass123",
+        first_name="Sales",
+        last_name="Cashier",
+        role=User.Role.SALES_CASHIER,
+    )
+    StoreUser.objects.create(
+        store=store,
+        user=sales_cashier_user,
+        is_default=True,
+        capabilities=["CAN_CASH", "CAN_OVERRIDE_PRICE"],
+    )
+
+    store_user_sales.capabilities = ["CAN_SELL"]
+    store_user_sales.save(update_fields=["capabilities"])
+
+    client.force_login(sales_user)
+    create_resp = client.post("/api/v1/sales/", {"store_id": str(store.pk)})
+    assert create_resp.status_code == 201, create_resp.json()
+    sale_id = create_resp.json()["id"]
+
+    add_resp = client.post(
+        f"/api/v1/sales/{sale_id}/add-item/",
+        {"product_id": str(product.pk), "quantity": 1},
+    )
+    assert add_resp.status_code == 200, add_resp.json()
+    item_id = add_resp.json()["items"][0]["id"]
+
+    submit_resp = client.post(f"/api/v1/sales/{sale_id}/submit/")
+    assert submit_resp.status_code == 200, submit_resp.json()
+
+    client.force_login(sales_cashier_user)
+    price_resp = client.post(
+        f"/api/v1/sales/{sale_id}/set-item-unit-price/",
+        {"item_id": item_id, "unit_price": "43000.00"},
+    )
+    assert price_resp.status_code == 200, price_resp.json()
+    assert price_resp.json()["items"][0]["unit_price"] == "43000.00"

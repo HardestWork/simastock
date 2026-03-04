@@ -49,8 +49,19 @@ ROLE_CAPABILITY_MAP = {
         "CAN_EXPORT_COMMERCIAL",
     ],
     "SALES": ["CAN_SELL", "CAN_MANAGE_LEADS", "CAN_MANAGE_OPPORTUNITIES", "CAN_LOG_ACTIVITY"],
-    "CASHIER": ["CAN_CASH", "CAN_CREATE_EXPENSE", "CAN_VIEW_EXPENSE_REPORTS"],
-    "SALES_CASHIER": ["CAN_SELL", "CAN_CASH", "CAN_CREATE_EXPENSE", "CAN_VIEW_EXPENSE_REPORTS"],
+    "CASHIER": [
+        "CAN_CASH",
+        "CAN_OVERRIDE_PRICE",
+        "CAN_CREATE_EXPENSE",
+        "CAN_VIEW_EXPENSE_REPORTS",
+    ],
+    "SALES_CASHIER": [
+        "CAN_SELL",
+        "CAN_CASH",
+        "CAN_OVERRIDE_PRICE",
+        "CAN_CREATE_EXPENSE",
+        "CAN_VIEW_EXPENSE_REPORTS",
+    ],
     "STOCKER": ["CAN_STOCK"],
 }
 
@@ -67,13 +78,19 @@ CAPABILITY_PRESETS = {
     },
     "caissier": {
         "label": "Caissier",
-        "capabilities": ["CAN_CASH", "CAN_CREATE_EXPENSE", "CAN_VIEW_EXPENSE_REPORTS"],
+        "capabilities": [
+            "CAN_CASH",
+            "CAN_OVERRIDE_PRICE",
+            "CAN_CREATE_EXPENSE",
+            "CAN_VIEW_EXPENSE_REPORTS",
+        ],
     },
     "vendeur_caissier": {
         "label": "Vendeur-Caissier",
         "capabilities": [
             "CAN_SELL",
             "CAN_CASH",
+            "CAN_OVERRIDE_PRICE",
             "CAN_CREATE_EXPENSE",
             "CAN_VIEW_EXPENSE_REPORTS",
         ],

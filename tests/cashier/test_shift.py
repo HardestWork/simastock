@@ -1,7 +1,9 @@
 import pytest
 from decimal import Decimal
+from accounts.models import User
 from cashier.services import open_shift, close_shift
 from cashier.models import CashShift
+from stores.models import StoreUser
 
 
 @pytest.mark.django_db
@@ -31,3 +33,20 @@ class TestCashShift:
         shift = open_shift(store=store, cashier=manager_user, opening_float=Decimal('25000'))
         assert shift.status == CashShift.Status.OPEN
         assert shift.cashier == manager_user
+
+    def test_sales_cashier_can_open_shift(self, store):
+        sales_cashier_user = User.objects.create_user(
+            email="salescashier-shift@test.com",
+            password="testpass123",
+            first_name="Sales",
+            last_name="Cashier",
+            role=User.Role.SALES_CASHIER,
+        )
+        StoreUser.objects.create(
+            store=store,
+            user=sales_cashier_user,
+            is_default=True,
+        )
+        shift = open_shift(store=store, cashier=sales_cashier_user, opening_float=Decimal("25000"))
+        assert shift.status == CashShift.Status.OPEN
+        assert shift.cashier == sales_cashier_user

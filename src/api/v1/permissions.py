@@ -669,9 +669,9 @@ class CanApproveRefund(_CapabilityPermission):
 
 
 class CanOverridePrice(_CapabilityPermission):
-    """Allow managers and admins to override the selling price at sale time."""
+    """Allow authorized cashier/sales/manager roles to override item prices."""
     capability = "CAN_OVERRIDE_PRICE"
-    allowed_roles = ("MANAGER", "ADMIN")
+    allowed_roles = ("CASHIER", "SALES_CASHIER", "MANAGER", "ADMIN")
 
 
 class CanCreateExpense(_CapabilityPermission):

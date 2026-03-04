@@ -49,11 +49,11 @@ def _parse_receipt_template(value: str) -> str:
 # ==================================================================
 
 class CashierOrManagerMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """Restrict access to users with CASHIER or MANAGER (or ADMIN) role."""
+    """Restrict access to cashier-capable roles (cashier/manager/admin)."""
 
     def test_func(self):
         user = self.request.user
-        return user.role in ("CASHIER", "MANAGER", "ADMIN")
+        return user.role in ("CASHIER", "SALES_CASHIER", "MANAGER", "ADMIN")
 
     def handle_no_permission(self):
         if not self.request.user.is_authenticated:
