@@ -48,10 +48,15 @@ ROLE_CAPABILITY_MAP = {
         "CAN_VIEW_COMMERCIAL_TEAM",
         "CAN_EXPORT_COMMERCIAL",
     ],
-    "SALES": ["CAN_SELL", "CAN_MANAGE_LEADS", "CAN_MANAGE_OPPORTUNITIES", "CAN_LOG_ACTIVITY"],
+    "SALES": [
+        "CAN_SELL",
+        "CAN_OVERRIDE_PRICE",
+        "CAN_MANAGE_LEADS",
+        "CAN_MANAGE_OPPORTUNITIES",
+        "CAN_LOG_ACTIVITY",
+    ],
     "CASHIER": [
         "CAN_CASH",
-        "CAN_OVERRIDE_PRICE",
         "CAN_CREATE_EXPENSE",
         "CAN_VIEW_EXPENSE_REPORTS",
     ],
@@ -67,7 +72,7 @@ ROLE_CAPABILITY_MAP = {
 
 # Quick-assign presets for the management UI
 CAPABILITY_PRESETS = {
-    "vendeur": {"label": "Vendeur", "capabilities": ["CAN_SELL"]},
+    "vendeur": {"label": "Vendeur", "capabilities": ["CAN_SELL", "CAN_OVERRIDE_PRICE"]},
     "commercial": {
         "label": "Commercial",
         "capabilities": ["CAN_MANAGE_LEADS", "CAN_MANAGE_OPPORTUNITIES", "CAN_LOG_ACTIVITY"],
@@ -80,7 +85,6 @@ CAPABILITY_PRESETS = {
         "label": "Caissier",
         "capabilities": [
             "CAN_CASH",
-            "CAN_OVERRIDE_PRICE",
             "CAN_CREATE_EXPENSE",
             "CAN_VIEW_EXPENSE_REPORTS",
         ],

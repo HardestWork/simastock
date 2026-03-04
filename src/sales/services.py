@@ -232,17 +232,12 @@ def update_item_unit_price(
     new_unit_price: Decimal | int | float,
     actor=None,
 ) -> SaleItem:
-    """Update the unit price of an item on an editable sale."""
+    """Update the unit price of an item on a DRAFT sale."""
     sale = Sale.objects.select_for_update().get(pk=sale.pk)
 
-    editable_statuses = {
-        Sale.Status.DRAFT,
-        Sale.Status.PENDING_PAYMENT,
-        Sale.Status.PARTIALLY_PAID,
-    }
-    if sale.status not in editable_statuses:
+    if sale.status != Sale.Status.DRAFT:
         raise ValueError(
-            "Impossible de modifier le prix pour ce statut de vente."
+            "Impossible de modifier le prix: la vente n'est pas en brouillon."
         )
 
     try:

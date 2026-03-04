@@ -404,8 +404,8 @@ def _can_override_price_for_store(user, store) -> bool:
     if not store:
         return False
     membership = user.store_users.filter(store=store).first()
-    if membership and membership.has_capability("CAN_OVERRIDE_PRICE"):
-        return True
+    if membership:
+        return membership.has_capability("CAN_OVERRIDE_PRICE")
 
     from stores.capabilities import ROLE_CAPABILITY_MAP
 
@@ -2799,7 +2799,7 @@ class SaleViewSet(viewsets.ModelViewSet):
         if self.action in ('create', 'add_item', 'set_item_quantity', 'remove_item', 'submit', 'apply_coupon', 'remove_coupon'):
             return [IsSales(), FeatureSalesPOSEnabled()]
         if self.action == 'set_item_unit_price':
-            return [IsAuthenticated(), FeatureSalesPOSEnabled()]
+            return [IsSales(), FeatureSalesPOSEnabled()]
         if self.action == 'cancel':
             return [IsManagerOrAdmin(), FeatureSalesPOSEnabled()]
         return [IsAuthenticated(), FeatureSalesPOSEnabled()]
@@ -3092,17 +3092,12 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='set-item-unit-price')
     def set_item_unit_price(self, request, pk=None):
-        """Set an exact unit price for one item in an editable sale."""
+        """Set an exact unit price for one item in a draft sale."""
         sale = self.get_object()
 
-        editable_statuses = {
-            Sale.Status.DRAFT,
-            Sale.Status.PENDING_PAYMENT,
-            Sale.Status.PARTIALLY_PAID,
-        }
-        if sale.status not in editable_statuses:
+        if sale.status != Sale.Status.DRAFT:
             return Response(
-                {'detail': 'Le prix ne peut etre modifie que sur des ventes en brouillon, en attente ou partiellement payees.'},
+                {'detail': 'Le prix ne peut etre modifie que sur des ventes en brouillon.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

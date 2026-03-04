@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { saleApi, paymentApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
-import { useCapabilities } from '@/lib/capabilities';
 import type { PaymentMethod, Sale } from '@/api/types';
 import {
   ArrowLeft,
@@ -89,14 +88,11 @@ export default function ProcessPaymentPage() {
   const { saleId } = useParams<{ saleId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const capabilities = useCapabilities();
-  const canOverridePrice = capabilities.includes('CAN_OVERRIDE_PRICE');
 
   // State
   const [sale, setSale] = useState<Sale | null>(null);
   const [lines, setLines] = useState<PaymentLine[]>(() => [createEmptyLine()]);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [itemUnitPriceInputs, setItemUnitPriceInputs] = useState<Record<string, string>>({});
   const [receiptTemplate, setReceiptTemplate] = useState<ReceiptTemplate>(() => {
     if (typeof window === 'undefined') return 'ticket';
     return normalizeReceiptTemplate(window.localStorage.getItem(RECEIPT_TEMPLATE_STORAGE_KEY));
@@ -153,20 +149,6 @@ export default function ProcessPaymentPage() {
 
   const existingPayments = existingPaymentsData?.results ?? [];
 
-  const setItemUnitPriceMut = useMutation({
-    mutationFn: ({ itemId, unitPrice }: { itemId: string; unitPrice: string }) =>
-      saleApi.setItemUnitPrice(sale!.id, { item_id: itemId, unit_price: unitPrice }),
-    onSuccess: (updatedSale) => {
-      setSubmitError(null);
-      setSale(updatedSale);
-    },
-    onError: (err: unknown) => {
-      const msg = extractApiError(err);
-      toast.error(msg);
-      setSubmitError(msg);
-    },
-  });
-
   // Payment mutation
   const payMutation = useMutation({
     mutationFn: (payload: { sale_id: string; payments: Array<{ method: string; amount: string; reference?: string }> }) =>
@@ -218,26 +200,13 @@ export default function ProcessPaymentPage() {
   // Without cash, we require exact match.
   const canSubmit = useMemo(() => {
     if (!sale || lines.length === 0) return false;
-    if (setItemUnitPriceMut.isPending) return false;
     // Every line must have a positive amount
     if (lines.some((l) => !l.amount || parseFloat(l.amount) <= 0)) return false;
     // Total must cover the due amount (or exceed with cash)
     if (totalEntered < amountDue) return false;
     if (totalEntered > amountDue && !hasCashLine) return false;
     return true;
-  }, [sale, lines, totalEntered, amountDue, hasCashLine, setItemUnitPriceMut.isPending]);
-
-  useEffect(() => {
-    if (!sale) {
-      setItemUnitPriceInputs({});
-      return;
-    }
-    const nextPriceInputs: Record<string, string> = {};
-    sale.items.forEach((item) => {
-      nextPriceInputs[item.id] = String(item.unit_price);
-    });
-    setItemUnitPriceInputs(nextPriceInputs);
-  }, [sale]);
+  }, [sale, lines, totalEntered, amountDue, hasCashLine]);
 
   // ---------------------------------------------------------------------------
   // Line management
@@ -260,26 +229,6 @@ export default function ProcessPaymentPage() {
       .reduce((sum, l) => sum + (parseFloat(l.amount) || 0), 0);
     const fill = Math.max(0, amountDue - otherTotal);
     updateLine(lineId, 'amount', fill.toString());
-  };
-
-  const handleItemUnitPriceInputChange = (itemId: string, value: string) => {
-    setItemUnitPriceInputs((prev) => ({ ...prev, [itemId]: value }));
-  };
-
-  const commitItemUnitPrice = (itemId: string, currentUnitPrice: string) => {
-    if (!sale || !canOverridePrice) return;
-    const raw = (itemUnitPriceInputs[itemId] ?? String(currentUnitPrice)).replace(',', '.');
-    const parsed = Number(raw);
-    const fallback = Number(currentUnitPrice) || 0;
-    const normalized = Number.isFinite(parsed) ? parsed : fallback;
-    const clamped = Math.max(0.01, normalized);
-    const rounded = Math.round(clamped * 100) / 100;
-    const roundedCurrent = Math.round((Number(currentUnitPrice) || 0) * 100) / 100;
-    const nextValue = rounded.toFixed(2);
-
-    setItemUnitPriceInputs((prev) => ({ ...prev, [itemId]: nextValue }));
-    if (rounded === roundedCurrent) return;
-    setItemUnitPriceMut.mutate({ itemId, unitPrice: nextValue });
   };
 
   // ---------------------------------------------------------------------------
@@ -459,41 +408,13 @@ export default function ProcessPaymentPage() {
                     <tr key={item.id} className="border-b border-gray-50 dark:border-gray-700">
                       <td className="py-2">{item.product_name}</td>
                       <td className="py-2 text-right">{item.quantity}</td>
-                      <td className="py-2 text-right">
-                        {canOverridePrice ? (
-                          <input
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            inputMode="decimal"
-                            value={itemUnitPriceInputs[item.id] ?? String(item.unit_price)}
-                            onChange={(e) => handleItemUnitPriceInputChange(item.id, e.target.value)}
-                            onBlur={() => commitItemUnitPrice(item.id, item.unit_price)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                (e.currentTarget as HTMLInputElement).blur();
-                              }
-                            }}
-                            disabled={payMutation.isPending || setItemUnitPriceMut.isPending}
-                            className="w-28 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs text-right text-gray-900 dark:text-gray-100 dark:bg-gray-800"
-                            title="Prix unitaire"
-                          />
-                        ) : (
-                          formatCurrency(item.unit_price)
-                        )}
-                      </td>
+                      <td className="py-2 text-right">{formatCurrency(item.unit_price)}</td>
                       <td className="py-2 text-right font-medium">{formatCurrency(item.line_total)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            {canOverridePrice && (
-              <p className="mt-2 text-xs text-gray-500">
-                Le prix unitaire est modifiable avant la validation du paiement.
-              </p>
-            )}
           </div>
 
           {/* Totals */}

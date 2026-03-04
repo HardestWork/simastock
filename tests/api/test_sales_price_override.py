@@ -137,7 +137,7 @@ def test_set_item_unit_price_allows_sales_with_capability(
 
 
 @pytest.mark.django_db
-def test_set_item_unit_price_allows_cashier_during_checkout(
+def test_set_item_unit_price_blocks_cashier_during_checkout(
     client,
     sales_user,
     cashier_user,
@@ -172,16 +172,13 @@ def test_set_item_unit_price_allows_cashier_during_checkout(
         f"/api/v1/sales/{sale_id}/set-item-unit-price/",
         {"item_id": item_id, "unit_price": "42000.00"},
     )
-    assert price_resp.status_code == 200, price_resp.json()
-    assert price_resp.json()["items"][0]["unit_price"] == "42000.00"
+    assert price_resp.status_code == 403
 
 
 @pytest.mark.django_db
-def test_set_item_unit_price_allows_sales_cashier_during_checkout(
+def test_set_item_unit_price_allows_sales_cashier_with_capability_in_draft(
     client,
-    sales_user,
     store,
-    store_user_sales,
     product,
     product_stock,
 ):
@@ -196,7 +193,50 @@ def test_set_item_unit_price_allows_sales_cashier_during_checkout(
         store=store,
         user=sales_cashier_user,
         is_default=True,
-        capabilities=["CAN_CASH", "CAN_OVERRIDE_PRICE"],
+        capabilities=["CAN_SELL", "CAN_CASH", "CAN_OVERRIDE_PRICE"],
+    )
+
+    client.force_login(sales_cashier_user)
+    create_resp = client.post("/api/v1/sales/", {"store_id": str(store.pk)})
+    assert create_resp.status_code == 201, create_resp.json()
+    sale_id = create_resp.json()["id"]
+
+    add_resp = client.post(
+        f"/api/v1/sales/{sale_id}/add-item/",
+        {"product_id": str(product.pk), "quantity": 1},
+    )
+    assert add_resp.status_code == 200, add_resp.json()
+    item_id = add_resp.json()["items"][0]["id"]
+
+    price_resp = client.post(
+        f"/api/v1/sales/{sale_id}/set-item-unit-price/",
+        {"item_id": item_id, "unit_price": "43000.00"},
+    )
+    assert price_resp.status_code == 200, price_resp.json()
+    assert price_resp.json()["items"][0]["unit_price"] == "43000.00"
+
+
+@pytest.mark.django_db
+def test_set_item_unit_price_blocks_sales_cashier_after_submit(
+    client,
+    sales_user,
+    store,
+    store_user_sales,
+    product,
+    product_stock,
+):
+    sales_cashier_user = User.objects.create_user(
+        email="salescashiercheckout@test.com",
+        password="testpass123",
+        first_name="Sales",
+        last_name="Cashier",
+        role=User.Role.SALES_CASHIER,
+    )
+    StoreUser.objects.create(
+        store=store,
+        user=sales_cashier_user,
+        is_default=True,
+        capabilities=["CAN_SELL", "CAN_CASH", "CAN_OVERRIDE_PRICE"],
     )
 
     store_user_sales.capabilities = ["CAN_SELL"]
@@ -222,5 +262,4 @@ def test_set_item_unit_price_allows_sales_cashier_during_checkout(
         f"/api/v1/sales/{sale_id}/set-item-unit-price/",
         {"item_id": item_id, "unit_price": "43000.00"},
     )
-    assert price_resp.status_code == 200, price_resp.json()
-    assert price_resp.json()["items"][0]["unit_price"] == "43000.00"
+    assert price_resp.status_code == 400
