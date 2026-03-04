@@ -23,7 +23,7 @@ class ObjectiveRule(TimeStampedModel):
 
     store = models.ForeignKey(
         "stores.Store",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="objective_rules",
         verbose_name="boutique",
     )
@@ -167,12 +167,12 @@ class SellerMonthlyStats(TimeStampedModel):
 
     store = models.ForeignKey(
         "stores.Store",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="seller_monthly_stats",
     )
     seller = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="monthly_stats",
     )
     period = models.CharField("periode (YYYY-MM)", max_length=7)

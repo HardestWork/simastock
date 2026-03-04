@@ -13,6 +13,10 @@ from django.utils.text import slugify
 from core.models import TimeStampedModel
 
 
+def _current_year():
+    return timezone.now().year
+
+
 ANALYTICS_FEATURE_KEYS = (
     "enabled",
     "dashboard_strategic",
@@ -811,7 +815,7 @@ class Sequence(models.Model):
     prefix = models.CharField(max_length=20)
     year = models.PositiveIntegerField(
         "annee",
-        default=2026,
+        default=_current_year,
         help_text="Year for this sequence (allows per-year numbering).",
     )
     next_number = models.PositiveIntegerField(default=1)

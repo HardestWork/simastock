@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { saleApi, storeUserApi } from '@/api/endpoints';
+import { saleApi, storeUserApi, reportApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreStore } from '@/store-context/store-store';
@@ -13,13 +13,88 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import Pagination from '@/components/shared/Pagination';
 import { useSort } from '@/hooks/use-sort';
 import SortableHeader from '@/components/shared/SortableHeader';
-import { Plus, Download, Trash2, RotateCcw } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, Trash2, RotateCcw } from 'lucide-react';
 import { downloadCsv } from '@/lib/export';
 import { toast } from '@/lib/toast';
 import RefundCreateModal from '@/features/sales/RefundCreateModal';
 import type { Sale, StoreUserRecord } from '@/api/types';
 
 const PAGE_SIZE = 25;
+
+/** Generate and download a summary CSV report for the given date range. */
+async function exportDailyReport(storeId: string, storeName: string, dateFrom: string, dateTo: string) {
+  try {
+    const data = await reportApi.sales({ store: storeId, date_from: dateFrom, date_to: dateTo });
+    const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+    const rows: string[] = [];
+
+    rows.push([esc('Rapport de ventes'), esc(`${dateFrom} -> ${dateTo}`)].join(';'));
+    rows.push([esc('Magasin'), esc(storeName)].join(';'));
+    rows.push('');
+
+    // Summary
+    rows.push(esc('--- Resume ---'));
+    rows.push([esc('Chiffre d\'affaires'), esc(data.summary.total_revenue)].join(';'));
+    rows.push([esc('Commandes'), esc(data.summary.total_orders)].join(';'));
+    rows.push([esc('Panier moyen'), esc(data.summary.average_order)].join(';'));
+    rows.push([esc('Remises'), esc(data.summary.total_discounts)].join(';'));
+    rows.push([esc('Encaisse'), esc(data.summary.total_collected)].join(';'));
+    rows.push([esc('Impaye'), esc(data.summary.total_outstanding)].join(';'));
+    rows.push('');
+
+    // By seller
+    if (data.by_seller?.length) {
+      rows.push(esc('--- Ventes par vendeur ---'));
+      rows.push([esc('Vendeur'), esc('Commandes'), esc('Total')].join(';'));
+      for (const s of data.by_seller) {
+        rows.push([esc(s.seller), esc(s.order_count), esc(s.total_sales)].join(';'));
+      }
+      rows.push('');
+    }
+
+    // By category
+    if (data.by_category?.length) {
+      rows.push(esc('--- Ventes par categorie ---'));
+      rows.push([esc('Categorie'), esc('Quantite'), esc('Revenu')].join(';'));
+      for (const c of data.by_category) {
+        rows.push([esc(c.category), esc(c.total_quantity), esc(c.total_revenue)].join(';'));
+      }
+      rows.push('');
+    }
+
+    // By payment method
+    if (data.payments_by_method?.length) {
+      rows.push(esc('--- Par mode de paiement ---'));
+      rows.push([esc('Mode'), esc('Operations'), esc('Montant')].join(';'));
+      for (const p of data.payments_by_method) {
+        rows.push([esc(p.method), esc(p.count), esc(p.total)].join(';'));
+      }
+      rows.push('');
+    }
+
+    // Breakdown
+    if (data.breakdown?.length) {
+      rows.push(esc('--- Detail par jour ---'));
+      rows.push([esc('Date'), esc('Commandes'), esc('Revenu'), esc('Remises')].join(';'));
+      for (const d of data.breakdown) {
+        rows.push([esc(d.date), esc(d.orders), esc(d.revenue), esc(d.discounts)].join(';'));
+      }
+    }
+
+    const blob = new Blob([`\ufeff${rows.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rapport_ventes_${dateFrom}_${dateTo}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    toast.success('Rapport journalier telecharge.');
+  } catch {
+    toast.error('Erreur lors de la generation du rapport.');
+  }
+}
 
 const CANCELLABLE = new Set(['DRAFT', 'PENDING_PAYMENT', 'PARTIALLY_PAID']);
 
@@ -176,6 +251,22 @@ export default function SaleListPage() {
           >
             <Download size={16} />
             Exporter CSV
+          </button>
+          <button
+            onClick={() => {
+              if (currentStore?.id) {
+                exportDailyReport(
+                  currentStore.id,
+                  currentStore.name ?? 'Boutique',
+                  dateFrom || todayIso,
+                  dateTo || todayIso,
+                );
+              }
+            }}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-green-300 dark:border-green-600 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors w-full sm:w-auto justify-center"
+          >
+            <FileSpreadsheet size={16} />
+            Rapport journalier
           </button>
           <Link
             to="/pos/new"

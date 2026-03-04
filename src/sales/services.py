@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Optional
 
 from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 
 from sales.models import Quote, QuoteItem, Refund, Sale, SaleItem
@@ -671,8 +671,13 @@ def create_refund(
         raise ValueError("Seules les ventes payees peuvent recevoir un remboursement.")
     if amount <= Decimal("0"):
         raise ValueError("Le montant du remboursement doit etre positif.")
-    if amount > sale.amount_paid:
-        raise ValueError("Le montant du remboursement depasse le montant paye.")
+
+    # Check total already refunded to prevent double refunds via concurrent requests
+    existing_refunded = (
+        sale.refunds.aggregate(total=models.Sum("amount"))["total"] or Decimal("0")
+    )
+    if amount + existing_refunded > sale.amount_paid:
+        raise ValueError("Le montant total des remboursements depasse le montant paye.")
     if not reason.strip():
         raise ValueError("La raison du remboursement est requise.")
 

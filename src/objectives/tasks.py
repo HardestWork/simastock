@@ -37,10 +37,10 @@ def recompute_store_month(*, store_id: str, period: str):
     from objectives.engine import ObjectiveCalculationEngine
 
     engine = ObjectiveCalculationEngine(store_id=store_id)
-    # Only compute for SALES-role users — managers and admins don't have seller objectives
+    # Only compute for SALES / SALES_CASHIER role users — managers and admins don't have seller objectives
     seller_ids = StoreUser.objects.filter(
         store_id=store_id,
-        user__role="SALES",
+        user__role__in=["SALES", "SALES_CASHIER"],
     ).values_list("user_id", flat=True)
 
     for seller_id in seller_ids:

@@ -229,6 +229,12 @@ class StockTransfer(TimeStampedModel):
         ordering = ["-created_at"]
         verbose_name = "Transfert de stock"
         verbose_name_plural = "Transferts de stock"
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(from_store=models.F("to_store")),
+                name="ck_transfer_different_stores",
+            ),
+        ]
 
     def __str__(self):
         return f"Transfert {self.from_store} -> {self.to_store} ({self.get_status_display()})"

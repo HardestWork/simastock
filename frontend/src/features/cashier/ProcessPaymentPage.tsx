@@ -126,6 +126,7 @@ export default function ProcessPaymentPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.cashShifts.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.creditAccounts.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.creditLedger.all });
       const paidSaleId = saleId ?? sale?.id;
       if (!paidSaleId) {
         navigate('/cashier');

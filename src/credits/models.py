@@ -17,13 +17,13 @@ class CustomerAccount(TimeStampedModel):
 
     store = models.ForeignKey(
         "stores.Store",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="credit_accounts",
         verbose_name="boutique",
     )
     customer = models.ForeignKey(
         "customers.Customer",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="credit_accounts",
         verbose_name="client",
     )
@@ -77,7 +77,7 @@ class CreditLedgerEntry(TimeStampedModel):
 
     account = models.ForeignKey(
         CustomerAccount,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="ledger_entries",
         verbose_name="compte",
     )
@@ -116,7 +116,8 @@ class CreditLedgerEntry(TimeStampedModel):
     notes = models.TextField("notes", blank=True, default="")
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name="credit_ledger_entries",
         verbose_name="cree par",
     )
@@ -175,7 +176,7 @@ class PaymentSchedule(TimeStampedModel):
 
     account = models.ForeignKey(
         CustomerAccount,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="schedules",
         verbose_name="compte",
     )

@@ -2,6 +2,7 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.db import models
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -693,6 +694,14 @@ class ProductSerializer(serializers.ModelSerializer):
             'is_active', 'images', 'specs',
         ]
         read_only_fields = ['id', 'enterprise', 'slug', 'category_name', 'brand_name']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
+            eid = _serializer_user_enterprise_id(request.user)
+            if eid:
+                self.fields['category'].queryset = Category.objects.filter(enterprise_id=eid)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -1664,6 +1673,19 @@ class RefundCreateSerializer(serializers.Serializer):
                 'Seules les ventes payees peuvent recevoir un remboursement.'
             )
         return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        sale = Sale.objects.get(pk=attrs['sale_id'])
+        existing_refunded = (
+            sale.refunds.aggregate(total=models.Sum("amount"))["total"] or Decimal("0")
+        )
+        if attrs['amount'] + existing_refunded > sale.amount_paid:
+            raise serializers.ValidationError({
+                'amount': f"Le montant total des remboursements ({existing_refunded + attrs['amount']}) "
+                          f"depasse le montant paye ({sale.amount_paid})."
+            })
+        return attrs
 
 
 # ---------------------------------------------------------------------------

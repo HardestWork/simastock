@@ -108,7 +108,13 @@ def on_sale_saved(sender, instance, created, **kwargs):
         return
     if instance.status != "CANCELLED":
         return
-    _queue_for_sale(instance, period=_get_period(instance.created_at))
+    # Recompute for the current period (when the cancellation actually happens)
+    now_period = _get_period(timezone.now())
+    _queue_for_sale(instance, period=now_period)
+    # Also recompute for the sale's original period if it differs
+    sale_period = _get_period(instance.created_at)
+    if sale_period != now_period:
+        _queue_for_sale(instance, period=sale_period)
 
 
 @receiver(post_save, sender="sales.Refund")

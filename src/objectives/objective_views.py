@@ -200,14 +200,14 @@ class SellerDashboardView(APIView):
         if not store:
             return Response({"detail": "Boutique introuvable."}, status=404)
 
-        # Guard: only SALES-role users (or superusers) should have a seller dashboard.
+        # Guard: only SALES / SALES_CASHIER role users (or superusers) should have a seller dashboard.
         # Admins/managers use the admin stats view instead. This avoids creating
         # spurious SellerMonthlyStats rows for non-seller accounts.
         if not request.user.is_superuser:
             membership = StoreUser.objects.filter(
                 store=store, user=request.user
             ).first()
-            if not membership or getattr(request.user, "role", None) != "SALES":
+            if not membership or getattr(request.user, "role", None) not in ("SALES", "SALES_CASHIER"):
                 return Response(
                     {"detail": "Tableau de bord vendeur reserve aux utilisateurs avec le role Vendeur."},
                     status=403,

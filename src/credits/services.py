@@ -67,6 +67,13 @@ def record_credit_sale(account, sale, amount, actor) -> CreditLedgerEntry:
         .get(pk=account.pk)
     )
 
+    # Enforce credit limit: reject if new balance would exceed limit
+    if locked_account.credit_limit > 0 and (locked_account.balance + amount) > locked_account.credit_limit:
+        raise ValueError(
+            f"Le montant depasse le plafond de credit. "
+            f"Disponible : {locked_account.credit_limit - locked_account.balance} FCFA."
+        )
+
     locked_account.balance += amount
     locked_account.save(update_fields=["balance", "updated_at"])
 

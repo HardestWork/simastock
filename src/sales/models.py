@@ -2,6 +2,7 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
 
@@ -37,6 +38,7 @@ class Coupon(TimeStampedModel):
         "valeur de remise",
         max_digits=10,
         decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
     )
     min_order_amount = models.DecimalField(
         "montant minimum de commande",
@@ -151,6 +153,7 @@ class Sale(TimeStampedModel):
         max_digits=5,
         decimal_places=2,
         default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00")), MaxValueValidator(Decimal("100.00"))],
     )
     tax_amount = models.DecimalField(
         "montant TVA",
@@ -512,7 +515,8 @@ class Refund(TimeStampedModel):
     reason = models.TextField("raison")
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name="approved_refunds",
         verbose_name="approuve par",
     )

@@ -28,6 +28,7 @@ from rest_framework import viewsets, mixins, status, filters
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -1286,6 +1287,16 @@ class StoreViewSet(viewsets.ModelViewSet):
                 defaults={"is_default": False},
             )
 
+    def perform_update(self, serializer):
+        """Prevent non-superusers from updating stores outside their enterprise."""
+        user = self.request.user
+        if not getattr(user, "is_superuser", False):
+            store = self.get_object()
+            enterprise_id = _require_user_enterprise_id(user)
+            if str(store.enterprise_id) != str(enterprise_id):
+                raise PermissionDenied("Vous ne pouvez pas modifier une boutique hors de votre entreprise.")
+        serializer.save()
+
     @action(detail=True, methods=['post'], url_path='assign-users')
     def assign_users(self, request, pk=None):
         """Assign users to a store."""
@@ -1425,6 +1436,15 @@ class CustomRoleViewSet(viewsets.ModelViewSet):
         enterprise_id = _require_user_enterprise_id(self.request.user)
         serializer.save(enterprise_id=enterprise_id)
 
+    def perform_destroy(self, instance):
+        """Prevent deletion of custom roles that are still assigned to users."""
+        if User.objects.filter(custom_role=instance).exists():
+            raise ValidationError(
+                "Ce role personnalise est encore assigne a des utilisateurs. "
+                "Retirez-le d'abord avant de le supprimer."
+            )
+        instance.delete()
+
 
 # ---------------------------------------------------------------------------
 # User ViewSet
@@ -1460,15 +1480,29 @@ class UserViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = serializer.save()
 
-        # Auto-link the new user to the creator's default store so they can use
-        # the application immediately (otherwise "no store selected" blocks most features).
-        creator_link = (
-            StoreUser.objects
-            .filter(user=self.request.user, store__is_active=True)
-            .order_by("-is_default", "store_id")
-            .select_related("store")
-            .first()
-        )
+        # Auto-link the new user to the creator's default store (within the
+        # creator's enterprise only) so they can use the application immediately.
+        if not getattr(self.request.user, "is_superuser", False):
+            enterprise_id = _require_user_enterprise_id(self.request.user)
+            creator_link = (
+                StoreUser.objects
+                .filter(
+                    user=self.request.user,
+                    store__is_active=True,
+                    store__enterprise_id=enterprise_id,
+                )
+                .order_by("-is_default", "store_id")
+                .select_related("store")
+                .first()
+            )
+        else:
+            creator_link = (
+                StoreUser.objects
+                .filter(user=self.request.user, store__is_active=True)
+                .order_by("-is_default", "store_id")
+                .select_related("store")
+                .first()
+            )
         if creator_link and creator_link.store_id:
             StoreUser.objects.get_or_create(
                 store_id=creator_link.store_id,
@@ -2254,7 +2288,7 @@ class InventoryMovementViewSet(
         store_ids = {str(x) for x in _user_store_ids(request.user)}
         if str(store_id) not in store_ids:
             raise PermissionDenied("Vous n'avez pas acces a cette boutique.")
-        store = Store.objects.get(pk=store_id)
+        store = Store.objects.select_related("enterprise").get(pk=store_id)
 
         enterprise_id = _user_enterprise_id(request.user)
         batch_id = _uuid.uuid4()
@@ -2265,6 +2299,11 @@ class InventoryMovementViewSet(
                 enterprise_id=enterprise_id,
                 track_stock=True,
             )
+            # Validate product belongs to the same enterprise as the store
+            if str(product.enterprise_id) != str(store.enterprise_id):
+                raise ValidationError({
+                    'product_id': f"Le produit {product.name} n'appartient pas a l'entreprise de cette boutique."
+                })
             mv = adjust_stock(
                 store=store, product=product,
                 qty_delta=entry['quantity'],
@@ -3256,6 +3295,9 @@ class SaleViewSet(viewsets.ModelViewSet):
             'total', 'amount_due', 'coupon', 'coupon_code', 'updated_at',
         ])
 
+        # Increment coupon usage counter so max_uses limit is enforced
+        Coupon.objects.filter(pk=coupon.pk).update(uses_count=models.F('uses_count') + 1)
+
         sale = self.get_queryset().get(pk=sale.pk)
         return Response(SaleSerializer(sale).data)
 
@@ -3270,6 +3312,7 @@ class SaleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        old_coupon = sale.coupon
         sale.coupon = None
         sale.coupon_code = ''
         sale.discount_percent = Decimal('0.00')
@@ -3279,6 +3322,12 @@ class SaleViewSet(viewsets.ModelViewSet):
             'discount_percent', 'discount_amount', 'subtotal', 'tax_amount',
             'total', 'amount_due', 'coupon', 'coupon_code', 'updated_at',
         ])
+
+        # Decrement coupon usage counter when removed
+        if old_coupon:
+            Coupon.objects.filter(pk=old_coupon.pk, uses_count__gt=0).update(
+                uses_count=models.F('uses_count') - 1,
+            )
 
         sale = self.get_queryset().get(pk=sale.pk)
         return Response(SaleSerializer(sale).data)
@@ -5464,6 +5513,7 @@ class DocumentVerifyView(APIView):
 
     permission_classes = []
     authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
     throttle_scope = "document_verify"
 
     def get(self, request, token):
@@ -5496,9 +5546,14 @@ class DocumentVerifyView(APIView):
         if entry:
             return Response(self._credit_payload(entry))
 
-        # 4) Stock movement batch
+        # 4) Stock movement batch — validate batch_id is a valid UUID
         if token.startswith("batch-"):
             batch_id = token[6:]
+            import uuid as _uuid
+            try:
+                _uuid.UUID(batch_id)
+            except ValueError:
+                return Response({"found": False}, status=status.HTTP_404_NOT_FOUND)
             movements = list(
                 InventoryMovement.objects.filter(batch_id=batch_id)
                 .select_related("store__enterprise")
