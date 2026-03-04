@@ -301,6 +301,20 @@ def generate_receipt_pdf(
     """Generate receipt/ticket PDF for a sale."""
     from django.utils import timezone
     invoice_config = _build_invoice_config(store)
+    requested_template_code = _normalize_receipt_template(template_code, fallback="")
+    if requested_template_code == "MODERN":
+        # Keep "receipt modern" visually identical to the POS invoice (A4).
+        response = generate_invoice_pdf(
+            sale=sale,
+            store=store,
+            document_kind="invoice",
+        )
+        if as_attachment:
+            sale_ref = sale.invoice_number or str(sale.id).split("-")[0].upper()
+            filename = _safe_pdf_filename(f"REC-{sale_ref}", fallback="recu")
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
     default_template_code = _normalize_receipt_template(invoice_config.get("template"))
     receipt_template_code = _normalize_receipt_template(template_code, fallback=default_template_code)
     template_name = _RECEIPT_TEMPLATE_CODE_TO_PATH.get(
