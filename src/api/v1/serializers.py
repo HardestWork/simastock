@@ -767,19 +767,37 @@ class InventoryMovementSerializer(serializers.ModelSerializer):
 
     product_name = serializers.CharField(source='product.name', read_only=True)
     actor_name = serializers.SerializerMethodField()
+    unit_cost = serializers.SerializerMethodField()
 
     class Meta:
         model = InventoryMovement
         fields = [
             'id', 'store', 'product', 'product_name', 'movement_type',
             'quantity', 'reference', 'reason', 'actor', 'actor_name',
-            'batch_id', 'created_at',
+            'batch_id', 'unit_cost', 'created_at',
         ]
         read_only_fields = ['id', 'actor', 'created_at']
 
     def get_actor_name(self, obj):
         if obj.actor:
             return obj.actor.get_full_name()
+        return None
+
+    def get_unit_cost(self, obj):
+        """Return unit_cost from the StockLot created around the same time (for IN movements)."""
+        from stock.models import StockLot
+        from datetime import timedelta
+        if obj.quantity > 0:
+            # Find lot created within 5 seconds of the movement for same store/product
+            window = timedelta(seconds=5)
+            lot = StockLot.objects.filter(
+                store=obj.store,
+                product=obj.product,
+                received_at__gte=obj.created_at - window,
+                received_at__lte=obj.created_at + window,
+            ).order_by('-created_at').first()
+            if lot:
+                return str(lot.unit_cost)
         return None
 
 
@@ -1002,6 +1020,7 @@ class SaleSerializer(serializers.ModelSerializer):
 
     items = SaleItemSerializer(many=True, read_only=True)
     customer_name = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
     customer_is_default = serializers.SerializerMethodField()
     seller_name = serializers.SerializerMethodField()
     cashier_name = serializers.SerializerMethodField()
@@ -1012,7 +1031,7 @@ class SaleSerializer(serializers.ModelSerializer):
         model = Sale
         fields = [
             'id', 'store', 'seller', 'seller_name', 'customer', 'customer_name',
-            'customer_is_default',
+            'customer_phone', 'customer_is_default',
             'invoice_number', 'status', 'payment_status', 'subtotal', 'discount_amount',
             'discount_percent', 'tax_amount', 'total', 'amount_paid',
             'amount_due', 'items', 'is_credit_sale', 'notes',
@@ -1030,6 +1049,11 @@ class SaleSerializer(serializers.ModelSerializer):
         if obj.customer:
             return obj.customer.full_name
         return None
+
+    def get_customer_phone(self, obj):
+        if obj.customer:
+            return getattr(obj.customer, "phone", "") or ""
+        return ""
 
     def get_customer_is_default(self, obj):
         if not obj.customer:

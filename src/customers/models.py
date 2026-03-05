@@ -22,7 +22,7 @@ class Customer(TimeStampedModel):
         max_length=20,
         db_index=True,
     )
-    email = models.EmailField("e-mail", blank=True, default="")
+    email = models.EmailField("e-mail", blank=True, default="", db_index=True)
     address = models.TextField("adresse", blank=True, default="")
     company = models.CharField(
         "entreprise",

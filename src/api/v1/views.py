@@ -1886,6 +1886,26 @@ class ProductViewSet(viewsets.ModelViewSet):
         image_file = request.FILES.get('image')
         if not image_file:
             raise ValidationError({'image': 'Aucun fichier image fourni.'})
+
+        # Validate file size (max 5 MB)
+        max_size = 5 * 1024 * 1024
+        if image_file.size and image_file.size > max_size:
+            raise ValidationError({'image': 'L\'image ne doit pas depasser 5 Mo.'})
+
+        # Validate MIME type
+        allowed_types = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
+        if image_file.content_type not in allowed_types:
+            raise ValidationError({'image': 'Format accepte: JPEG, PNG, WebP ou GIF.'})
+
+        # Verify the file is a valid image
+        from PIL import Image as PILImage
+        try:
+            img_check = PILImage.open(image_file)
+            img_check.verify()
+            image_file.seek(0)
+        except Exception:
+            raise ValidationError({'image': 'Le fichier n\'est pas une image valide.'})
+
         is_primary = request.data.get('is_primary', 'false').lower() in ('true', '1')
         if is_primary:
             product.images.update(is_primary=False)
@@ -2290,31 +2310,55 @@ class InventoryMovementViewSet(
             raise PermissionDenied("Vous n'avez pas acces a cette boutique.")
         store = Store.objects.select_related("enterprise").get(pk=store_id)
 
+        entries = d['entries']
+        if len(entries) > 500:
+            raise ValidationError({'entries': 'Maximum 500 produits par operation.'})
+
+        # Check for duplicate product_ids
+        pids = [str(e['product_id']) for e in entries]
+        if len(pids) != len(set(pids)):
+            raise ValidationError({'entries': 'Un meme produit ne peut apparaitre qu\'une seule fois.'})
+
         enterprise_id = _user_enterprise_id(request.user)
-        batch_id = _uuid.uuid4()
-        movements = []
-        for entry in d['entries']:
-            product = Product.objects.get(
-                pk=entry['product_id'],
-                enterprise_id=enterprise_id,
-                track_stock=True,
-            )
-            # Validate product belongs to the same enterprise as the store
+
+        # Validate all products upfront before making any stock changes
+        products = {}
+        for i, entry in enumerate(entries):
+            try:
+                product = Product.objects.get(
+                    pk=entry['product_id'],
+                    enterprise_id=enterprise_id,
+                )
+            except Product.DoesNotExist:
+                raise ValidationError({
+                    'entries': f"Ligne {i + 1}: produit introuvable ou n'appartient pas a votre entreprise."
+                })
+            if not product.track_stock:
+                raise ValidationError({
+                    'entries': f"Ligne {i + 1}: le produit \"{product.name}\" est un service et ne suit pas le stock."
+                })
             if str(product.enterprise_id) != str(store.enterprise_id):
                 raise ValidationError({
-                    'product_id': f"Le produit {product.name} n'appartient pas a l'entreprise de cette boutique."
+                    'entries': f"Ligne {i + 1}: le produit \"{product.name}\" n'appartient pas a l'entreprise de cette boutique."
                 })
-            mv = adjust_stock(
-                store=store, product=product,
-                qty_delta=entry['quantity'],
-                movement_type=InventoryMovement.MovementType.IN,
-                reason=d.get('reason', ''),
-                actor=request.user,
-                reference=d.get('reference', ''),
-                batch_id=batch_id,
-                unit_cost=entry.get('unit_cost'),
-            )
-            movements.append(mv)
+            products[str(entry['product_id'])] = product
+
+        batch_id = _uuid.uuid4()
+        movements = []
+        with transaction.atomic():
+            for entry in entries:
+                product = products[str(entry['product_id'])]
+                mv = adjust_stock(
+                    store=store, product=product,
+                    qty_delta=entry['quantity'],
+                    movement_type=InventoryMovement.MovementType.IN,
+                    reason=d.get('reason', ''),
+                    actor=request.user,
+                    reference=d.get('reference', ''),
+                    batch_id=batch_id,
+                    unit_cost=entry.get('unit_cost'),
+                )
+                movements.append(mv)
 
         return Response({
             'batch_id': str(batch_id),
@@ -2338,27 +2382,47 @@ class InventoryMovementViewSet(
         store_ids = {str(x) for x in _user_store_ids(request.user)}
         if str(store_id) not in store_ids:
             raise PermissionDenied("Vous n'avez pas acces a cette boutique.")
-        store = Store.objects.get(pk=store_id)
+        store = Store.objects.select_related("enterprise").get(pk=store_id)
+
+        adjustments = d['adjustments']
+        if len(adjustments) > 500:
+            raise ValidationError({'adjustments': 'Maximum 500 produits par operation.'})
 
         enterprise_id = _user_enterprise_id(request.user)
+
+        # Validate all products upfront
+        products = {}
+        for i, adj in enumerate(adjustments):
+            try:
+                product = Product.objects.get(
+                    pk=adj['product_id'],
+                    enterprise_id=enterprise_id,
+                )
+            except Product.DoesNotExist:
+                raise ValidationError({
+                    'adjustments': f"Ligne {i + 1}: produit introuvable ou n'appartient pas a votre entreprise."
+                })
+            if not product.track_stock:
+                raise ValidationError({
+                    'adjustments': f"Ligne {i + 1}: le produit \"{product.name}\" est un service et ne suit pas le stock."
+                })
+            products[str(adj['product_id'])] = product
+
         batch_id = _uuid.uuid4()
         movements = []
-        for adj in d['adjustments']:
-            product = Product.objects.get(
-                pk=adj['product_id'],
-                enterprise_id=enterprise_id,
-                track_stock=True,
-            )
-            mv = adjust_stock(
-                store=store, product=product,
-                qty_delta=adj['quantity'],
-                movement_type=InventoryMovement.MovementType.ADJUST,
-                reason=d['reason'],
-                actor=request.user,
-                reference='',
-                batch_id=batch_id,
-            )
-            movements.append(mv)
+        with transaction.atomic():
+            for adj in adjustments:
+                product = products[str(adj['product_id'])]
+                mv = adjust_stock(
+                    store=store, product=product,
+                    qty_delta=adj['quantity'],
+                    movement_type=InventoryMovement.MovementType.ADJUST,
+                    reason=d['reason'],
+                    actor=request.user,
+                    reference='',
+                    batch_id=batch_id,
+                )
+                movements.append(mv)
 
         return Response({
             'batch_id': str(batch_id),
@@ -6120,3 +6184,38 @@ class AccountingSettingsViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+# ---------------------------------------------------------------------------
+# Public invoice download (no auth — used for WhatsApp sharing)
+# ---------------------------------------------------------------------------
+
+class InvoiceDownloadView(APIView):
+    """
+    Public endpoint to download an invoice PDF by its verification token.
+    No authentication required — throttled to prevent abuse.
+    """
+
+    permission_classes = []
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "document_verify"
+
+    def get(self, request, token):
+        sale = (
+            Sale.objects.filter(verification_token=token)
+            .select_related("store")
+            .first()
+        )
+        if not sale:
+            return Response(
+                {"detail": "Document introuvable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            return generate_invoice_pdf(sale=sale, store=sale.store, document_kind="invoice")
+        except Exception:
+            return Response(
+                {"detail": "Impossible de generer la facture."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )

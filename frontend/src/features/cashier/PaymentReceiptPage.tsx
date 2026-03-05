@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { saleApi, paymentApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
-import { ChevronLeft, Printer } from 'lucide-react';
+import { ChevronLeft, Printer, MessageCircle } from 'lucide-react';
 import type { PaymentMethod } from '@/api/types';
 import { toast } from '@/lib/toast';
 import { useStoreStore } from '@/store-context/store-store';
@@ -74,6 +74,32 @@ export default function PaymentReceiptPage() {
     window.open(`/api/v1/sales/${saleId}/receipt/?template=ticket`, '_blank', 'noopener,noreferrer');
   };
 
+  const whatsappUrl = (() => {
+    if (!sale?.verification_token) return null;
+    const raw = sale.customer_phone ?? '';
+    const digits = raw.replace(/\D/g, '');
+    if (!digits || digits.length < 8) return null;
+    if (/^(\d)\1+$/.test(digits)) return null;
+    // Normalize to international format (Burkina 226)
+    let phone = digits;
+    if (digits.startsWith('226') && digits.length >= 11) phone = digits;
+    else if (digits.length === 8) phone = `226${digits}`;
+    else if (digits.length === 10 && digits.startsWith('00')) phone = `226${digits.slice(2)}`;
+
+    const pdfUrl = `${window.location.origin}/api/v1/invoices/dl/${sale.verification_token}/`;
+    const text = [
+      `Bonjour ${sale.customer_name ?? 'cher client'},`,
+      '',
+      `Veuillez trouver ci-joint votre Facture *${sale.invoice_number ?? ''}*.`,
+      `Montant: *${Number(sale.total).toLocaleString('fr-FR')} FCFA*`,
+      '',
+      `Telecharger la Facture: ${pdfUrl}`,
+      '',
+      'Merci pour votre confiance !',
+    ].join('\n');
+    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  })();
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -131,6 +157,17 @@ export default function PaymentReceiptPage() {
             >
               <Printer size={15} /> Ticket caisse
             </button>
+            {whatsappUrl && (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                title="Envoyer la facture PDF sur WhatsApp"
+              >
+                <MessageCircle size={15} /> WhatsApp
+              </a>
+            )}
           </div>
         </div>
       </div>

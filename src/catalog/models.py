@@ -128,6 +128,7 @@ class Product(TimeStampedModel):
     sku = models.CharField(
         "SKU",
         max_length=50,
+        db_index=True,
         help_text="Reference interne unique du produit.",
     )
     barcode = models.CharField(
@@ -161,7 +162,7 @@ class Product(TimeStampedModel):
         max_digits=12,
         decimal_places=2,
     )
-    is_active = models.BooleanField("actif", default=True)
+    is_active = models.BooleanField("actif", default=True, db_index=True)
 
     class Meta:
         verbose_name = "produit"

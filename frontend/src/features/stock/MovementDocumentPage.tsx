@@ -7,6 +7,7 @@ import { ArrowLeft, Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { stockApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
+import { formatCurrency } from '@/lib/currency';
 import type { MovementType } from '@/api/types';
 
 const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
@@ -94,9 +95,6 @@ export default function MovementDocumentPage() {
     dateFormatted = String(data.date ?? '—');
   }
 
-  // Debug: log full data for troubleshooting (check browser console)
-  console.log('[MovementDocument] data:', JSON.stringify(data, null, 2));
-
   return (
     <div className="max-w-4xl mx-auto">
       {/* Top navigation — hidden when printing */}
@@ -169,6 +167,8 @@ export default function MovementDocumentPage() {
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Produit</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Quantite</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Prix achat</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Total</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Type</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Acteur</th>
               </tr>
@@ -178,6 +178,8 @@ export default function MovementDocumentPage() {
                 const positive = isPositiveMovement(movement.movement_type);
                 const qtyPrefix = positive ? '+' : '-';
                 const absQty = Math.abs(movement.quantity);
+                const cost = movement.unit_cost ? parseFloat(movement.unit_cost) : null;
+                const lineTotal = cost !== null ? cost * absQty : null;
 
                 return (
                   <tr
@@ -196,6 +198,16 @@ export default function MovementDocumentPage() {
                       }`}
                     >
                       {qtyPrefix}{absQty}
+                    </td>
+
+                    {/* Unit cost */}
+                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                      {cost !== null ? formatCurrency(cost) : '\u2014'}
+                    </td>
+
+                    {/* Line total */}
+                    <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-200">
+                      {lineTotal !== null ? formatCurrency(lineTotal) : '\u2014'}
                     </td>
 
                     {/* Type badge */}
@@ -218,7 +230,7 @@ export default function MovementDocumentPage() {
               })}
               {data.movements.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     Aucune ligne dans ce document.
                   </td>
                 </tr>
@@ -229,15 +241,29 @@ export default function MovementDocumentPage() {
 
         {/* Summary */}
         <div className="flex justify-end">
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-w-[220px] print:border-gray-300">
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-w-[260px] print:border-gray-300">
             <div className="flex justify-between items-center gap-8 py-1 border-b border-gray-100 dark:border-gray-700 text-sm">
               <span className="text-gray-600 dark:text-gray-400">Nombre de lignes</span>
               <span className="font-semibold text-gray-800 dark:text-gray-200">{String(data.total_lines)}</span>
             </div>
-            <div className="flex justify-between items-center gap-8 py-1 text-sm">
+            <div className="flex justify-between items-center gap-8 py-1 border-b border-gray-100 dark:border-gray-700 text-sm">
               <span className="text-gray-600 dark:text-gray-400">Quantite totale</span>
               <span className="font-bold text-gray-900 dark:text-gray-100">{String(data.total_qty)}</span>
             </div>
+            {(() => {
+              const totalCost = data.movements.reduce((sum, m) => {
+                if (m.unit_cost) {
+                  return sum + parseFloat(m.unit_cost) * Math.abs(m.quantity);
+                }
+                return sum;
+              }, 0);
+              return totalCost > 0 ? (
+                <div className="flex justify-between items-center gap-8 py-1 text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Cout total</span>
+                  <span className="font-bold text-gray-900 dark:text-gray-100">{formatCurrency(totalCost)}</span>
+                </div>
+              ) : null;
+            })()}
           </div>
         </div>
 

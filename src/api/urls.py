@@ -191,4 +191,7 @@ urlpatterns = [
 
     # Public document verification (no auth required)
     path('documents/verify/<str:token>/', v1_views.DocumentVerifyView.as_view(), name='document-verify'),
+
+    # Public invoice PDF download (no auth — for WhatsApp sharing)
+    path('invoices/dl/<str:token>/', v1_views.InvoiceDownloadView.as_view(), name='invoice-download'),
 ]

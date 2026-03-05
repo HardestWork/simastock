@@ -164,6 +164,7 @@ class InventoryMovement(TimeStampedModel):
         "identifiant de lot",
         null=True,
         blank=True,
+        db_index=True,
         help_text="Regroupe les mouvements lies (ex. transfert).",
     )
 

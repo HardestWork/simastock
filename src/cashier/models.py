@@ -41,7 +41,7 @@ class CashShift(TimeStampedModel):
         default=Status.OPEN,
         db_index=True,
     )
-    opened_at = models.DateTimeField("ouvert le", auto_now_add=True)
+    opened_at = models.DateTimeField("ouvert le", auto_now_add=True, db_index=True)
     closed_at = models.DateTimeField("ferme le", null=True, blank=True)
 
     # Money tracking

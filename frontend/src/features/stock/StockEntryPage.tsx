@@ -79,7 +79,7 @@ export default function StockEntryPage() {
   const mutation = useMutation({
     mutationFn: (payload: {
       store_id: string;
-      entries: { product_id: string; quantity: number }[];
+      entries: { product_id: string; quantity: number; unit_cost?: string | null }[];
       reference?: string;
       reason?: string;
     }) => stockApi.bulkEntry(payload),

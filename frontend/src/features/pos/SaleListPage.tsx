@@ -13,7 +13,7 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import Pagination from '@/components/shared/Pagination';
 import { useSort } from '@/hooks/use-sort';
 import SortableHeader from '@/components/shared/SortableHeader';
-import { Plus, Download, FileSpreadsheet, Trash2, RotateCcw } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, Trash2, RotateCcw, MessageCircle } from 'lucide-react';
 import { downloadCsv } from '@/lib/export';
 import { toast } from '@/lib/toast';
 import RefundCreateModal from '@/features/sales/RefundCreateModal';
@@ -94,6 +94,45 @@ async function exportDailyReport(storeId: string, storeName: string, dateFrom: s
   } catch {
     toast.error('Erreur lors de la generation du rapport.');
   }
+}
+
+/** Normalise a phone number to international format (Burkina 226). */
+function normalizePhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits || digits.length < 8) return null;
+  // Filter dummy numbers (all same digit, e.g. 0000000000)
+  if (/^(\d)\1+$/.test(digits)) return null;
+  // Already international with country code 226
+  if (digits.startsWith('226') && digits.length >= 11) return digits;
+  // Local Burkina number (8 digits starting with 5/6/7/0)
+  if (digits.length === 8) return `226${digits}`;
+  // 10-digit with leading 00 → strip 00 and add 226
+  if (digits.length === 10 && digits.startsWith('00')) return `226${digits.slice(2)}`;
+  return digits;
+}
+
+/** Build a WhatsApp link with invoice PDF download URL (public, no auth needed). */
+function buildWhatsAppUrl(sale: Sale): string | null {
+  const phone = normalizePhone(sale.customer_phone ?? '');
+  if (!phone || !sale.verification_token) return null;
+
+  const pdfUrl = `${window.location.origin}/api/v1/invoices/dl/${sale.verification_token}/`;
+  const isDraft = sale.status === 'DRAFT' || sale.status === 'PENDING_PAYMENT';
+  const label = isDraft ? 'Proforma' : 'Facture';
+  const amountLabel = isDraft ? 'Montant estime' : 'Montant';
+
+  const text = [
+    `Bonjour ${sale.customer_name ?? 'cher client'},`,
+    '',
+    `Veuillez trouver ci-joint votre ${label} *${sale.invoice_number ?? ''}*.`,
+    `${amountLabel}: *${Number(sale.total).toLocaleString('fr-FR')} FCFA*`,
+    '',
+    `Telecharger la ${label}: ${pdfUrl}`,
+    '',
+    'Merci pour votre confiance !',
+  ].join('\n');
+
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
 
 const CANCELLABLE = new Set(['DRAFT', 'PENDING_PAYMENT', 'PARTIALLY_PAID']);
@@ -460,6 +499,20 @@ export default function SaleListPage() {
                             Recu
                           </a>
                         )}
+                        {(() => {
+                          const waUrl = buildWhatsAppUrl(sale);
+                          return waUrl ? (
+                            <a
+                              className="px-2 py-1 rounded border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 whitespace-nowrap inline-flex items-center gap-1"
+                              href={waUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Envoyer la facture PDF sur WhatsApp"
+                            >
+                              <MessageCircle size={12} /> WhatsApp
+                            </a>
+                          ) : null;
+                        })()}
                       </div>
                     </td>
                     {(canCancel || canRefund) && (

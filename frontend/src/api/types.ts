@@ -491,6 +491,7 @@ export interface InventoryMovement {
   actor: string;
   actor_name: string | null;
   batch_id: string;
+  unit_cost: string | null;
   created_at: string;
 }
 
@@ -707,6 +708,7 @@ export interface Sale {
   cashier_name?: string | null;
   customer: string | null;
   customer_name: string | null;
+  customer_phone?: string;
   customer_is_default?: boolean;
   invoice_number: string | null;
   status: SaleStatus;
