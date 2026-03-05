@@ -2921,10 +2921,11 @@ class SaleViewSet(viewsets.ModelViewSet):
         store_ids = _user_store_ids(self.request.user)
         qs = qs.filter(store_id__in=store_ids)
 
-        # Sales / sales-cashier roles should only see their own sales in POS lists.
+        # Pure SALES role only sees own sales; SALES_CASHIER sees all store
+        # sales so they can process payments for other sellers.
         user_role = getattr(self.request.user, "role", None)
-        if self.action == "list" and user_role in ("SALES", "SALES_CASHIER"):
-            qs = qs.filter(Q(seller=self.request.user) | Q(payments__cashier=self.request.user)).distinct()
+        if self.action == "list" and user_role == "SALES":
+            qs = qs.filter(seller=self.request.user)
 
         # Optional multi-status filter used by cashier queues.
         status_in = self.request.query_params.get("status_in")
