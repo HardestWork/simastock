@@ -13,7 +13,7 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import Pagination from '@/components/shared/Pagination';
 import { useSort } from '@/hooks/use-sort';
 import SortableHeader from '@/components/shared/SortableHeader';
-import { Plus, Download, FileSpreadsheet, Trash2, RotateCcw, MessageCircle } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, Trash2, RotateCcw, MessageCircle, Pencil } from 'lucide-react';
 import { downloadCsv } from '@/lib/export';
 import { toast } from '@/lib/toast';
 import RefundCreateModal from '@/features/sales/RefundCreateModal';
@@ -152,7 +152,9 @@ export default function SaleListPage() {
   const capabilities = useCapabilities();
   const canCancel = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const canRefund = capabilities.includes('CAN_REFUND');
+  const canSell = capabilities.includes('CAN_SELL');
   const canAdminAdvancedFilters = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const showActionsCol = canCancel || canRefund || canSell;
   const todayIso = useMemo(() => toLocalIsoDate(new Date()), []);
 
   const [page, setPage] = useState(1);
@@ -454,7 +456,7 @@ export default function SaleListPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Source</th>
                   <SortableHeader field="created_at" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                   <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Docs</th>
-                  {(canCancel || canRefund) && <th className="text-center px-4 py-3 font-medium text-gray-600 dark:text-gray-400 w-24" />}
+                  {showActionsCol && <th className="text-center px-4 py-3 font-medium text-gray-600 dark:text-gray-400 w-24" />}
                 </tr>
               </thead>
               <tbody>
@@ -515,9 +517,18 @@ export default function SaleListPage() {
                         })()}
                       </div>
                     </td>
-                    {(canCancel || canRefund) && (
+                    {showActionsCol && (
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
+                          {(sale.status === 'DRAFT' || sale.status === 'PENDING_PAYMENT') && (
+                            <Link
+                              to={`/pos/${sale.id}/edit`}
+                              title="Modifier cette vente"
+                              className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                            >
+                              <Pencil size={16} />
+                            </Link>
+                          )}
                           {canRefund && (sale.status === 'PAID' || sale.status === 'PARTIALLY_PAID') && (
                             <button
                               onClick={() => setRefundTarget(sale)}
@@ -543,7 +554,7 @@ export default function SaleListPage() {
                 ))}
                 {data?.results.length === 0 && (
                   <tr>
-                    <td colSpan={(canCancel || canRefund) ? 10 : 9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={showActionsCol ? 10 : 9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       Aucune vente trouvee.
                     </td>
                   </tr>

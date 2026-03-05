@@ -167,6 +167,7 @@ export default function App() {
                 >
                   <Route path="/pos" element={<Suspense fallback={<PageLoader />}><SaleListPage /></Suspense>} />
                   <Route path="/pos/new" element={<Suspense fallback={<PageLoader />}><PosPage /></Suspense>} />
+                  <Route path="/pos/:saleId/edit" element={<Suspense fallback={<PageLoader />}><PosPage /></Suspense>} />
                 </Route>
 
                 {/* Refunds (Remboursements) */}

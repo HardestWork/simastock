@@ -3088,9 +3088,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         """
         sale = self.get_object()
 
-        if sale.status != Sale.Status.DRAFT:
+        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
             return Response(
-                {'detail': 'Les articles ne peuvent etre ajoutes que sur des ventes en brouillon.'},
+                {'detail': 'Les articles ne peuvent etre ajoutes qu\'avant encaissement.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -3149,9 +3149,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         """Remove an item from a draft sale."""
         sale = self.get_object()
 
-        if sale.status != Sale.Status.DRAFT:
+        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
             return Response(
-                {'detail': 'Les articles ne peuvent etre retires que des ventes en brouillon.'},
+                {'detail': 'Les articles ne peuvent etre retires qu\'avant encaissement.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -3191,9 +3191,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         """Set an exact quantity for one item in a draft sale."""
         sale = self.get_object()
 
-        if sale.status != Sale.Status.DRAFT:
+        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
             return Response(
-                {'detail': 'La quantite ne peut etre modifiee que sur des ventes en brouillon.'},
+                {'detail': 'La quantite ne peut etre modifiee qu\'avant encaissement.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -3225,9 +3225,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         """Set an exact unit price for one item in a draft sale."""
         sale = self.get_object()
 
-        if sale.status != Sale.Status.DRAFT:
+        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
             return Response(
-                {'detail': 'Le prix ne peut etre modifie que sur des ventes en brouillon.'},
+                {'detail': 'Le prix ne peut etre modifie qu\'avant encaissement.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -3328,9 +3328,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         """
         sale = self.get_object()
 
-        if sale.status != Sale.Status.DRAFT:
+        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
             return Response(
-                {'detail': 'Le coupon ne peut etre applique que sur une vente en brouillon.'},
+                {'detail': 'Le coupon ne peut etre applique qu\'avant encaissement.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -3380,9 +3380,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         """Remove the coupon from a draft sale and reset discount."""
         sale = self.get_object()
 
-        if sale.status != Sale.Status.DRAFT:
+        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
             return Response(
-                {'detail': 'Le coupon ne peut etre retire que sur une vente en brouillon.'},
+                {'detail': 'Le coupon ne peut etre retire qu\'avant encaissement.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

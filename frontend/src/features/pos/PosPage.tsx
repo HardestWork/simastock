@@ -1,6 +1,6 @@
 ﻿/** POS (Point of Sale) page — create a new sale with product search and cart. */
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productApi, saleApi, customerApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
@@ -17,6 +17,7 @@ type DiscountMode = 'none' | 'percent' | 'fixed';
 const MAX_MANUAL_ITEM_QUANTITY = 99999;
 
 export default function PosPage() {
+  const { saleId } = useParams<{ saleId?: string }>();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const currentStore = useStoreStore((s) => s.currentStore);
@@ -25,6 +26,7 @@ export default function PosPage() {
   const canOverridePrice = capabilities.includes('CAN_OVERRIDE_PRICE');
 
   const [sale, setSale] = useState<Sale | null>(null);
+  const [initialLoading, setInitialLoading] = useState(!!saleId);
   const [itemQuantityInputs, setItemQuantityInputs] = useState<Record<string, string>>({});
   const [itemUnitPriceInputs, setItemUnitPriceInputs] = useState<Record<string, string>>({});
   const [search, setSearch] = useState('');
@@ -196,6 +198,38 @@ export default function PosPage() {
     onError: (err) => { toast.error(extractErrorMessage(err)); },
   });
 
+  // Load existing sale when editing
+  useEffect(() => {
+    if (!saleId) return;
+    let cancelled = false;
+    saleApi.get(saleId)
+      .then((data) => {
+        if (cancelled) return;
+        if (data.status !== 'DRAFT' && data.status !== 'PENDING_PAYMENT') {
+          toast.error('Cette vente ne peut plus etre modifiee.');
+          navigate('/pos');
+          return;
+        }
+        setSale(data);
+        // Restore discount UI state
+        if (parseFloat(data.discount_percent) > 0) {
+          setDiscountMode('percent');
+          setDiscountValue(String(parseFloat(data.discount_percent)));
+        } else if (parseFloat(data.discount_amount) > 0) {
+          setDiscountMode('fixed');
+          setDiscountValue(String(parseFloat(data.discount_amount)));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast.error('Vente introuvable.');
+          navigate('/pos');
+        }
+      })
+      .finally(() => { if (!cancelled) setInitialLoading(false); });
+    return () => { cancelled = true; };
+  }, [saleId, navigate]);
+
   useEffect(() => {
     if (!sale) {
       setItemQuantityInputs({});
@@ -324,13 +358,25 @@ export default function PosPage() {
   const isItemQtyActionPending =
     addItemMut.isPending || removeItemMut.isPending || setItemQuantityMut.isPending || setItemUnitPriceMut.isPending;
 
+  const isEditing = !!saleId;
+
   if (!currentStore) {
     return <div className="text-center py-12 text-gray-500 dark:text-gray-400">Aucun magasin selectionne.</div>;
   }
 
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Nouvelle vente</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+        {isEditing ? `Modifier la vente ${sale?.invoice_number ?? ''}` : 'Nouvelle vente'}
+      </h1>
 
       {/* Global error banner */}
       {actionError && (
@@ -799,23 +845,40 @@ export default function PosPage() {
                   <span>Client comptant — vente sans client identifie. Selectionnez un client si necessaire.</span>
                 </div>
               )}
-              <button
-                onClick={() => submitMut.mutate()}
-                disabled={submitMut.isPending || submitAndCashMut.isPending}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-success text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-medium disabled:opacity-60"
-              >
-                <Send size={16} />
-                {submitMut.isPending ? 'Envoi...' : 'Soumettre en caisse'}
-              </button>
-              {canCash && (
+              {sale.status === 'PENDING_PAYMENT' ? (
+                /* Already submitted — edits are saved instantly, just go back */
                 <button
-                  onClick={() => submitAndCashMut.mutate()}
-                  disabled={submitMut.isPending || submitAndCashMut.isPending}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-60"
+                  onClick={() => {
+                    queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
+                    navigate('/pos');
+                    toast.success('Modifications enregistrees.');
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-success text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-medium"
                 >
-                  <Banknote size={16} />
-                  {submitAndCashMut.isPending ? 'Envoi...' : 'Soumettre et encaisser'}
+                  <Send size={16} />
+                  Terminer la modification
                 </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => submitMut.mutate()}
+                    disabled={submitMut.isPending || submitAndCashMut.isPending}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-success text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-medium disabled:opacity-60"
+                  >
+                    <Send size={16} />
+                    {submitMut.isPending ? 'Envoi...' : 'Soumettre en caisse'}
+                  </button>
+                  {canCash && (
+                    <button
+                      onClick={() => submitAndCashMut.mutate()}
+                      disabled={submitMut.isPending || submitAndCashMut.isPending}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-60"
+                    >
+                      <Banknote size={16} />
+                      {submitAndCashMut.isPending ? 'Envoi...' : 'Soumettre et encaisser'}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}
