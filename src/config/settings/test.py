@@ -30,7 +30,9 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 # Disable API throttling in tests for deterministic runs
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []  # noqa: F405
-REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {}  # noqa: F405
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F405
+    "document_verify": None,  # keep scope defined but unlimited in tests
+}
 
 # Email
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"

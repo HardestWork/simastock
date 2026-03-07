@@ -4,6 +4,7 @@ import re
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import redirect
+from django.utils import timezone
 
 from stores.models import StoreUser
 
@@ -69,6 +70,16 @@ class CurrentStoreMiddleware:
 
             if request.current_store is not None:
                 request.current_enterprise = request.current_store.enterprise
+                # Activate the enterprise timezone for this request
+                tz_name = getattr(request.current_enterprise, "timezone", None)
+                if tz_name:
+                    try:
+                        import zoneinfo
+                        timezone.activate(zoneinfo.ZoneInfo(tz_name))
+                    except (KeyError, Exception):
+                        timezone.deactivate()
+                else:
+                    timezone.deactivate()
 
             # Block access when the enterprise subscription has expired
             # (superusers are exempt so they can still manage the enterprise).

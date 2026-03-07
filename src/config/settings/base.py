@@ -219,7 +219,7 @@ PASSWORD_HASHERS = [
 
 # Internationalization
 LANGUAGE_CODE = "fr-fr"
-TIME_ZONE = "Africa/Douala"
+TIME_ZONE = "Africa/Ouagadougou"
 USE_I18N = True
 USE_TZ = True
 

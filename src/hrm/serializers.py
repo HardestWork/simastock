@@ -12,6 +12,7 @@ from hrm.models import (
     EmployeeSalaryComponent,
     EvaluationCriteria,
     EvaluationTemplate,
+    FaceProfile,
     Holiday,
     LeaveBalance,
     LeaveRequest,
@@ -110,6 +111,10 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(
         source="user.email", read_only=True, default=None
     )
+    has_face_profile = serializers.SerializerMethodField()
+
+    def get_has_face_profile(self, obj):
+        return hasattr(obj, "face_profile") and obj.face_profile is not None
 
     class Meta:
         model = Employee
@@ -125,6 +130,7 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
             "hire_date", "termination_date", "status",
             "base_salary", "bank_name", "bank_account",
             "emergency_contact_name", "emergency_contact_phone",
+            "pin_code", "has_face_profile",
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "enterprise", "created_at", "updated_at"]
@@ -176,10 +182,14 @@ class ContractSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class AttendancePolicySerializer(serializers.ModelSerializer):
+    department_name = serializers.CharField(
+        source="department.name", read_only=True, default=None
+    )
+
     class Meta:
         model = AttendancePolicy
         fields = [
-            "id", "enterprise", "name",
+            "id", "enterprise", "name", "department", "department_name",
             "work_start", "work_end", "break_minutes",
             "late_tolerance_minutes", "is_default",
             "created_at", "updated_at",
@@ -199,9 +209,39 @@ class AttendanceSerializer(serializers.ModelSerializer):
             "date", "check_in", "check_out",
             "status", "late_minutes", "overtime_minutes",
             "notes", "policy",
+            "check_in_method", "check_out_method",
+            "check_in_photo", "check_out_photo",
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class FaceProfileSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(
+        source="employee.full_name", read_only=True, default=None
+    )
+
+    class Meta:
+        model = FaceProfile
+        fields = [
+            "id", "employee", "employee_name",
+            "embeddings", "photo_1", "photo_2", "photo_3",
+            "is_active", "enrolled_at",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "enrolled_at", "created_at", "updated_at"]
+
+
+class FaceCheckSerializer(serializers.Serializer):
+    """Serializer for face-based check-in/out."""
+    employee_id = serializers.UUIDField()
+    check_type = serializers.ChoiceField(choices=["CHECK_IN", "CHECK_OUT", "AUTO"])
+    method = serializers.ChoiceField(
+        choices=Attendance.CheckMethod.choices,
+        default=Attendance.CheckMethod.FACE,
+    )
+    photo = serializers.ImageField(required=False)
+    pin_code = serializers.CharField(required=False, allow_blank=True, max_length=6)
 
 
 # ---------------------------------------------------------------------------

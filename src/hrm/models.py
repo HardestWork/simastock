@@ -1,4 +1,5 @@
 """HRM (Human Resource Management) models."""
+import secrets
 from decimal import Decimal
 
 from django.conf import settings
@@ -208,6 +209,15 @@ class Employee(TimeStampedModel):
         "contact d'urgence — telephone", max_length=30, blank=True, default=""
     )
 
+    # Pointage — code PIN de secours (4-6 chiffres)
+    pin_code = models.CharField(
+        "code PIN pointage",
+        max_length=6,
+        blank=True,
+        default="",
+        help_text="Code PIN 4-6 chiffres pour pointage quand la reconnaissance faciale echoue.",
+    )
+
     class Meta:
         verbose_name = "employe"
         unique_together = [("enterprise", "employee_number")]
@@ -219,6 +229,13 @@ class Employee(TimeStampedModel):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}".strip()
+
+    def generate_pin(self) -> str:
+        """Generate a random 4-digit PIN code."""
+        pin = f"{secrets.randbelow(10000):04d}"
+        self.pin_code = pin
+        self.save(update_fields=["pin_code"])
+        return pin
 
 
 # ---------------------------------------------------------------------------
@@ -304,6 +321,15 @@ class AttendancePolicy(TimeStampedModel):
         verbose_name="entreprise",
     )
     name = models.CharField("nom", max_length=100)
+    department = models.ForeignKey(
+        "hrm.Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attendance_policies",
+        verbose_name="departement",
+        help_text="Si renseigne, cette politique s'applique aux employes de ce departement.",
+    )
     work_start = models.TimeField("heure de debut")
     work_end = models.TimeField("heure de fin")
     break_minutes = models.PositiveIntegerField("pause (minutes)", default=60)
@@ -328,6 +354,12 @@ class Attendance(TimeStampedModel):
         HALF_DAY = "HALF_DAY", "Demi-journee"
         ON_LEAVE = "ON_LEAVE", "En conge"
         HOLIDAY = "HOLIDAY", "Jour ferie"
+
+    class CheckMethod(models.TextChoices):
+        FACE = "FACE", "Reconnaissance faciale"
+        PIN = "PIN", "Code PIN"
+        QR = "QR", "QR Code"
+        MANUAL = "MANUAL", "Manuel (manager)"
 
     employee = models.ForeignKey(
         Employee,
@@ -354,6 +386,29 @@ class Attendance(TimeStampedModel):
         blank=True,
         verbose_name="politique appliquee",
     )
+    check_in_method = models.CharField(
+        "methode arrivee",
+        max_length=10,
+        choices=CheckMethod.choices,
+        default=CheckMethod.MANUAL,
+    )
+    check_out_method = models.CharField(
+        "methode depart",
+        max_length=10,
+        choices=CheckMethod.choices,
+        blank=True,
+        default="",
+    )
+    check_in_photo = models.ImageField(
+        "photo arrivee",
+        upload_to="hrm/attendance/checkin/",
+        blank=True,
+    )
+    check_out_photo = models.ImageField(
+        "photo depart",
+        upload_to="hrm/attendance/checkout/",
+        blank=True,
+    )
 
     class Meta:
         verbose_name = "pointage"
@@ -365,6 +420,38 @@ class Attendance(TimeStampedModel):
 
     def __str__(self):
         return f"{self.employee} — {self.date} ({self.status})"
+
+
+# ---------------------------------------------------------------------------
+# Face Profile (reconnaissance faciale)
+# ---------------------------------------------------------------------------
+
+class FaceProfile(TimeStampedModel):
+    """Profil facial d'un employe — stocke les embeddings pour la reconnaissance."""
+
+    employee = models.OneToOneField(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="face_profile",
+        verbose_name="employe",
+    )
+    embeddings = models.JSONField(
+        "embeddings faciaux",
+        default=list,
+        help_text="Liste de vecteurs (128 floats chacun) generes par face-api.js.",
+    )
+    photo_1 = models.ImageField("photo 1", upload_to="hrm/faces/", blank=True)
+    photo_2 = models.ImageField("photo 2", upload_to="hrm/faces/", blank=True)
+    photo_3 = models.ImageField("photo 3", upload_to="hrm/faces/", blank=True)
+    is_active = models.BooleanField("actif", default=True)
+    enrolled_at = models.DateTimeField("date d'enrolement", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "profil facial"
+        verbose_name_plural = "profils faciaux"
+
+    def __str__(self):
+        return f"FaceProfile: {self.employee}"
 
 
 # ---------------------------------------------------------------------------

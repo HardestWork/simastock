@@ -41,6 +41,7 @@ import {
   DollarSign,
   TrendingUp,
   RotateCcw,
+  ScanFace,
 } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth-store';
 import { useCapabilities } from '@/lib/capabilities';
@@ -426,6 +427,14 @@ const navItems: NavItem[] = [
     roles: ['HR', 'MANAGER', 'ADMIN'],
     children: [
       {
+        path: '/hrm/organisation',
+        label: 'Organisation',
+        icon: <Building2 size={14} />,
+        module: 'HRM',
+        roles: ['HR', 'MANAGER', 'ADMIN'],
+        capability: 'CAN_MANAGE_HRM',
+      },
+      {
         path: '/hrm/employees',
         label: 'Employes',
         icon: <Users size={14} />,
@@ -448,6 +457,14 @@ const navItems: NavItem[] = [
         module: 'HRM',
         roles: ['HR', 'MANAGER', 'ADMIN'],
         capability: 'CAN_VIEW_HRM',
+      },
+      {
+        path: '/hrm/kiosk',
+        label: 'Kiosque pointage',
+        icon: <ScanFace size={14} />,
+        module: 'HRM',
+        roles: ['HR', 'MANAGER', 'ADMIN'],
+        capability: 'CAN_MANAGE_HRM',
       },
       {
         path: '/hrm/payroll',

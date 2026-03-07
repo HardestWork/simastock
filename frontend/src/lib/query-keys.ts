@@ -250,6 +250,7 @@ export const queryKeys = {
     attendances: {
       all: ['hrm', 'attendances'] as const,
       list: (params?: Record<string, string>) => ['hrm', 'attendances', 'list', params] as const,
+      dailySummary: (date: string) => ['hrm', 'attendances', 'daily-summary', date] as const,
     },
     leaveTypes: {
       all: ['hrm', 'leave-types'] as const,

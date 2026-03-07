@@ -98,6 +98,8 @@ router.register(r'hrm/performance-scores', hrm_api_views.PerformanceReviewScoreV
 router.register(r'hrm/disciplinary-actions', hrm_api_views.DisciplinaryActionViewSet, basename='hrm-disciplinary-action')
 router.register(r'hrm/documents', hrm_api_views.EmployeeDocumentViewSet, basename='hrm-document')
 router.register(r'hrm/holidays', hrm_api_views.HolidayViewSet, basename='hrm-holiday')
+router.register(r'hrm/face-profiles', hrm_api_views.FaceProfileViewSet, basename='hrm-face-profile')
+router.register(r'hrm/attendance-check', hrm_api_views.AttendanceCheckView, basename='hrm-attendance-check')
 
 # Accounting (SYSCOHADA)
 router.register(r'accounting/accounts', v1_views.AccountViewSet, basename='acct-account')

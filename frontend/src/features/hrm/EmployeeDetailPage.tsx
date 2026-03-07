@@ -14,12 +14,15 @@ import {
   Building2,
   Briefcase,
   MapPin,
+  ScanFace,
+  CheckCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { hrmApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import type { HrmEmployeeStatus } from '@/api/types';
+import FaceEnrollment from '@/features/kiosk/FaceEnrollment';
 
 const STATUS_LABELS: Record<HrmEmployeeStatus, string> = {
   ACTIVE: 'Actif',
@@ -42,6 +45,7 @@ type Tab = 'info' | 'contracts' | 'leaves' | 'documents';
 export default function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState<Tab>('info');
+  const [showFaceEnroll, setShowFaceEnroll] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: employee, isLoading } = useQuery({
@@ -138,13 +142,39 @@ export default function EmployeeDetailPage() {
             </span>
           </div>
         </div>
-        <Link
-          to={`/hrm/employees/${id}/edit`}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700 transition"
-        >
-          <Edit size={14} /> Modifier
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowFaceEnroll(true)}
+            className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition ${
+              employee.has_face_profile
+                ? 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-400 dark:bg-emerald-900/20'
+                : 'border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            {employee.has_face_profile ? <CheckCircle size={14} /> : <ScanFace size={14} />}
+            {employee.has_face_profile ? 'Profil facial' : 'Enregistrer visage'}
+          </button>
+          <Link
+            to={`/hrm/employees/${id}/edit`}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700 transition"
+          >
+            <Edit size={14} /> Modifier
+          </Link>
+        </div>
       </div>
+
+      {/* Face enrollment modal */}
+      {showFaceEnroll && (
+        <FaceEnrollment
+          employeeId={id!}
+          employeeName={employee.full_name}
+          onClose={() => setShowFaceEnroll(false)}
+          onSuccess={() => {
+            toast.success('Profil facial enregistre avec succes');
+            queryClient.invalidateQueries({ queryKey: queryKeys.hrm.employees.detail(id!) });
+          }}
+        />
+      )}
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700">

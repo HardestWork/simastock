@@ -252,7 +252,7 @@ class EnterpriseSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'code', 'legal_name', 'registration_number',
             'tax_id', 'currency', 'vat_enabled', 'vat_rate',
-            'email', 'phone', 'website', 'is_active',
+            'email', 'phone', 'website', 'is_active', 'timezone',
             'bank_details', 'invoice_header', 'invoice_template',
             'invoice_primary_color', 'invoice_secondary_color',
             'offer_validity_days', 'invoice_terms', 'invoice_footer',
@@ -1514,13 +1514,35 @@ class MeSerializer(serializers.ModelSerializer):
     enumeration of privileged accounts.
     """
 
+    enterprise_timezone = serializers.SerializerMethodField(read_only=True)
+
+    def get_enterprise_timezone(self, obj):
+        from stores.models import StoreUser
+        su = (
+            StoreUser.objects
+            .filter(user=obj, is_default=True)
+            .select_related("store__enterprise")
+            .first()
+        )
+        if not su:
+            su = (
+                StoreUser.objects
+                .filter(user=obj)
+                .select_related("store__enterprise")
+                .first()
+            )
+        if su and su.store and su.store.enterprise:
+            return su.store.enterprise.timezone
+        return "Africa/Ouagadougou"
+
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name',
             'phone', 'role', 'is_active', 'is_superuser',
+            'enterprise_timezone',
         ]
-        read_only_fields = ['id', 'email', 'role', 'is_active', 'is_superuser']
+        read_only_fields = ['id', 'email', 'role', 'is_active', 'is_superuser', 'enterprise_timezone']
 
 
 # ---------------------------------------------------------------------------

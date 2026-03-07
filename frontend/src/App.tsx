@@ -102,6 +102,7 @@ const StockAnalyticsPage = lazyRetry(() => import('@/features/stock/StockAnalyti
 const DGDashboardPage = lazyRetry(() => import('@/features/dg/DGDashboardPage'));
 const CustomerIntelligencePage = lazyRetry(() => import('@/features/customers/CustomerIntelligencePage'));
 const CommercialPage = lazyRetry(() => import('@/features/commercial/CommercialPage'));
+const HrmOrganisationPage = lazyRetry(() => import('@/features/hrm/OrganisationPage'));
 const HrmEmployeeListPage = lazyRetry(() => import('@/features/hrm/EmployeeListPage'));
 const HrmEmployeeDetailPage = lazyRetry(() => import('@/features/hrm/EmployeeDetailPage'));
 const HrmEmployeeFormPage = lazyRetry(() => import('@/features/hrm/EmployeeFormPage'));
@@ -109,6 +110,7 @@ const HrmLeaveRequestListPage = lazyRetry(() => import('@/features/hrm/LeaveRequ
 const HrmAttendanceListPage = lazyRetry(() => import('@/features/hrm/AttendanceListPage'));
 const HrmPayrollPage = lazyRetry(() => import('@/features/hrm/PayrollPage'));
 const AuditLogPage = lazyRetry(() => import('@/features/audit/AuditLogPage'));
+const KioskAttendancePage = lazyRetry(() => import('@/features/kiosk/KioskAttendancePage'));
 const VerifyDocumentPage = lazyRetry(() => import('@/features/verify/VerifyDocumentPage'));
 
 // Accounting (SYSCOHADA)
@@ -392,6 +394,7 @@ export default function App() {
                   }
                 >
                   <Route path="/hrm" element={<Navigate to="/hrm/employees" replace />} />
+                  <Route path="/hrm/organisation" element={<Suspense fallback={<PageLoader />}><HrmOrganisationPage /></Suspense>} />
                   <Route path="/hrm/employees" element={<Suspense fallback={<PageLoader />}><HrmEmployeeListPage /></Suspense>} />
                   <Route path="/hrm/employees/new" element={<Suspense fallback={<PageLoader />}><HrmEmployeeFormPage /></Suspense>} />
                   <Route path="/hrm/employees/:id" element={<Suspense fallback={<PageLoader />}><HrmEmployeeDetailPage /></Suspense>} />
@@ -399,6 +402,7 @@ export default function App() {
                   <Route path="/hrm/leaves" element={<Suspense fallback={<PageLoader />}><HrmLeaveRequestListPage /></Suspense>} />
                   <Route path="/hrm/attendance" element={<Suspense fallback={<PageLoader />}><HrmAttendanceListPage /></Suspense>} />
                   <Route path="/hrm/payroll" element={<Suspense fallback={<PageLoader />}><HrmPayrollPage /></Suspense>} />
+                  <Route path="/hrm/kiosk" element={<Suspense fallback={<PageLoader />}><KioskAttendancePage /></Suspense>} />
                 </Route>
 
                 {/* Audit Logs */}

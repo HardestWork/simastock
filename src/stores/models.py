@@ -236,6 +236,12 @@ class Enterprise(TimeStampedModel):
         blank=True,
         help_text="Date d'expiration. Vide = pas d'expiration.",
     )
+    timezone = models.CharField(
+        "fuseau horaire",
+        max_length=50,
+        default="Africa/Ouagadougou",
+        help_text="Fuseau horaire de l'entreprise (ex: Africa/Ouagadougou, Europe/Paris).",
+    )
     is_active = models.BooleanField("actif", default=True)
 
     class Meta:

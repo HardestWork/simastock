@@ -2306,6 +2306,8 @@ export interface HrmEmployee extends HrmEmployeeList {
   bank_account: string;
   emergency_contact_name: string;
   emergency_contact_phone: string;
+  pin_code: string;
+  has_face_profile: boolean;
   updated_at: string;
 }
 
@@ -2334,6 +2336,8 @@ export interface HrmAttendancePolicy {
   id: string;
   enterprise: string;
   name: string;
+  department: string | null;
+  department_name: string | null;
   work_start: string;
   work_end: string;
   break_minutes: number;
@@ -2344,6 +2348,8 @@ export interface HrmAttendancePolicy {
 }
 
 export type HrmAttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'HALF_DAY' | 'ON_LEAVE' | 'HOLIDAY';
+
+export type HrmCheckMethod = 'FACE' | 'PIN' | 'QR' | 'MANUAL';
 
 export interface HrmAttendance {
   id: string;
@@ -2357,8 +2363,36 @@ export interface HrmAttendance {
   overtime_minutes: number;
   notes: string;
   policy: string | null;
+  check_in_method: HrmCheckMethod | '';
+  check_out_method: HrmCheckMethod | '';
+  check_in_photo: string | null;
+  check_out_photo: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface HrmFaceProfile {
+  id: string;
+  employee: string;
+  employee_name: string | null;
+  embeddings: number[][];
+  photo_1: string | null;
+  photo_2: string | null;
+  photo_3: string | null;
+  is_active: boolean;
+  enrolled_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrmAttendanceCheckResult {
+  status: string;
+  message: string;
+  employee_name: string;
+  check_in?: string;
+  check_out?: string;
+  method: string;
+  late_minutes?: number;
 }
 
 export interface HrmLeaveType {

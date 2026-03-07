@@ -118,6 +118,8 @@ import type {
   HrmDisciplinaryAction,
   HrmEmployeeDocument,
   HrmHoliday,
+  HrmFaceProfile,
+  HrmAttendanceCheckResult,
   DocumentVerification,
   AcctAccount,
   AcctJournal,
@@ -1275,6 +1277,28 @@ export const hrmApi = {
       apiClient.delete(`hrm/attendances/${id}/`),
     bulkCheckin: (data: { employee_ids: string[]; date: string; check_in?: string }) =>
       apiClient.post('hrm/attendances/bulk-checkin/', data).then(r => r.data),
+    dailySummary: (date: string) =>
+      apiClient.get<{
+        date: string;
+        total_employees: number;
+        present: number;
+        absent: number;
+        late: number;
+        on_leave: number;
+        still_in: number;
+        checked_out: number;
+        avg_late_minutes: number;
+        total_overtime_minutes: number;
+        recent_activity: {
+          id: string;
+          employee_name: string;
+          check_in: string | null;
+          check_out: string | null;
+          status: string;
+          late_minutes: number;
+          check_in_method: string;
+        }[];
+      }>('hrm/attendances/daily-summary/', { params: { date } }).then(r => r.data),
   },
 
   // Leave types
@@ -1479,6 +1503,28 @@ export const hrmApi = {
       apiClient.patch<HrmHoliday>(`hrm/holidays/${id}/`, data).then(r => r.data),
     delete: (id: string) =>
       apiClient.delete(`hrm/holidays/${id}/`),
+  },
+
+  // Face profiles
+  faceProfiles: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmFaceProfile>>('hrm/face-profiles/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmFaceProfile>(`hrm/face-profiles/${id}/`).then(r => r.data),
+    create: (data: FormData) =>
+      apiClient.post<HrmFaceProfile>('hrm/face-profiles/', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/face-profiles/${id}/`),
+    byStore: (storeId: string) =>
+      apiClient.get<HrmFaceProfile[]>(`hrm/face-profiles/by-store/${storeId}/`).then(r => r.data),
+  },
+
+  // Attendance check (kiosk)
+  attendanceCheck: {
+    check: (data: { employee_id: string; check_type: string; method: string; pin_code?: string }) =>
+      apiClient.post<HrmAttendanceCheckResult>('hrm/attendance-check/check/', data).then(r => r.data),
   },
 };
 
