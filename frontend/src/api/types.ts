@@ -876,6 +876,7 @@ export interface CashShift {
   id: string;
   store: string;
   cashier: string;
+  cashier_name: string | null;
   status: ShiftStatus;
   opened_at: string;
   closed_at: string | null;
@@ -883,6 +884,7 @@ export interface CashShift {
   expected_cash: string;
   closing_cash: string | null;
   variance: string | null;
+  notes: string;
   totals: CashShiftTotals;
 }
 

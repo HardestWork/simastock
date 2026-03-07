@@ -232,7 +232,11 @@ export default function CashierDashboard() {
               {closedShifts.results.map((s) => {
                 const variance = parseFloat(s.variance ?? '0');
                 return (
-                  <tr key={s.id} className="border-b border-gray-50 dark:border-gray-700">
+                  <tr
+                    key={s.id}
+                    className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/cashier/shift/${s.id}`)}
+                  >
                     <td className="py-2 pr-3 text-gray-700 dark:text-gray-200">
                       {new Date(s.opened_at).toLocaleString('fr-FR')}
                     </td>

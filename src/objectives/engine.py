@@ -80,10 +80,23 @@ class ObjectiveCalculationEngine:
             # Fetch the active rule for this store + period
             rule = self._get_active_rule(period)
             if rule is None:
-                logger.warning(
-                    "No active ObjectiveRule for store=%s period=%s",
+                logger.info(
+                    "No active ObjectiveRule for store=%s period=%s — resetting stats",
                     self.store_id,
                     period,
+                )
+                # Reset any existing stats so the seller dashboard reflects the deletion.
+                SellerMonthlyStats.objects.filter(
+                    store_id=self.store_id,
+                    seller_id=seller_id,
+                    period=period,
+                ).update(
+                    current_tier_rank=0,
+                    current_tier_name="",
+                    bonus_earned=Decimal("0"),
+                    tier_snapshot=[],
+                    last_trigger=trigger,
+                    computed_at=timezone.now(),
                 )
                 return None
 

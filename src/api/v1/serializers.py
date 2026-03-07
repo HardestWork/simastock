@@ -1207,18 +1207,27 @@ class CashShiftSerializer(serializers.ModelSerializer):
     """Read serializer for CashShift model with computed totals."""
 
     totals = serializers.SerializerMethodField()
+    cashier_name = serializers.SerializerMethodField()
 
     class Meta:
         model = CashShift
         fields = [
-            'id', 'store', 'cashier', 'status', 'opened_at', 'closed_at',
+            'id', 'store', 'cashier', 'cashier_name', 'status',
+            'opened_at', 'closed_at',
             'opening_float', 'expected_cash', 'closing_cash', 'variance',
-            'totals',
+            'notes', 'totals',
         ]
         read_only_fields = [
-            'id', 'cashier', 'status', 'opened_at', 'closed_at',
+            'id', 'cashier', 'cashier_name', 'status', 'opened_at', 'closed_at',
             'expected_cash', 'variance',
         ]
+
+    def get_cashier_name(self, obj):
+        u = obj.cashier
+        if not u:
+            return None
+        name = f"{u.first_name} {u.last_name}".strip()
+        return name or u.email
 
     def get_totals(self, obj):
         return {

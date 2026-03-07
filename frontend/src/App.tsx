@@ -45,6 +45,7 @@ const CouponManagementPage = lazyRetry(() => import('@/features/coupons/CouponMa
 const CashFlowPage = lazyRetry(() => import('@/features/reports/CashFlowPage'));
 const DebtAgingPage = lazyRetry(() => import('@/features/reports/DebtAgingPage'));
 const CashierDashboard = lazyRetry(() => import('@/features/cashier/CashierDashboard'));
+const CashShiftDetailPage = lazyRetry(() => import('@/features/cashier/CashShiftDetailPage'));
 const ProcessPaymentPage = lazyRetry(() => import('@/features/cashier/ProcessPaymentPage'));
 const ProductListPage = lazyRetry(() => import('@/features/catalog/ProductListPage'));
 const StockLevelsPage = lazyRetry(() => import('@/features/stock/StockLevelsPage'));
@@ -251,6 +252,7 @@ export default function App() {
                   }
                 >
                   <Route path="/cashier" element={<Suspense fallback={<PageLoader />}><CashierDashboard /></Suspense>} />
+                  <Route path="/cashier/shift/:shiftId" element={<Suspense fallback={<PageLoader />}><CashShiftDetailPage /></Suspense>} />
                   <Route path="/cashier/payment/:saleId" element={<Suspense fallback={<PageLoader />}><ProcessPaymentPage /></Suspense>} />
                   <Route path="/cashier/receipt/:saleId" element={<Suspense fallback={<PageLoader />}><PaymentReceiptPage /></Suspense>} />
                 </Route>

@@ -154,6 +154,30 @@ class ObjectiveRuleViewSet(viewsets.ModelViewSet):
             period=_current_period(),
         )
 
+    def perform_destroy(self, instance):
+        store_id = str(instance.store_id)
+        instance.delete()
+        # Recompute all sellers so their stats reflect the rule deletion
+        from objectives.tasks import recompute_store_month
+        try:
+            recompute_store_month.delay(
+                store_id=store_id,
+                period=_current_period(),
+            )
+        except Exception:
+            # Fallback: sync recompute if Celery unavailable
+            engine = ObjectiveCalculationEngine(store_id=store_id)
+            period = _current_period()
+            for su in StoreUser.objects.filter(store_id=store_id):
+                try:
+                    engine.compute_for_seller(
+                        seller_id=str(su.user_id),
+                        period=period,
+                        trigger="MANUAL",
+                    )
+                except Exception:
+                    pass
+
 
 # ────────────────────────────────────────────────────────────
 # Per-seller objective overrides
