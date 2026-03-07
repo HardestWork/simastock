@@ -33,6 +33,7 @@ import {
   Shield,
   PlusCircle,
   PieChart,
+  ScrollText,
   Sparkles,
   UserCheck,
   Calendar,
@@ -530,6 +531,14 @@ const navItems: NavItem[] = [
     label: 'Dashboard DG',
     icon: <LayoutDashboard size={16} />,
     module: 'ANALYTICS_DG',
+    roles: ['MANAGER', 'ADMIN'],
+  },
+  {
+    section: 'PILOTAGE',
+    path: '/audit-logs',
+    label: "Journal d'audit",
+    icon: <ScrollText size={16} />,
+    module: 'ANALYTICS_MANAGER',
     roles: ['MANAGER', 'ADMIN'],
   },
   {

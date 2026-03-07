@@ -133,6 +133,7 @@ import type {
   Coupon,
   CouponDiscountType,
   CashFlowReport,
+  AuditLog,
 } from './types';
 import type { Capability } from './types';
 
@@ -1550,4 +1551,13 @@ export const accountingApi = {
     apiClient.get<AccountingSettings>('accounting/settings/').then(r => r.data),
   updateSettings: (data: Partial<AccountingSettings>) =>
     apiClient.patch<AccountingSettings>('accounting/settings/', data).then(r => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// Audit Logs
+// ---------------------------------------------------------------------------
+
+export const auditLogApi = {
+  list: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<AuditLog>>('audit-logs/', { params }).then(r => r.data),
 };

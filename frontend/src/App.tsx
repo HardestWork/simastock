@@ -108,6 +108,7 @@ const HrmEmployeeFormPage = lazyRetry(() => import('@/features/hrm/EmployeeFormP
 const HrmLeaveRequestListPage = lazyRetry(() => import('@/features/hrm/LeaveRequestListPage'));
 const HrmAttendanceListPage = lazyRetry(() => import('@/features/hrm/AttendanceListPage'));
 const HrmPayrollPage = lazyRetry(() => import('@/features/hrm/PayrollPage'));
+const AuditLogPage = lazyRetry(() => import('@/features/audit/AuditLogPage'));
 const VerifyDocumentPage = lazyRetry(() => import('@/features/verify/VerifyDocumentPage'));
 
 // Accounting (SYSCOHADA)
@@ -398,6 +399,11 @@ export default function App() {
                   <Route path="/hrm/leaves" element={<Suspense fallback={<PageLoader />}><HrmLeaveRequestListPage /></Suspense>} />
                   <Route path="/hrm/attendance" element={<Suspense fallback={<PageLoader />}><HrmAttendanceListPage /></Suspense>} />
                   <Route path="/hrm/payroll" element={<Suspense fallback={<PageLoader />}><HrmPayrollPage /></Suspense>} />
+                </Route>
+
+                {/* Audit Logs */}
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} requiredModules={['ANALYTICS_MANAGER']} />}>
+                  <Route path="/audit-logs" element={<Suspense fallback={<PageLoader />}><AuditLogPage /></Suspense>} />
                 </Route>
 
                 {/* Profile (all authenticated users) */}

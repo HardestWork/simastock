@@ -1673,6 +1673,24 @@ export interface ExpenseDashboardData {
 }
 
 // ---------------------------------------------------------------------------
+// Audit Log
+// ---------------------------------------------------------------------------
+
+export interface AuditLog {
+  id: string;
+  actor: string | null;
+  actor_name: string;
+  store: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  before_json: Record<string, unknown> | null;
+  after_json: Record<string, unknown> | null;
+  ip_address: string | null;
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
 // Paginated response
 // ---------------------------------------------------------------------------
 

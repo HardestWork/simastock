@@ -2955,6 +2955,10 @@ class SaleViewSet(viewsets.ModelViewSet):
         if cashier_id:
             qs = qs.filter(payments__cashier_id=cashier_id).distinct()
 
+        shift_id = self.request.query_params.get('shift')
+        if shift_id:
+            qs = qs.filter(payments__shift_id=shift_id).distinct()
+
         return qs
 
     def perform_update(self, serializer):
