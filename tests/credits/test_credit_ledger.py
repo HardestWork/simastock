@@ -1,7 +1,6 @@
 import pytest
 from decimal import Decimal
 from credits.services import record_credit_sale, record_credit_payment, check_credit_availability
-from credits.models import CustomerAccount, CreditLedgerEntry
 
 
 @pytest.mark.django_db

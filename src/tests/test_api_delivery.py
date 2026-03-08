@@ -3,7 +3,6 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from delivery.models import Delivery, DeliveryAgent, DeliveryZone
-from stores.models import Enterprise, Store, StoreUser
 
 User = get_user_model()
 

@@ -1,6 +1,5 @@
 """CSV export utilities."""
 import csv
-import io
 from django.http import HttpResponse
 
 

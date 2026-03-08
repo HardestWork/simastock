@@ -448,7 +448,7 @@ class Command(BaseCommand):
                 )
 
             po.status = PurchaseOrder.Status.RECEIVED
-            po.subtotal = sum((l.line_total for l in lines), Decimal("0.00"))
+            po.subtotal = sum((line.line_total for line in lines), Decimal("0.00"))
             po.save(update_fields=["status", "subtotal", "updated_at"])
 
     def _seed_alerts(self, *, store, actor, products):

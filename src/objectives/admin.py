@@ -1,6 +1,5 @@
 """Django admin for the objectives module."""
 from django.contrib import admin
-from django.utils.html import format_html
 
 from objectives.models import (
     LeaderboardSettings,

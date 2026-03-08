@@ -6,7 +6,6 @@ from catalog.models import Product
 
 from .models import (
     StockCount,
-    StockCountLine,
     StockTransfer,
     StockTransferLine,
 )

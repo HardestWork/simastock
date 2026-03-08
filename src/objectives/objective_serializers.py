@@ -3,12 +3,10 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from django.utils import timezone
 from rest_framework import serializers
 
 from objectives.models import (
     LeaderboardSettings,
-    LeaderboardSnapshot,
     MonthlyReward,
     ObjectiveRule,
     ObjectiveTier,

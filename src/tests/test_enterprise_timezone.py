@@ -1,13 +1,11 @@
 """Tests for per-enterprise timezone support."""
-import zoneinfo
 
 import pytest
-from django.test import RequestFactory, override_settings
+from django.test import RequestFactory
 from django.utils import timezone
-from rest_framework.test import APIClient, force_authenticate
 
 from stores.middleware import CurrentStoreMiddleware
-from stores.models import Enterprise, Store, StoreUser
+from stores.models import Enterprise
 
 
 pytestmark = pytest.mark.django_db

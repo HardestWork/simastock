@@ -5,10 +5,10 @@ import logging
 from datetime import date
 
 from django.utils import timezone
-from rest_framework import filters, permissions, serializers, status, viewsets
+from rest_framework import filters, permissions, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
-from rest_framework.generics import GenericAPIView, RetrieveUpdateAPIView
+from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -25,7 +25,6 @@ from objectives.models import (
     SellerPenalty,
     SellerPenaltyType,
     SellerSprint,
-    SellerSprintResult,
 )
 from objectives.objective_serializers import (
     LeaderboardSettingsSerializer,
@@ -715,7 +714,7 @@ class SellerCreditQualityView(APIView):
         year, month = int(period[:4]), int(period[5:7])
 
         from credits.models import CreditLedgerEntry, PaymentSchedule
-        from django.db.models import Sum, Count, Avg
+        from django.db.models import Sum, Count
         from datetime import date
 
         seller_sale_ids = list(
@@ -733,7 +732,6 @@ class SellerCreditQualityView(APIView):
         ).aggregate(total=Sum("amount"))
         credit_issued = float(issued_agg["total"] or 0)
 
-        from credits.models import CustomerAccount
         account_ids = CreditLedgerEntry.objects.filter(
             sale_id__in=seller_sale_ids,
         ).values_list("account_id", flat=True).distinct()
@@ -768,7 +766,6 @@ class SellerCreditQualityView(APIView):
         recovery_rate = (credit_recovered_ledger / credit_issued * 100) if credit_issued > 0 else 0.0
 
         top_debtors = []
-        from credits.models import CustomerAccount as CA
         for ps in overdue_qs.select_related("account__customer").order_by("-amount_due")[:5]:
             customer = ps.account.customer if ps.account else None
             top_debtors.append({

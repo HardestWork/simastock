@@ -4,7 +4,6 @@ These functions encapsulate the business logic for building report data
 so that views stay thin and logic is reusable from Celery tasks or the API.
 """
 import csv
-import io
 import logging
 from datetime import date, timedelta
 from decimal import Decimal
@@ -13,13 +12,11 @@ from django.db.models import (
     Avg,
     Count,
     F,
-    Q,
     Sum,
     Value,
 )
 from django.db.models.functions import Coalesce, ExtractHour, TruncDate
 from django.http import HttpResponse
-from django.utils import timezone
 
 logger = logging.getLogger("boutique")
 
@@ -37,7 +34,6 @@ def get_dashboard_kpis(store, date_from=None, date_to=None):
     """
     from sales.models import Sale, SaleItem, Refund
     from stock.models import ProductStock
-    from cashier.models import Payment
 
     today = date.today()
 
@@ -293,7 +289,6 @@ def get_daily_statistics(store, date_from, date_to):
     from sales.models import Sale, SaleItem, Refund
     from cashier.models import Payment
     from django.db.models import DecimalField
-    from django.db.models.functions import Coalesce as C
 
     today = date.today()
     paid_statuses = [Sale.Status.PAID, Sale.Status.PARTIALLY_PAID]

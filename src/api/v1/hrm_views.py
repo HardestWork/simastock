@@ -2,7 +2,7 @@
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Q, Count, Sum, Avg
+from django.db.models import Q, Sum, Avg
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -1634,7 +1634,12 @@ class ScheduleTemplateViewSet(viewsets.ModelViewSet):
         store_id = _current_store_id(self.request)
         if not store_id:
             return ScheduleTemplate.objects.none()
-        return ScheduleTemplate.objects.filter(store_id=store_id).prefetch_related("lines__shift")
+        return (
+            ScheduleTemplate.objects
+            .filter(store_id=store_id)
+            .prefetch_related("lines__shift")
+            .order_by("name", "id")
+        )
 
     def perform_create(self, serializer):
         store_id = _current_store_id(self.request)
@@ -1666,4 +1671,5 @@ class ReplacementViewSet(viewsets.ModelViewSet):
         return (
             Replacement.objects.filter(original_entry__store_id=store_id)
             .select_related("original_entry__employee", "replacement_employee")
+            .order_by("-created_at", "id")
         )

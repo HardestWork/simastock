@@ -1,4 +1,10 @@
 """Test settings - uses SQLite for fast local testing."""
+import os
+
+# Ensure tests stay hermetic even if local .env has production-like values.
+os.environ["DEBUG"] = "True"
+os.environ["SECRET_KEY"] = "test-secret-key-long-enough-for-local-tests-only-1234567890"
+
 from .base import *  # noqa: F401,F403
 
 DEBUG = True

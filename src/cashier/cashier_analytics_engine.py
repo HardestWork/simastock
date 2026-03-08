@@ -4,8 +4,7 @@ from __future__ import annotations
 from decimal import Decimal
 from datetime import datetime, timezone as dt_timezone
 
-from django.db.models import Avg, Count, Sum, Q, F, ExpressionWrapper, DurationField
-from django.utils import timezone
+from django.db.models import Avg, Count, Sum, F, ExpressionWrapper, DurationField
 
 
 class CashierAnalyticsEngine:
@@ -34,7 +33,6 @@ class CashierAnalyticsEngine:
         return Payment.objects.filter(store_id=self.store_id, cashier_id=cashier_id, created_at__gte=start, created_at__lt=end)
 
     def compute_kpis(self, cashier_id: str, period: str) -> dict:
-        from cashier.models import CashShift, Payment
         from sales.models import Sale
         shifts = self._get_shifts(cashier_id, period)
         payments = self._get_payments(cashier_id, period)
@@ -110,18 +108,23 @@ class CashierAnalyticsEngine:
         return {'total': total, 'segment': segment, 'precision': round(precision, 1), 'speed': round(speed, 1), 'volume': round(volume, 1), 'reliability': round(reliability, 1), 'actions': actions}
 
     def compute_anomalies(self, cashier_id: str, period: str, kpis: dict | None = None) -> dict:
-        if kpis is None: kpis = self.compute_kpis(cashier_id, period)
+        if kpis is None:
+            kpis = self.compute_kpis(cashier_id, period)
         anomalies = []
-        if kpis['variance_rate'] > 5.0: anomalies.append({'type': 'HIGH_VARIANCE', 'label': 'Écart de caisse élevé', 'value': round(kpis['variance_rate'], 1), 'threshold': 5.0, 'unit': '%'})
-        if 0 < kpis['avg_delay_seconds'] < 30 and kpis['transaction_count'] >= 3: anomalies.append({'type': 'FAST_PAYMENT', 'label': 'Validation trop rapide (risque contrôle insuffisant)', 'value': round(kpis['avg_delay_seconds'], 0), 'threshold': 30, 'unit': 's'})
-        if kpis['avg_delay_minutes'] > 15 and kpis['transaction_count'] >= 3: anomalies.append({'type': 'SLOW_PAYMENT', 'label': 'Délai de traitement trop long', 'value': round(kpis['avg_delay_minutes'], 1), 'threshold': 15, 'unit': 'min'})
-        if kpis['refund_count'] > 3: anomalies.append({'type': 'HIGH_REFUNDS', 'label': 'Pic de remboursements inhabituels', 'value': kpis['refund_count'], 'threshold': 3, 'unit': ''})
-        if kpis['avg_shift_duration_h'] > 12 and kpis['shift_count'] >= 2: anomalies.append({'type': 'LONG_SHIFTS', 'label': 'Durée moyenne de shift excessive', 'value': round(kpis['avg_shift_duration_h'], 1), 'threshold': 12, 'unit': 'h'})
+        if kpis['variance_rate'] > 5.0:
+            anomalies.append()
+        if 0 < kpis['avg_delay_seconds'] < 30 and kpis['transaction_count'] >= 3:
+            anomalies.append()
+        if kpis['avg_delay_minutes'] > 15 and kpis['transaction_count'] >= 3:
+            anomalies.append()
+        if kpis['refund_count'] > 3:
+            anomalies.append()
+        if kpis['avg_shift_duration_h'] > 12 and kpis['shift_count'] >= 2:
+            anomalies.append()
         risk_score = len(anomalies) * 20
         return {'risk_score': risk_score, 'anomalies': anomalies}
 
     def compute_payment_methods(self, cashier_id: str, period: str) -> dict:
-        from cashier.models import Payment
         METHOD_LABELS = {'CASH': 'Espèces', 'MOBILE_MONEY': 'Mobile Money', 'BANK_TRANSFER': 'Virement', 'CREDIT': 'Crédit', 'CHEQUE': 'Chèque'}
         payments = self._get_payments(cashier_id, period)
         total = payments.aggregate(t=Sum('amount'))['t'] or Decimal('0')
@@ -133,7 +136,7 @@ class CashierAnalyticsEngine:
         return {'total': str(total), 'by_method': by_method}
 
     def compute_shift_history(self, cashier_id: str, period: str) -> list:
-        from cashier.models import CashShift, Payment
+        from cashier.models import Payment
         shifts = self._get_shifts(cashier_id, period).order_by('-opened_at')
         result = []
         for s in shifts:
@@ -164,3 +167,4 @@ class CashierAnalyticsEngine:
             team.append({'cashier_id': str(uid), 'cashier_name': user.get_full_name() or user.email, 'kpis': kpis, 'score': score, 'anomalies': anomalies, 'payment_methods': methods})
         team.sort(key=lambda x: x['score']['total'], reverse=True)
         return team
+

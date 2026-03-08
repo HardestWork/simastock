@@ -1,5 +1,4 @@
 """Tests for the branded email utility."""
-import pytest
 from django.core import mail
 
 from core.email import send_branded_email

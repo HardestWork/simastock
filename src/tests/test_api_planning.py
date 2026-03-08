@@ -5,7 +5,6 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from hrm.models import Employee, Replacement, ScheduleEntry, ScheduleTemplate, ScheduleTemplateLine, Shift
-from stores.models import Enterprise, Store, StoreUser
 
 User = get_user_model()
 

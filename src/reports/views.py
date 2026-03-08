@@ -1,5 +1,4 @@
 """Views for the reports and dashboard app."""
-import json
 import logging
 from datetime import date, timedelta
 

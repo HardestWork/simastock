@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import logging
-from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from objectives.models import LeaderboardSnapshot
 
 
 class LeaderboardEngine:
@@ -15,14 +18,13 @@ class LeaderboardEngine:
     def __init__(self, store_id: str) -> None:
         self.store_id = store_id
 
-    def compute_snapshot(self, period: str) -> "LeaderboardSnapshot":
+    def compute_snapshot(self, period: str) -> LeaderboardSnapshot:
         """Compute rankings, detect rank changes, award overtake badges, persist."""
         from objectives.models import (
             LeaderboardSnapshot,
             SellerBadge,
             SellerMonthlyStats,
         )
-        from accounts.models import User
         from django.db.models import ExpressionWrapper, F, DecimalField
 
         stats_qs = (
@@ -102,7 +104,7 @@ class LeaderboardEngine:
         self,
         period: str,
         max_age_minutes: int = 60,
-    ) -> "LeaderboardSnapshot | None":
+    ) -> LeaderboardSnapshot | None:
         """Return snapshot if fresh enough, else None (caller should recompute)."""
         from datetime import timedelta
         from objectives.models import LeaderboardSnapshot

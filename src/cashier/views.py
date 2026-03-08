@@ -2,7 +2,6 @@
 import json
 import io
 import logging
-from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
 from uuid import UUID
@@ -114,10 +113,6 @@ class CashierDashboardView(CashierOrManagerMixin, StoreRequiredMixin, View):
         today_payments = Payment.objects.filter(
             store=store,
             created_at__gte=today_start,
-        )
-        today_totals = today_payments.aggregate(
-            total=Sum("amount"),
-            cash=Sum("amount", filter=Payment.objects.filter(method="CASH").query.where),
         )
         # Simpler aggregation by method
         today_total = today_payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
@@ -508,7 +503,7 @@ class ProcessPaymentView(CashierOrManagerMixin, StoreRequiredMixin, View):
                 if wants_json:
                     return JsonResponse({"error": str(e)}, status=400)
                 messages.error(request, str(e))
-            except Exception as e:
+            except Exception:
                 logger.exception("Error processing payment for sale %s", sale_id)
                 if wants_json:
                     return JsonResponse(
@@ -809,7 +804,7 @@ class ShiftReportPDFView(CashierOrManagerMixin, StoreRequiredMixin, View):
 
         # Title
         elements.append(Paragraph(
-            f"Rapport de Session de Caisse",
+            "Rapport de Session de Caisse",
             styles["Title"],
         ))
         elements.append(Spacer(1, 5 * mm))

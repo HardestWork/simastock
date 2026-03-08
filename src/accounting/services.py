@@ -160,8 +160,8 @@ def create_journal_entry(
         return None
 
     # Validate balance
-    total_debit = sum(l.get("debit", ZERO) for l in lines_data)
-    total_credit = sum(l.get("credit", ZERO) for l in lines_data)
+    total_debit = sum(line.get("debit", ZERO) for line in lines_data)
+    total_credit = sum(line.get("credit", ZERO) for line in lines_data)
     if total_debit != total_credit:
         logger.error(
             "Ecriture déséquilibrée: D=%s C=%s (label=%s)",

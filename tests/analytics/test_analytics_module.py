@@ -23,7 +23,7 @@ from analytics.services import (
 )
 from cashier.models import CashShift, Payment
 from catalog.models import Product
-from credits.models import CustomerAccount, PaymentSchedule
+from credits.models import PaymentSchedule
 from customers.models import Customer
 from sales.models import Sale, SaleItem
 from stock.models import ProductStock

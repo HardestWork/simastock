@@ -175,17 +175,17 @@ def generate_bilan(enterprise_id, fiscal_year):
             if remaining <= ZERO:
                 break
 
-    actif_immo_brut = sum(l["brut"] for l in actif_immo_lines)
-    actif_immo_amort = sum(l["amortissement"] for l in actif_immo_lines)
-    actif_immo_net = sum(l["net"] for l in actif_immo_lines)
-    actif_circ_total = sum(l["net"] for l in actif_circ_lines)
-    tresos_actif_total = sum(l["net"] for l in tresos_actif_lines)
+    actif_immo_brut = sum(line["brut"] for line in actif_immo_lines)
+    actif_immo_amort = sum(line["amortissement"] for line in actif_immo_lines)
+    actif_immo_net = sum(line["net"] for line in actif_immo_lines)
+    actif_circ_total = sum(line["net"] for line in actif_circ_lines)
+    tresos_actif_total = sum(line["net"] for line in tresos_actif_lines)
     total_actif_net = actif_immo_net + actif_circ_total + tresos_actif_total
 
-    capitaux_total = sum(l["montant"] for l in capitaux_lines)
-    dettes_fin_total = sum(l["montant"] for l in dettes_fin_lines)
-    passif_circ_total = sum(l["montant"] for l in passif_circ_lines)
-    tresos_passif_total = sum(l["montant"] for l in tresos_passif_lines)
+    capitaux_total = sum(line["montant"] for line in capitaux_lines)
+    dettes_fin_total = sum(line["montant"] for line in dettes_fin_lines)
+    passif_circ_total = sum(line["montant"] for line in passif_circ_lines)
+    tresos_passif_total = sum(line["montant"] for line in tresos_passif_lines)
     total_passif = capitaux_total + dettes_fin_total + passif_circ_total + tresos_passif_total
 
     return {

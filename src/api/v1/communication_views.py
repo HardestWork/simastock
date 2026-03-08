@@ -1,4 +1,7 @@
 """API views for the Communication Client module."""
+import logging
+
+from django.db import transaction
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -8,6 +11,8 @@ from api.v1.permissions import ModuleCommunicationEnabled
 from communications.models import Campaign, MessageLog, MessageTemplate
 from communications.services import resolve_segment, render_template
 from communications.tasks import process_campaign
+
+logger = logging.getLogger("boutique")
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +150,17 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
         campaign.status = Campaign.Status.SENDING
         campaign.save(update_fields=["status"])
-        process_campaign.delay(str(campaign.pk))
+
+        def _enqueue_campaign():
+            try:
+                process_campaign.delay(str(campaign.pk))
+            except Exception:
+                Campaign.objects.filter(pk=campaign.pk, status=Campaign.Status.SENDING).update(
+                    status=Campaign.Status.DRAFT,
+                )
+                logger.exception("Impossible de lancer la campagne %s en asynchrone.", campaign.pk)
+
+        transaction.on_commit(_enqueue_campaign)
 
         return Response(CampaignSerializer(campaign).data)
 

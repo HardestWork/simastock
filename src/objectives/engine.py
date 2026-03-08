@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 from typing import TYPE_CHECKING
 
@@ -20,7 +20,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 if TYPE_CHECKING:
-    from accounts.models import User
+    from objectives.models import ObjectiveTier, SellerMonthlyStats
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class ObjectiveCalculationEngine:
         seller_id: str,
         period: str,  # "YYYY-MM"
         trigger: str = "PAYMENT",
-    ) -> "SellerMonthlyStats | None":
+    ) -> SellerMonthlyStats | None:
         """
         Compute and persist stats for seller/period.
 
@@ -49,8 +49,6 @@ class ObjectiveCalculationEngine:
         """
         # Late imports to avoid circular deps
         from objectives.models import (
-            ObjectiveRule,
-            ObjectiveTier,
             SellerMonthlyStats,
             SellerPenalty,
         )
@@ -186,12 +184,11 @@ class ObjectiveCalculationEngine:
 
             return stats_obj
 
-    def compute_projection(self, stats: "SellerMonthlyStats", period: str) -> dict:
+    def compute_projection(self, stats: SellerMonthlyStats, period: str) -> dict:
         """
         Project final-month amount and days-to-next-tier based on daily rate.
         Returns dict with daily_rate, projected_amount, days_to_next_tier, next_tier.
         """
-        from objectives.models import ObjectiveRule
 
         today = date.today()
         year, month = int(period[:4]), int(period[5:7])
@@ -322,7 +319,7 @@ class ObjectiveCalculationEngine:
             "credit_recovered": credit_recovered,
         }
 
-    def _determine_tier(self, net: Decimal, tiers: list) -> "ObjectiveTier | None":
+    def _determine_tier(self, net: Decimal, tiers: list) -> ObjectiveTier | None:
         """Return the highest tier whose threshold <= net amount."""
         reached = None
         for tier in sorted(tiers, key=lambda t: t.rank):
@@ -438,8 +435,8 @@ class ObjectiveCalculationEngine:
     def compute_seller_profile(self, stats, risk_score):
         if risk_score >= 60:
             return "RISQUE"
-        gross = float(stats.gross_amount) or 1.0
         credit = float(stats.credit_recovered)
+        gross = float(stats.gross_amount) or 1.0
         if credit / gross > 0.20:
             return "RECOUVREUR"
         avg_basket = float(stats.avg_basket)
@@ -452,7 +449,6 @@ class ObjectiveCalculationEngine:
     def compute_coaching_missions(self, seller_id, period, stats):
         missions_pool = []
         net = float(stats.net_amount)
-        gross = float(stats.gross_amount) or 1.0
         credit = float(stats.credit_recovered)
         if credit < 50_000:
             missions_pool.append({

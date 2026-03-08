@@ -1,5 +1,5 @@
 """Regression tests for HRM API security and workflow rules."""
-from datetime import date, time
+from datetime import time
 from decimal import Decimal
 
 import pytest
@@ -519,7 +519,7 @@ class TestAttendanceCRUD:
     @pytest.mark.django_db
     def test_update_recomputes_late_minutes(self, admin_client, employee, store):
         """When updating check_in, late_minutes should be recomputed."""
-        policy = AttendancePolicy.objects.create(
+        AttendancePolicy.objects.create(
             enterprise=store.enterprise,
             name='Standard',
             work_start=time(8, 0),
@@ -584,7 +584,7 @@ class TestPolicyResolution:
         self, admin_client, store, department, employee_with_dept,
     ):
         """Employee in a department should use department policy, not default."""
-        default_policy = AttendancePolicy.objects.create(
+        AttendancePolicy.objects.create(
             enterprise=store.enterprise, name='Default',
             work_start=time(8, 0), work_end=time(17, 0),
             late_tolerance_minutes=10, is_default=True,

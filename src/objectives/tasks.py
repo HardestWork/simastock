@@ -32,7 +32,6 @@ def recompute_seller_objective(self, *, store_id: str, seller_id: str, period: s
 @shared_task
 def recompute_store_month(*, store_id: str, period: str):
     """Recompute stats for ALL sellers in a store for a given period."""
-    from accounts.models import User
     from stores.models import StoreUser
     from objectives.engine import ObjectiveCalculationEngine
 
@@ -63,7 +62,6 @@ def close_month_objectives():
     Scheduled daily (Celery Beat). Only runs logic on the 1st of each month.
     Mark previous month stats as final and award badges.
     """
-    from calendar import monthrange
     from objectives.models import SellerMonthlyStats, SellerBadge
     from objectives.leaderboard import LeaderboardEngine
 
@@ -87,7 +85,6 @@ def close_month_objectives():
     logger.info("Closed %d stats records for period %s", updated, period)
 
     # Award BEST_MONTH badge to top seller per store
-    from django.db.models import Max
     stores = SellerMonthlyStats.objects.filter(period=period).values_list(
         "store_id", flat=True
     ).distinct()

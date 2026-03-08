@@ -5,7 +5,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.forms import formset_factory
 
-from .models import CashShift, Payment
+from .models import Payment
 
 User = get_user_model()
 

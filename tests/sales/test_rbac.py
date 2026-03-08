@@ -1,6 +1,6 @@
 import pytest
 from sales.services import create_sale, add_item_to_sale, submit_sale_to_cashier, recalculate_sale
-from cashier.services import open_shift, process_payment
+from cashier.services import open_shift
 
 
 @pytest.mark.django_db

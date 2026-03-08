@@ -32,7 +32,7 @@ from sales.forms import (
     SaleItemForm,
     SaleSubmitForm,
 )
-from sales.models import Refund, Sale
+from sales.models import Sale
 from sales.services import (
     add_item_to_sale,
     cancel_sale,

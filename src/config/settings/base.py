@@ -2,6 +2,7 @@
 Base settings for Boutique Management System.
 """
 import os
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -331,8 +332,6 @@ REST_FRAMEWORK = {
 }
 
 # JWT
-from datetime import timedelta
-
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
@@ -412,4 +411,3 @@ if SENTRY_DSN:
         environment=env("SENTRY_ENVIRONMENT", default="production"),
         send_default_pii=False,
     )
-

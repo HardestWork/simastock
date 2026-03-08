@@ -19,3 +19,6 @@ htmlcov/
 *.swo
 backups/*.sql.gz
 backups/*.sql
+*_pre_release_*.sql
+*_pre_release_*.tar.gz
+products_import_from_report_*.csv

@@ -1,5 +1,4 @@
 """Models for the stock management app."""
-import uuid
 
 from django.conf import settings
 from django.db import models
@@ -240,7 +239,7 @@ class StockTransfer(TimeStampedModel):
         verbose_name_plural = "Transferts de stock"
         constraints = [
             models.CheckConstraint(
-                check=~models.Q(from_store=models.F("to_store")),
+                condition=~models.Q(from_store=models.F("to_store")),
                 name="ck_transfer_different_stores",
             ),
         ]

@@ -10,7 +10,7 @@ logger = logging.getLogger("boutique")
 @shared_task(name="communications.tasks.process_campaign")
 def process_campaign(campaign_id):
     """Send messages for a campaign in batch."""
-    from communications.models import Campaign, MessageTemplate
+    from communications.models import Campaign
     from communications.services import render_template, send_message, resolve_segment
 
     campaign = Campaign.objects.select_related("template", "enterprise").get(pk=campaign_id)

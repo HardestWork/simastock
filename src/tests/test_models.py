@@ -1,9 +1,8 @@
 """Tests for core model behavior."""
-import pytest
 from datetime import date, timedelta
 from django.contrib.auth import get_user_model
 
-from stores.models import Enterprise, EnterpriseSubscription, Store, StoreUser, Sequence
+from stores.models import EnterpriseSubscription, Sequence
 
 User = get_user_model()
 

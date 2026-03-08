@@ -3,12 +3,12 @@ import pytest
 from decimal import Decimal
 from django.utils import timezone
 
-from catalog.models import Category, Product, ProductVariant, PricingPolicy, PricingRule
+from catalog.models import Category, Product, ProductVariant, PricingPolicy
 from customers.models import Customer, LoyaltyAccount, LoyaltyTransaction
-from customers.services import award_points, redeem_points, compute_customer_score, update_customer_loyalty_after_sale
+from customers.services import award_points, redeem_points, compute_customer_score
 from cashier.models import CashShift, CashShiftDenomination
-from sales.models import RecurringSale, RecurringSaleItem
-from stores.models import Enterprise, Store, StoreUser
+from sales.models import RecurringSale
+from stores.models import Enterprise
 
 
 # ---------------------------------------------------------------------------
@@ -20,7 +20,7 @@ class TestProductVariantAPI:
     """Tests for /api/v1/catalog/variants/"""
 
     def test_create_variant(self, admin_client, enterprise, store):
-        cat = Category.objects.create(enterprise=enterprise, name="Cat", slug="cat")
+        Category.objects.create(enterprise=enterprise, name="Cat", slug="cat")
         product = Product.objects.create(
             enterprise=enterprise,
             name="T-Shirt",
@@ -199,7 +199,7 @@ class TestRecurringSaleAPI:
     """Tests for /api/v1/recurring-sales/"""
 
     def test_create_recurring_sale(self, admin_client, enterprise, store, admin_user):
-        product = Product.objects.create(
+        Product.objects.create(
             enterprise=enterprise, name="Eau Minérale 5L", slug="eau-5l", sku="SKU-EAU",
             selling_price="500", cost_price="200", track_stock=False,
         )
@@ -217,7 +217,7 @@ class TestRecurringSaleAPI:
 
     def test_list_recurring_sales(self, admin_client, enterprise, store, admin_user):
         from datetime import date
-        rs = RecurringSale.objects.create(
+        RecurringSale.objects.create(
             store=store, seller=admin_user,
             name="Weekly", frequency=RecurringSale.Frequency.WEEKLY,
             next_due_date=date.today(),

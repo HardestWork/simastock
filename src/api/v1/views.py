@@ -48,14 +48,14 @@ from stores.models import (
     StoreUser,
 )
 from stores.services import resolve_store_module_matrix
-from catalog.models import Brand, Category, PricingPolicy, PricingRule, Product, ProductImage, ProductVariant
+from catalog.models import Brand, Category, PricingPolicy, Product, ProductImage, ProductVariant
 from stock.models import (
     InventoryMovement, ProductStock,
     StockTransfer, StockTransferLine,
     StockCount, StockCountLine,
 )
-from customers.models import Customer, LoyaltyAccount, LoyaltyTransaction
-from sales.models import Coupon, Quote, QuoteItem, RecurringSale, RecurringSaleItem, Refund, Sale, SaleItem
+from customers.models import Customer, LoyaltyAccount
+from sales.models import Coupon, Quote, QuoteItem, RecurringSale, Refund, Sale, SaleItem
 from cashier.models import CashShift, CashShiftDenomination, Payment
 from credits.models import CustomerAccount, CreditLedgerEntry, PaymentSchedule
 from purchases.models import Supplier, PurchaseOrder, GoodsReceipt
@@ -94,8 +94,6 @@ from api.v1.serializers import (
     SaleAddItemSerializer,
     SaleSetItemQuantitySerializer,
     SaleSetItemUnitPriceSerializer,
-    SaleSubmitSerializer,
-    SaleItemSerializer,
     PaymentSerializer,
     PaymentCreateSerializer,
     CashShiftSerializer,
@@ -126,8 +124,6 @@ from api.v1.serializers import (
     StockCountUpdateLinesSerializer,
     BulkStockEntrySerializer,
     BulkStockAdjustSerializer,
-    StockTransferLineSerializer,
-    StockCountLineSerializer,
     PaymentScheduleSerializer,
     QuoteSerializer,
     QuoteCreateSerializer,
@@ -135,11 +131,8 @@ from api.v1.serializers import (
     StoreUserSerializer,
     ProductVariantSerializer,
     LoyaltyAccountSerializer,
-    LoyaltyTransactionSerializer,
     PricingPolicySerializer,
-    PricingRuleSerializer,
     RecurringSaleSerializer,
-    RecurringSaleItemSerializer,
     CashShiftDenominationSerializer,
 )
 from api.v1.pagination import StandardResultsSetPagination
@@ -154,7 +147,6 @@ from api.v1.permissions import (
     CanManageUsers,
     CanManageStores,
     CanManageSubscriptions,
-    CanManageModules,
     ModuleCustomerEnabled,
     ModuleSellOrStockEnabled,
     ModuleStockEnabled,
@@ -1677,13 +1669,10 @@ class CategoryViewSet(viewsets.ModelViewSet):
                     existing[name.strip().lower()] = obj
                     created += 1
                 else:
-                    changed = False
                     if description and obj.description != description:
                         obj.description = description
-                        changed = True
                     if parent and obj.parent != parent:
                         obj.parent = parent
-                        changed = True
                     obj.is_active = is_active
                     obj.save(update_fields=['description', 'parent', 'is_active', 'updated_at'])
                     updated += 1
@@ -3390,7 +3379,7 @@ class SaleViewSet(viewsets.ModelViewSet):
         ])
 
         # Increment coupon usage counter so max_uses limit is enforced
-        Coupon.objects.filter(pk=coupon.pk).update(uses_count=models.F('uses_count') + 1)
+        Coupon.objects.filter(pk=coupon.pk).update(uses_count=F('uses_count') + 1)
 
         sale = self.get_queryset().get(pk=sale.pk)
         return Response(SaleSerializer(sale).data)
@@ -3420,7 +3409,7 @@ class SaleViewSet(viewsets.ModelViewSet):
         # Decrement coupon usage counter when removed
         if old_coupon:
             Coupon.objects.filter(pk=old_coupon.pk, uses_count__gt=0).update(
-                uses_count=models.F('uses_count') - 1,
+                uses_count=F('uses_count') - 1,
             )
 
         sale = self.get_queryset().get(pk=sale.pk)
@@ -6392,7 +6381,12 @@ class LoyaltyAccountViewSet(
 
     def get_queryset(self):
         store_ids = _user_store_ids(self.request.user)
-        return LoyaltyAccount.objects.filter(store_id__in=store_ids).select_related("customer")
+        return (
+            LoyaltyAccount.objects
+            .filter(store_id__in=store_ids)
+            .select_related("customer")
+            .order_by("id")
+        )
 
     @action(detail=False, methods=["post"], url_path="redeem")
     def redeem_points(self, request):

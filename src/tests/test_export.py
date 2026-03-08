@@ -1,5 +1,4 @@
 """Tests for CSV export utility and endpoints."""
-import pytest
 from django.http import HttpResponse
 
 from core.export import queryset_to_csv_response

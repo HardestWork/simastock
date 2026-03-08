@@ -429,7 +429,7 @@ class BillingModuleDependency(TimeStampedModel):
         constraints = [
             models.UniqueConstraint(fields=["module", "depends_on_module"], name="uniq_module_dependency"),
             models.CheckConstraint(
-                check=~models.Q(module=models.F("depends_on_module")),
+                condition=~models.Q(module=models.F("depends_on_module")),
                 name="chk_module_dependency_not_self",
             ),
         ]

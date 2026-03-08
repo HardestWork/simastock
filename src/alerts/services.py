@@ -271,8 +271,6 @@ def check_discount_anomaly(sale):
     avg_discount = agg["avg_discount"]
 
     # Calculate standard deviation manually
-    from django.db.models import FloatField
-    from django.db.models.functions import Cast
 
     discounts = list(
         recent_sales.values_list("discount_percent", flat=True)

@@ -32,7 +32,6 @@ from credits.models import CustomerAccount, CreditLedgerEntry, PaymentSchedule
 from purchases.models import Supplier, PurchaseOrder, PurchaseOrderLine, GoodsReceipt, GoodsReceiptLine
 from accounts.models import CustomRole
 from alerts.models import Alert
-from reports.models import KPISnapshot
 
 User = get_user_model()
 
@@ -2018,8 +2017,8 @@ class JournalEntryCreateSerializer(serializers.Serializer):
     def validate_lines(self, value):
         if not value:
             raise serializers.ValidationError("Au moins une ligne est requise.")
-        total_d = sum(l["debit"] for l in value)
-        total_c = sum(l["credit"] for l in value)
+        total_d = sum(line["debit"] for line in value)
+        total_c = sum(line["credit"] for line in value)
         if total_d != total_c:
             raise serializers.ValidationError(
                 f"L'ecriture n'est pas equilibree: debit={total_d}, credit={total_c}."

@@ -8,7 +8,6 @@ from django.utils import timezone
 from cashier.models import CashShift
 from delivery.models import Delivery, DeliveryAgent, DeliveryZone
 from expenses.models import Expense, ExpenseCategory, Wallet
-from stores.models import Store, StoreUser
 
 User = get_user_model()
 

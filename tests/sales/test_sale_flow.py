@@ -1,7 +1,6 @@
 import pytest
 from decimal import Decimal
-from django.utils import timezone
-from sales.models import Sale, SaleItem
+from sales.models import Sale
 from sales.services import (
     add_item_to_sale,
     create_refund,
@@ -9,7 +8,7 @@ from sales.services import (
     recalculate_sale,
     submit_sale_to_cashier,
 )
-from cashier.services import open_shift, process_payment, close_shift
+from cashier.services import open_shift, process_payment
 from stock.models import ProductStock
 
 

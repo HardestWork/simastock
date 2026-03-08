@@ -5,7 +5,6 @@ from django.contrib.auth import get_user_model
 from communications.models import Campaign, MessageLog, MessageTemplate
 from communications.services import render_template, resolve_segment
 from customers.models import Customer
-from stores.models import Enterprise, Store, StoreUser
 
 User = get_user_model()
 
