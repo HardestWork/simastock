@@ -9,6 +9,9 @@ import { useStoreStore } from '@/store-context/store-store';
 
 export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarHidden, setSidebarHidden] = useState(
+    () => localStorage.getItem('sidebar-hidden') === 'true',
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
   const { stores, user, loadUser, isAuthenticated, initialized } = useAuthStore();
   const { initializeStore, currentStore } = useStoreStore();
@@ -37,6 +40,27 @@ export default function AppLayout() {
   const toggleMobile = useCallback(() => setMobileOpen((prev) => !prev), []);
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
+  const toggleSidebarHidden = useCallback(() => {
+    setSidebarHidden((prev) => {
+      const next = !prev;
+      localStorage.setItem('sidebar-hidden', String(next));
+      return next;
+    });
+  }, []);
+
+  // Keyboard shortcut: backslash (\) toggles sidebar on desktop
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === '\\' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        toggleSidebarHidden();
+      }
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [toggleSidebarHidden]);
+
   return (
     <div className="h-screen bg-canvas dark:bg-gray-900 flex flex-col md:flex-row overflow-hidden">
       {/* Mobile backdrop — only rendered when drawer is open */}
@@ -57,7 +81,7 @@ export default function AppLayout() {
       </div>
 
       {/* Desktop sidebar — static flex item, hidden on mobile */}
-      <div className="hidden md:flex flex-col shrink-0 h-full">
+      <div className={`${sidebarHidden ? 'hidden' : 'hidden md:flex'} flex-col shrink-0 h-full`}>
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -66,7 +90,7 @@ export default function AppLayout() {
 
       {/* Main content */}
       <div className="flex-1 min-w-0 overflow-y-auto">
-        <Topbar onMenuToggle={toggleMobile} />
+        <Topbar onMenuToggle={toggleMobile} onSidebarToggle={toggleSidebarHidden} sidebarHidden={sidebarHidden} />
         <main className="p-3 sm:p-4 md:p-6 dark:text-gray-100">
           <Outlet />
         </main>

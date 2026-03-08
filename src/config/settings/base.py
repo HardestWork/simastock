@@ -324,6 +324,8 @@ REST_FRAMEWORK = {
         "user": env("DRF_THROTTLE_USER", default="200/min"),
         "auth_burst": env("DRF_THROTTLE_AUTH_BURST", default="20/min"),
         "auth_sustained": env("DRF_THROTTLE_AUTH_SUSTAINED", default="200/day"),
+        # Password reset is stricter to limit email enumeration / spam
+        "password_reset": env("DRF_THROTTLE_PASSWORD_RESET", default="5/min"),
         "document_verify": "15/min",
     },
 }

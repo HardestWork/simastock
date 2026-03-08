@@ -36,10 +36,16 @@ def _login_fail_cache_key(ip: str) -> str:
 
 
 def _get_client_ip(request) -> str:
-    """Extract the real client IP, honouring X-Forwarded-For if behind a proxy."""
+    """Extract the real client IP from behind a single trusted reverse proxy.
+
+    When behind nginx, the proxy appends the real client IP to X-Forwarded-For.
+    Taking the *rightmost* value prevents spoofing: a malicious client can inject
+    IPs at the left side of the header, but cannot forge what the proxy appends.
+    """
     xff = request.META.get("HTTP_X_FORWARDED_FOR")
     if xff:
-        return xff.split(",")[0].strip()
+        # Rightmost entry = added by our trusted proxy (nginx), not by the client.
+        return xff.split(",")[-1].strip()
     return request.META.get("REMOTE_ADDR", "unknown")
 
 
@@ -232,7 +238,7 @@ class PasswordResetRequestAPIView(APIView):
 
     permission_classes = [permissions.AllowAny]
     throttle_classes = [SafeScopedRateThrottle]
-    throttle_scope = "auth_burst"
+    throttle_scope = "password_reset"  # 5/min — stricter than auth_burst (20/min)
 
     def post(self, request):
         email = (request.data.get("email") or "").strip()

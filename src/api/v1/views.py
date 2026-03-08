@@ -899,17 +899,23 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
         except Exception:
             logger.exception("Failed to send enterprise setup credentials to %s", user.email)
 
+        credentials: dict = {
+            'email': user.email,
+            'password_generated': password_generated,
+            'email_sent': email_sent,
+            'login_url': login_url,
+        }
+        # Only surface the temporary password when the email failed AND it was
+        # auto-generated — without this the superadmin has no recovery path.
+        # Never expose a caller-supplied password.
+        if not email_sent and password_generated:
+            credentials['temporary_password'] = user_password
+
         return Response({
             'enterprise': EnterpriseSerializer(enterprise).data,
             'store': StoreSerializer(store).data,
             'admin_user': UserSerializer(user).data,
-            'credentials': {
-                'email': user.email,
-                'password': user_password,
-                'password_generated': password_generated,
-                'email_sent': email_sent,
-                'login_url': login_url,
-            },
+            'credentials': credentials,
         }, status=status.HTTP_201_CREATED)
 
 

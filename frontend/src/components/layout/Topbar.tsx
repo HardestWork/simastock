@@ -1,7 +1,7 @@
 /** Top navigation bar with store switcher, alerts badge, and user menu. */
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Bell, ChevronDown, LogOut, Menu, Moon, Search, Sun, User as UserIcon, Store, ShoppingCart } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Menu, Moon, PanelLeft, Search, Sun, User as UserIcon, Store, ShoppingCart } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth-store';
 import { useThemeStore } from '@/lib/theme-store';
 import { useStoreStore } from '@/store-context/store-store';
@@ -12,9 +12,11 @@ const POS_ROLES = ['ADMIN', 'MANAGER', 'SALES', 'SALES_CASHIER'] as const;
 
 interface TopbarProps {
   onMenuToggle?: () => void;
+  onSidebarToggle?: () => void;
+  sidebarHidden?: boolean;
 }
 
-export default function Topbar({ onMenuToggle }: TopbarProps) {
+export default function Topbar({ onMenuToggle, onSidebarToggle, sidebarHidden }: TopbarProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, stores, logout } = useAuthStore();
@@ -67,6 +69,15 @@ export default function Topbar({ onMenuToggle }: TopbarProps) {
           aria-label="Menu"
         >
           <Menu size={22} className="text-gray-600 dark:text-gray-300" />
+        </button>
+
+        {/* Desktop sidebar toggle */}
+        <button
+          onClick={onSidebarToggle}
+          className="hidden md:flex p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0"
+          title={sidebarHidden ? 'Afficher le menu (\\)' : 'Masquer le menu (\\)'}
+        >
+          <PanelLeft size={20} className={sidebarHidden ? 'text-primary' : 'text-gray-600 dark:text-gray-300'} />
         </button>
 
         {/* POS quick-link — visible on desktop for sales roles */}
