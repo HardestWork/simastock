@@ -11,6 +11,8 @@ from cashier import cashier_analytics_views as cashier_analytics_views
 from stock import stock_analytics_views as stock_analytics_views
 from api.v1 import dg_views as dg_views
 from api.v1 import hrm_views as hrm_api_views
+from api.v1 import delivery_views as delivery_api_views
+from api.v1 import communication_views as communication_api_views
 from api.auth_views import (
     CookieTokenObtainPairView,
     CookieTokenRefreshView,
@@ -101,7 +103,32 @@ router.register(r'hrm/holidays', hrm_api_views.HolidayViewSet, basename='hrm-hol
 router.register(r'hrm/face-profiles', hrm_api_views.FaceProfileViewSet, basename='hrm-face-profile')
 router.register(r'hrm/attendance-check', hrm_api_views.AttendanceCheckView, basename='hrm-attendance-check')
 
+# HRM — Planning
+router.register(r'hrm/shifts', hrm_api_views.ShiftViewSet, basename='hrm-shift')
+router.register(r'hrm/schedule-entries', hrm_api_views.ScheduleEntryViewSet, basename='hrm-schedule-entry')
+router.register(r'hrm/schedule-templates', hrm_api_views.ScheduleTemplateViewSet, basename='hrm-schedule-template')
+router.register(r'hrm/schedule-template-lines', hrm_api_views.ScheduleTemplateLineViewSet, basename='hrm-schedule-template-line')
+router.register(r'hrm/replacements', hrm_api_views.ReplacementViewSet, basename='hrm-replacement')
+
+# Delivery & Logistics
+router.register(r'delivery/zones', delivery_api_views.DeliveryZoneViewSet, basename='delivery-zone')
+router.register(r'delivery/agents', delivery_api_views.DeliveryAgentViewSet, basename='delivery-agent')
+router.register(r'delivery/deliveries', delivery_api_views.DeliveryViewSet, basename='delivery')
+router.register(r'delivery/agent-objectives', delivery_api_views.AgentObjectiveViewSet, basename='agent-objective')
+router.register(r'delivery/pickup-locations', delivery_api_views.DeliveryPickupLocationViewSet, basename='delivery-pickup-location')
+
+# Communications
+router.register(r'communications/templates', communication_api_views.MessageTemplateViewSet, basename='communication-template')
+router.register(r'communications/logs', communication_api_views.MessageLogViewSet, basename='communication-log')
+router.register(r'communications/campaigns', communication_api_views.CampaignViewSet, basename='communication-campaign')
+
 # Accounting (SYSCOHADA)
+# Phase 3 — Améliorations modules existants
+router.register(r'catalog/variants', v1_views.ProductVariantViewSet, basename='catalog-variant')
+router.register(r'catalog/pricing-policies', v1_views.PricingPolicyViewSet, basename='catalog-pricing-policy')
+router.register(r'loyalty/accounts', v1_views.LoyaltyAccountViewSet, basename='loyalty-account')
+router.register(r'recurring-sales', v1_views.RecurringSaleViewSet, basename='recurring-sale')
+
 router.register(r'accounting/accounts', v1_views.AccountViewSet, basename='acct-account')
 router.register(r'accounting/journals', v1_views.AcctJournalViewSet, basename='acct-journal')
 router.register(r'accounting/fiscal-years', v1_views.FiscalYearViewSet, basename='acct-fiscal-year')
@@ -196,4 +223,6 @@ urlpatterns = [
 
     # Public invoice PDF download (no auth — for WhatsApp sharing)
     path('invoices/dl/<str:token>/', v1_views.InvoiceDownloadView.as_view(), name='invoice-download'),
+
+    # (Phase 3 denominations are handled as an action on CashShiftViewSet)
 ]

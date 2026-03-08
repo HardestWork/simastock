@@ -48,15 +48,15 @@ from stores.models import (
     StoreUser,
 )
 from stores.services import resolve_store_module_matrix
-from catalog.models import Brand, Category, Product, ProductImage
+from catalog.models import Brand, Category, PricingPolicy, PricingRule, Product, ProductImage, ProductVariant
 from stock.models import (
     InventoryMovement, ProductStock,
     StockTransfer, StockTransferLine,
     StockCount, StockCountLine,
 )
-from customers.models import Customer
-from sales.models import Coupon, Quote, QuoteItem, Refund, Sale, SaleItem
-from cashier.models import CashShift, Payment
+from customers.models import Customer, LoyaltyAccount, LoyaltyTransaction
+from sales.models import Coupon, Quote, QuoteItem, RecurringSale, RecurringSaleItem, Refund, Sale, SaleItem
+from cashier.models import CashShift, CashShiftDenomination, Payment
 from credits.models import CustomerAccount, CreditLedgerEntry, PaymentSchedule
 from purchases.models import Supplier, PurchaseOrder, GoodsReceipt
 from alerts.models import Alert
@@ -133,6 +133,14 @@ from api.v1.serializers import (
     QuoteCreateSerializer,
     QuoteAddItemSerializer,
     StoreUserSerializer,
+    ProductVariantSerializer,
+    LoyaltyAccountSerializer,
+    LoyaltyTransactionSerializer,
+    PricingPolicySerializer,
+    PricingRuleSerializer,
+    RecurringSaleSerializer,
+    RecurringSaleItemSerializer,
+    CashShiftDenominationSerializer,
 )
 from api.v1.pagination import StandardResultsSetPagination
 from api.v1.permissions import (
@@ -159,6 +167,7 @@ from api.v1.permissions import (
     FeatureCreditManagementEnabled,
     FeatureAlertsCenterEnabled,
     FeatureReportsCenterEnabled,
+    CanManageLeads,
 )
 
 User = get_user_model()
@@ -909,7 +918,7 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 class EnterpriseSubscriptionViewSet(viewsets.ModelViewSet):
-    """CRUD for enterprise subscriptions — superadmin only."""
+    """CRUD for enterprise subscriptions."""
 
     serializer_class = EnterpriseSubscriptionSerializer
     queryset = EnterpriseSubscription.objects.select_related("enterprise")
@@ -919,7 +928,7 @@ class EnterpriseSubscriptionViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
-        return [IsAuthenticated(), IsSuperAdmin()]
+        return [IsAuthenticated(), CanManageSubscriptions()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -2908,7 +2917,7 @@ class SaleViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
-        if self.action in ('create', 'add_item', 'set_item_quantity', 'remove_item', 'submit', 'apply_coupon', 'remove_coupon'):
+        if self.action in ('create', 'add_item', 'set_item_quantity', 'remove_item', 'submit', 'apply_coupon', 'remove_coupon', 'set_delivery', 'remove_delivery'):
             return [IsSales(), FeatureSalesPOSEnabled()]
         if self.action == 'set_item_unit_price':
             return [IsSales(), FeatureSalesPOSEnabled()]
@@ -3411,6 +3420,99 @@ class SaleViewSet(viewsets.ModelViewSet):
         sale = self.get_queryset().get(pk=sale.pk)
         return Response(SaleSerializer(sale).data)
 
+    @action(detail=True, methods=["post"], url_path="set-delivery")
+    def set_delivery(self, request, pk=None):
+        """Attach a delivery to a draft sale and update delivery_fee."""
+        from delivery.models import Delivery, DeliveryZone, DeliveryAgent, DeliveryPickupLocation
+        from sales.services import recalculate_sale
+
+        sale = self.get_object()
+        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
+            return Response(
+                {"detail": "Impossible de modifier la livraison après encaissement."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Cancel any existing pending delivery
+        sale.deliveries.filter(status__in=["PENDING", "PREPARING"]).update(status=Delivery.Status.CANCELLED)
+
+        zone_id = request.data.get("zone_id")
+        zone = None
+        if zone_id:
+            try:
+                zone = DeliveryZone.objects.get(pk=zone_id, store=sale.store)
+            except DeliveryZone.DoesNotExist:
+                return Response({"detail": "Zone introuvable."}, status=status.HTTP_400_BAD_REQUEST)
+
+        fee_raw = request.data.get("delivery_fee")
+        delivery_fee = Decimal(str(fee_raw)) if fee_raw is not None else (zone.fee if zone else Decimal("0.00"))
+
+        agent_id = request.data.get("agent_id")
+        agent = None
+        if agent_id:
+            try:
+                agent = DeliveryAgent.objects.get(pk=agent_id, store=sale.store, is_active=True)
+            except DeliveryAgent.DoesNotExist:
+                return Response({"detail": "Livreur introuvable."}, status=status.HTTP_400_BAD_REQUEST)
+
+        pickup_location = None
+        ploc_id = request.data.get("pickup_location_id")
+        if ploc_id:
+            pickup_location = DeliveryPickupLocation.objects.filter(pk=ploc_id, store=sale.store).first()
+
+        is_broadcast = not bool(agent)
+        customer = sale.customer
+        delivery = Delivery.objects.create(
+            store=sale.store,
+            sale=sale,
+            zone=zone,
+            agent=agent,
+            seller=request.user,
+            is_broadcast=is_broadcast,
+            status=Delivery.Status.PENDING,
+            recipient_name=request.data.get("recipient_name") or (customer.full_name if customer else ""),
+            recipient_phone=request.data.get("recipient_phone") or (getattr(customer, "phone", "") if customer else ""),
+            delivery_address=request.data.get("delivery_address", ""),
+            payout_amount=zone.fee if zone else Decimal("0.00"),
+            pickup_location=pickup_location,
+            pickup_notes=request.data.get("pickup_notes", ""),
+        )
+
+        if is_broadcast:
+            try:
+                from api.v1.delivery_views import _broadcast_to_agents
+                _broadcast_to_agents(delivery)
+            except Exception:
+                pass
+
+        sale.delivery_fee = delivery_fee
+        sale.save(update_fields=["delivery_fee", "updated_at"])
+        recalculate_sale(sale)
+
+        sale = self.get_queryset().get(pk=sale.pk)
+        return Response(SaleSerializer(sale).data)
+
+    @action(detail=True, methods=["post"], url_path="remove-delivery")
+    def remove_delivery(self, request, pk=None):
+        """Remove delivery from a draft sale and reset delivery_fee."""
+        from delivery.models import Delivery
+        from sales.services import recalculate_sale
+
+        sale = self.get_object()
+        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
+            return Response(
+                {"detail": "Impossible de modifier la livraison après encaissement."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        sale.deliveries.filter(status__in=["PENDING", "PREPARING"]).update(status=Delivery.Status.CANCELLED)
+        sale.delivery_fee = Decimal("0.00")
+        sale.save(update_fields=["delivery_fee", "updated_at"])
+        recalculate_sale(sale)
+
+        sale = self.get_queryset().get(pk=sale.pk)
+        return Response(SaleSerializer(sale).data)
+
     @action(detail=False, methods=['get'], url_path='export-csv')
     def export_csv(self, request):
         """Export filtered sales to a CSV file."""
@@ -3657,6 +3759,26 @@ class CashShiftViewSet(viewsets.ModelViewSet):
             )
 
         return Response(CashShiftSerializer(shift).data)
+
+    @action(detail=True, methods=['get', 'post'], url_path='denominations')
+    def denominations(self, request, pk=None):
+        """List or save denominations for this shift."""
+        shift = self.get_object()
+        if request.method == 'GET':
+            qs = CashShiftDenomination.objects.filter(shift=shift)
+            serializer = CashShiftDenominationSerializer(qs, many=True)
+            return Response({'count': qs.count(), 'results': serializer.data})
+        # POST — upsert denomination
+        serializer = CashShiftDenominationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        denomination = serializer.validated_data["denomination"]
+        count = serializer.validated_data["count"]
+        obj, _ = CashShiftDenomination.objects.update_or_create(
+            shift=shift,
+            denomination=denomination,
+            defaults={"count": count},
+        )
+        return Response(CashShiftDenominationSerializer(obj).data, status=status.HTTP_201_CREATED)
 
 
 # ---------------------------------------------------------------------------
@@ -5080,7 +5202,8 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ('create', 'add_item', 'remove_item', 'send', 'duplicate'):
-            return [IsSales(), FeatureSalesPOSEnabled()]
+            # COMMERCIAL role can also create and manage quotes (CRM workflow)
+            return [IsAuthenticated(), FeatureSalesPOSEnabled(), CanManageLeads()]
         if self.action in ('accept', 'refuse', 'convert', 'cancel'):
             return [IsManagerOrAdmin(), FeatureSalesPOSEnabled()]
         return [IsAuthenticated(), FeatureSalesPOSEnabled()]
@@ -6224,3 +6347,148 @@ class InvoiceDownloadView(APIView):
                 {"detail": "Impossible de generer la facture."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 ViewSets
+# ---------------------------------------------------------------------------
+
+class ProductVariantViewSet(viewsets.ModelViewSet):
+    """CRUD for product variants."""
+
+    serializer_class = ProductVariantSerializer
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["product", "is_active"]
+    search_fields = ["name", "sku", "barcode"]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = ProductVariant.objects.select_related("product")
+        return _filter_queryset_by_enterprise(qs, self.request.user, field_name="product__enterprise_id")
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+
+class LoyaltyAccountViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """List loyalty accounts for the current store."""
+
+    serializer_class = LoyaltyAccountSerializer
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["customer"]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        store_ids = _user_store_ids(self.request.user)
+        return LoyaltyAccount.objects.filter(store_id__in=store_ids).select_related("customer")
+
+    @action(detail=False, methods=["post"], url_path="redeem")
+    def redeem_points(self, request):
+        """Redeem loyalty points for a customer."""
+        from customers.services import redeem_points as _redeem_points
+        customer_id = request.data.get("customer_id")
+        points = request.data.get("points")
+        sale_id = request.data.get("sale_id")
+        store_ids = list(_user_store_ids(request.user))
+        if not store_ids:
+            return Response({"detail": "Aucune boutique accessible."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            account = LoyaltyAccount.objects.get(store_id__in=store_ids, customer_id=customer_id)
+            result = _redeem_points(account=account, points=float(points), sale_id=sale_id, actor=request.user)
+            return Response(LoyaltyAccountSerializer(result).data)
+        except LoyaltyAccount.DoesNotExist:
+            return Response({"detail": "Compte fidelite introuvable."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PricingPolicyViewSet(viewsets.ModelViewSet):
+    """CRUD for pricing policies."""
+
+    serializer_class = PricingPolicySerializer
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["is_active", "customer_tier", "store"]
+    search_fields = ["name"]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = PricingPolicy.objects.prefetch_related("rules").order_by("-priority")
+        return _filter_queryset_by_enterprise(qs, self.request.user)
+
+    def perform_create(self, serializer):
+        enterprise_id = _require_user_enterprise_id(self.request.user)
+        serializer.save(enterprise_id=enterprise_id)
+
+
+class RecurringSaleViewSet(viewsets.ModelViewSet):
+    """CRUD for recurring sales."""
+
+    serializer_class = RecurringSaleSerializer
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["is_active", "frequency", "customer"]
+    search_fields = ["name"]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        store_ids = _user_store_ids(self.request.user)
+        return RecurringSale.objects.filter(store_id__in=store_ids).prefetch_related("items")
+
+    def perform_create(self, serializer):
+        # Use user's default store
+        su = StoreUser.objects.filter(
+            user=self.request.user, is_default=True, store__is_active=True,
+        ).select_related("store").first()
+        if not su:
+            raise PermissionDenied("Aucune boutique par defaut trouvee.")
+        serializer.save(store=su.store)
+
+    @action(detail=True, methods=["post"], url_path="generate-now")
+    def generate_now(self, request, pk=None):
+        """Manually trigger generation of a recurring sale."""
+        from sales.services import generate_from_template
+        rs = self.get_object()
+        try:
+            sale = generate_from_template(rs)
+            return Response({"detail": "Vente generee.", "sale_id": str(sale.id)})
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CashShiftDenominationViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Save/list denominations for a cash shift closing."""
+
+    serializer_class = CashShiftDenominationSerializer
+    permission_classes = [IsAuthenticated, IsCashier]
+    pagination_class = StandardResultsSetPagination
+
+    def _get_shift(self):
+        shift_id = self.kwargs.get("shift_pk")
+        store_ids = _user_store_ids(self.request.user)
+        return get_object_or_404(CashShift, pk=shift_id, store_id__in=store_ids)
+
+    def get_queryset(self):
+        shift = self._get_shift()
+        return CashShiftDenomination.objects.filter(shift=shift)
+
+    def perform_create(self, serializer):
+        shift = self._get_shift()
+        denomination = serializer.validated_data["denomination"]
+        # upsert
+        obj, _ = CashShiftDenomination.objects.update_or_create(
+            shift=shift,
+            denomination=denomination,
+            defaults={"count": serializer.validated_data["count"]},
+        )
+        serializer.instance = obj

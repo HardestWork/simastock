@@ -82,6 +82,9 @@ FEATURE_FLAG_DEFAULTS = {
   "fraud_detection": True,
   "advanced_permissions": True,
   "accounting": False,
+  "delivery_management": False,
+  "communication_management": False,
+  "planning_management": False,
 }
 
 # Backward-compatible aliases used in existing analytics code.
@@ -112,6 +115,9 @@ MODULE_DEFAULT_ORDER = [
     "CLIENT_INTEL",
     "ALERTS",
     "ACCOUNTING",
+    "DELIVERY",
+    "COMMUNICATION",
+    "PLANNING",
 ]
 
 MODULE_CODE_LABELS = {
@@ -132,6 +138,9 @@ MODULE_CODE_LABELS = {
     "CLIENT_INTEL": "Client Intelligence",
     "ALERTS": "Alerts Center",
     "ACCOUNTING": "Comptabilite",
+    "DELIVERY": "Livraison & Logistique",
+    "COMMUNICATION": "Communication Client",
+    "PLANNING": "Planning Equipes",
 }
 
 
@@ -678,6 +687,27 @@ class Store(TimeStampedModel):
         "autoriser stock negatif",
         default=False,
         help_text="Permet de vendre meme si le stock affiche est insuffisant.",
+    )
+
+    # ------------------------------------------------------------------
+    # Receipt / ticket de caisse settings
+    # ------------------------------------------------------------------
+    receipt_promo_message = models.CharField(
+        "message promotionnel ticket",
+        max_length=200,
+        blank=True,
+        default="",
+        help_text="Ex: Merci de votre visite ! Revenez vite.",
+    )
+    receipt_show_loyalty_points = models.BooleanField(
+        "afficher points fidelite sur ticket",
+        default=False,
+    )
+    receipt_custom_footer = models.TextField(
+        "pied de page ticket personnalise",
+        blank=True,
+        default="",
+        help_text="Jusqu'a 3 lignes libres affichees en bas du ticket.",
     )
 
     class Meta:

@@ -26,6 +26,9 @@ export const FEATURE_FLAG_KEYS: FeatureFlagKey[] = [
   'fraud_detection',
   'advanced_permissions',
   'accounting',
+  'delivery_management',
+  'communication_management',
+  'planning_management',
 ];
 
 export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
@@ -54,6 +57,9 @@ export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
   fraud_detection: 'Detection fraude/anomalies',
   advanced_permissions: 'Permissions avancees (capacites)',
   accounting: 'Comptabilite SYSCOHADA',
+  delivery_management: 'Livraison & logistique',
+  communication_management: 'Communication client',
+  planning_management: 'Planning equipes',
 };
 
 export type OverrideMode = 'inherit' | 'enabled' | 'disabled';

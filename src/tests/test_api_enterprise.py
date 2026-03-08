@@ -11,6 +11,7 @@ from commercial.models import CommercialIncentivePolicy, CommercialIncentiveTier
 User = get_user_model()
 
 
+@pytest.mark.django_db
 class TestEnterpriseList:
     """GET /api/v1/enterprises/"""
 
@@ -31,6 +32,7 @@ class TestEnterpriseList:
         assert resp.status_code in (401, 403)
 
 
+@pytest.mark.django_db
 class TestEnterpriseSetup:
     """POST /api/v1/enterprises/setup/"""
 
@@ -63,6 +65,7 @@ class TestEnterpriseSetup:
         assert resp.status_code == 403
 
 
+@pytest.mark.django_db
 class TestEnterpriseDelete:
     """DELETE /api/v1/enterprises/{id}/"""
 
@@ -228,6 +231,7 @@ class TestEnterpriseReset:
         assert not CommercialIncentivePolicy.objects.filter(pk=policy.pk).exists()
 
 
+@pytest.mark.django_db
 class TestEnterpriseSubscriptionAPI:
     """Tests for /api/v1/enterprise-subscriptions/ endpoints."""
 

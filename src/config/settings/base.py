@@ -85,6 +85,8 @@ LOCAL_APPS = [
     "commercial",
     "hrm",
     "accounting",
+    "delivery",
+    "communications",
     "api",
 ]
 
@@ -278,6 +280,14 @@ CELERY_BEAT_SCHEDULE = {
     "analytics-refresh-customer-intelligence": {
         "task": "analytics.tasks.refresh_customer_intelligence_store",
         "schedule": 86400,
+    },
+    "delivery-check-late": {
+        "task": "delivery.tasks.check_late_deliveries",
+        "schedule": 1800,  # every 30 min
+    },
+    "communications-process-triggered": {
+        "task": "communications.tasks.process_campaign",
+        "schedule": 3600,  # every hour (for scheduled campaigns)
     },
 }
 

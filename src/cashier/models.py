@@ -132,10 +132,25 @@ class CashShift(TimeStampedModel):
     def calculate_expected_cash(self):
         """Calculate the expected cash in the register.
 
-        Expected cash = opening float + total cash payments received
+        Expected cash = opening float + cash payments received - cash expenses paid
         during this shift.
         """
-        self.expected_cash = self.opening_float + self.total_cash_payments
+        from django.db.models import Sum
+        try:
+            from expenses.models import Expense, Wallet as ExpenseWallet
+            end = self.closed_at or timezone.now()
+            cash_out = (
+                Expense.objects.filter(
+                    store=self.store,
+                    wallet__type=ExpenseWallet.WalletType.CASH,
+                    status=Expense.Status.POSTED,
+                    created_at__gte=self.opened_at,
+                    created_at__lt=end,
+                ).aggregate(total=Sum("amount"))["total"] or 0
+            )
+        except Exception:
+            cash_out = 0
+        self.expected_cash = self.opening_float + self.total_cash_payments - cash_out
         return self.expected_cash
 
     @property
@@ -222,3 +237,37 @@ class Payment(TimeStampedModel):
             f"{self.amount} {getattr(settings, 'CURRENCY', 'FCFA')} "
             f"(Vente {self.sale_id})"
         )
+
+
+# ---------------------------------------------------------------------------
+# CashShiftDenomination
+# ---------------------------------------------------------------------------
+
+class CashShiftDenomination(TimeStampedModel):
+    """Count of each bill/coin denomination during cash shift closing."""
+
+    shift = models.ForeignKey(
+        CashShift,
+        on_delete=models.CASCADE,
+        related_name="denominations",
+        verbose_name="session de caisse",
+    )
+    denomination = models.PositiveIntegerField(
+        "coupure",
+        help_text="Valeur faciale en FCFA (ex: 10000, 5000, 1000, 500...).",
+    )
+    count = models.PositiveIntegerField("nombre", default=0)
+
+    class Meta:
+        unique_together = [["shift", "denomination"]]
+        ordering = ["-denomination"]
+        verbose_name = "Coupure de caisse"
+        verbose_name_plural = "Coupures de caisse"
+
+    @property
+    def amount(self):
+        """Total value for this denomination row."""
+        return self.denomination * self.count
+
+    def __str__(self):
+        return f"{self.denomination} × {self.count} = {self.amount} FCFA"

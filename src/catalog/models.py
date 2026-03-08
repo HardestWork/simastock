@@ -247,3 +247,174 @@ class ProductSpec(TimeStampedModel):
 
     def __str__(self):
         return f"{self.key}: {self.value}"
+
+
+# ---------------------------------------------------------------------------
+# ProductVariant
+# ---------------------------------------------------------------------------
+
+class ProductVariant(TimeStampedModel):
+    """A variant of a product (e.g. size, color, weight). Optional."""
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="variants",
+        verbose_name="produit",
+    )
+    name = models.CharField(
+        "nom de la variante",
+        max_length=100,
+        help_text='Ex: "Rouge / L", "Bleu / XL", "500g"',
+    )
+    sku = models.CharField(
+        "SKU variante",
+        max_length=50,
+        blank=True,
+        default="",
+        db_index=True,
+    )
+    barcode = models.CharField(
+        "code-barres",
+        max_length=100,
+        blank=True,
+        default="",
+        db_index=True,
+    )
+    cost_price = models.DecimalField(
+        "prix d'achat",
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Laisse vide pour utiliser le prix du produit parent.",
+    )
+    selling_price = models.DecimalField(
+        "prix de vente",
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Laisse vide pour utiliser le prix du produit parent.",
+    )
+    is_active = models.BooleanField("actif", default=True)
+
+    class Meta:
+        verbose_name = "variante produit"
+        verbose_name_plural = "variantes produit"
+        ordering = ["name"]
+        unique_together = [["product", "name"]]
+
+    def __str__(self):
+        return f"{self.product.name} — {self.name}"
+
+    @property
+    def effective_selling_price(self) -> Decimal:
+        """Returns variant price if set, otherwise falls back to product price."""
+        return self.selling_price if self.selling_price is not None else self.product.selling_price
+
+    @property
+    def effective_cost_price(self) -> Decimal:
+        return self.cost_price if self.cost_price is not None else self.product.cost_price
+
+
+# ---------------------------------------------------------------------------
+# Pricing Policies
+# ---------------------------------------------------------------------------
+
+class PricingPolicy(TimeStampedModel):
+    """A set of pricing rules that can override catalog prices for specific conditions."""
+
+    enterprise = models.ForeignKey(
+        "stores.Enterprise",
+        on_delete=models.CASCADE,
+        related_name="pricing_policies",
+        verbose_name="entreprise",
+    )
+    name = models.CharField("nom", max_length=100)
+    priority = models.PositiveIntegerField(
+        "priorite", default=0,
+        help_text="Plus la valeur est elevee, plus la politique est appliquee en premier.",
+    )
+    valid_from = models.DateField("valable du", null=True, blank=True)
+    valid_until = models.DateField("valable jusqu'au", null=True, blank=True)
+    is_active = models.BooleanField("actif", default=True)
+    customer_tier = models.CharField(
+        "niveau client",
+        max_length=10,
+        choices=[("BRONZE", "Bronze"), ("SILVER", "Argent"), ("GOLD", "Or"), ("PLATINUM", "Platine")],
+        null=True,
+        blank=True,
+        help_text="Laisser vide pour appliquer a tous les niveaux.",
+    )
+    store = models.ForeignKey(
+        "stores.Store",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="pricing_policies",
+        verbose_name="boutique",
+        help_text="Laisser vide pour appliquer a toutes les boutiques.",
+    )
+
+    class Meta:
+        ordering = ["-priority", "name"]
+        verbose_name = "Politique de prix"
+        verbose_name_plural = "Politiques de prix"
+
+    def __str__(self):
+        return f"{self.name} (priorite {self.priority})"
+
+
+class PricingRule(TimeStampedModel):
+    """An individual pricing rule within a policy."""
+
+    class DiscountType(models.TextChoices):
+        PERCENT = "PERCENT", "Pourcentage"
+        FIXED = "FIXED", "Montant fixe"
+        FIXED_PRICE = "FIXED_PRICE", "Prix fixe"
+
+    policy = models.ForeignKey(
+        PricingPolicy,
+        on_delete=models.CASCADE,
+        related_name="rules",
+        verbose_name="politique",
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="pricing_rules",
+        verbose_name="produit",
+        help_text="Laisser vide pour appliquer a tous les produits.",
+    )
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="pricing_rules",
+        verbose_name="categorie",
+        help_text="Appliquer a toute une categorie si produit non specifie.",
+    )
+    min_qty = models.PositiveIntegerField(
+        "quantite minimum", default=1,
+        help_text="Quantite minimale pour declencher la remise volume.",
+    )
+    discount_type = models.CharField(
+        "type de remise", max_length=15, choices=DiscountType.choices,
+    )
+    discount_value = models.DecimalField(
+        "valeur remise", max_digits=12, decimal_places=2,
+        help_text="%, montant fixe ou prix final selon le type.",
+    )
+
+    class Meta:
+        ordering = ["-min_qty"]
+        verbose_name = "Regle de prix"
+        verbose_name_plural = "Regles de prix"
+
+    def __str__(self):
+        target = str(self.product or self.category or "tous produits")
+        return f"{self.get_discount_type_display()} {self.discount_value} sur {target}"

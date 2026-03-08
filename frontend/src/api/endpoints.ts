@@ -120,6 +120,22 @@ import type {
   HrmHoliday,
   HrmFaceProfile,
   HrmAttendanceCheckResult,
+  HrmShift,
+  HrmScheduleEntry,
+  HrmScheduleTemplate,
+  HrmScheduleTemplateLine,
+  HrmReplacement,
+  DeliveryPickupLocation,
+  DeliveryZone,
+  DeliveryAgent,
+  Delivery,
+  DeliveryDashboard,
+  AgentObjective,
+  AgentStats,
+  MessageTemplate,
+  MessageLog,
+  Campaign,
+  CampaignPreview,
   DocumentVerification,
   AcctAccount,
   AcctJournal,
@@ -136,6 +152,13 @@ import type {
   CouponDiscountType,
   CashFlowReport,
   AuditLog,
+  ProductVariant,
+  LoyaltyAccount,
+  PricingPolicy,
+  PricingRule,
+  RecurringSale,
+  RecurringSaleItem,
+  CashShiftDenomination,
 } from './types';
 import type { Capability } from './types';
 
@@ -662,6 +685,23 @@ export const saleApi = {
 
   removeCoupon: (saleId: string) =>
     apiClient.post<Sale>(`sales/${saleId}/remove-coupon/`).then((r) => r.data),
+
+  setDelivery: (
+    saleId: string,
+    data: {
+      zone_id?: string;
+      agent_id?: string;
+      delivery_fee?: string;
+      recipient_name?: string;
+      recipient_phone?: string;
+      delivery_address: string;
+      pickup_location_id?: string;
+      pickup_notes?: string;
+    },
+  ) => apiClient.post<Sale>(`sales/${saleId}/set-delivery/`, data).then((r) => r.data),
+
+  removeDelivery: (saleId: string) =>
+    apiClient.post<Sale>(`sales/${saleId}/remove-delivery/`).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------
@@ -1526,6 +1566,78 @@ export const hrmApi = {
     check: (data: { employee_id: string; check_type: string; method: string; pin_code?: string }) =>
       apiClient.post<HrmAttendanceCheckResult>('hrm/attendance-check/check/', data).then(r => r.data),
   },
+
+  // Planning — Shifts
+  shifts: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmShift>>('hrm/shifts/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmShift>(`hrm/shifts/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmShift>) =>
+      apiClient.post<HrmShift>('hrm/shifts/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmShift>) =>
+      apiClient.patch<HrmShift>(`hrm/shifts/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/shifts/${id}/`),
+  },
+
+  // Planning — Schedule Entries
+  scheduleEntries: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmScheduleEntry>>('hrm/schedule-entries/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmScheduleEntry>(`hrm/schedule-entries/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmScheduleEntry>) =>
+      apiClient.post<HrmScheduleEntry>('hrm/schedule-entries/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmScheduleEntry>) =>
+      apiClient.patch<HrmScheduleEntry>(`hrm/schedule-entries/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/schedule-entries/${id}/`),
+    weeklyView: (params: { week_start: string }) =>
+      apiClient.get<HrmScheduleEntry[]>('hrm/schedule-entries/weekly_view/', { params }).then(r => r.data),
+    applyTemplate: (data: { template_id: string; week_start: string; employee_ids: string[] }) =>
+      apiClient.post<{ created: number }>('hrm/schedule-entries/apply_template/', data).then(r => r.data),
+    copyWeek: (data: { source_week_start: string; target_week_start: string }) =>
+      apiClient.post<{ created: number }>('hrm/schedule-entries/copy_week/', data).then(r => r.data),
+  },
+
+  // Planning — Schedule Templates
+  scheduleTemplates: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmScheduleTemplate>>('hrm/schedule-templates/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<HrmScheduleTemplate>(`hrm/schedule-templates/${id}/`).then(r => r.data),
+    create: (data: Partial<HrmScheduleTemplate>) =>
+      apiClient.post<HrmScheduleTemplate>('hrm/schedule-templates/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmScheduleTemplate>) =>
+      apiClient.patch<HrmScheduleTemplate>(`hrm/schedule-templates/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/schedule-templates/${id}/`),
+  },
+
+  // Planning — Template Lines
+  scheduleTemplateLines: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmScheduleTemplateLine>>('hrm/schedule-template-lines/', { params }).then(r => r.data),
+    create: (data: Partial<HrmScheduleTemplateLine>) =>
+      apiClient.post<HrmScheduleTemplateLine>('hrm/schedule-template-lines/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmScheduleTemplateLine>) =>
+      apiClient.patch<HrmScheduleTemplateLine>(`hrm/schedule-template-lines/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/schedule-template-lines/${id}/`),
+  },
+
+  // Planning — Replacements
+  replacements: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<HrmReplacement>>('hrm/replacements/', { params }).then(r => r.data),
+    create: (data: Partial<HrmReplacement>) =>
+      apiClient.post<HrmReplacement>('hrm/replacements/', data).then(r => r.data),
+    update: (id: string, data: Partial<HrmReplacement>) =>
+      apiClient.patch<HrmReplacement>(`hrm/replacements/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`hrm/replacements/${id}/`),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -1606,4 +1718,215 @@ export const accountingApi = {
 export const auditLogApi = {
   list: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<AuditLog>>('audit-logs/', { params }).then(r => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// Delivery & Logistics
+// ---------------------------------------------------------------------------
+
+export const deliveryApi = {
+  pickupLocations: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<DeliveryPickupLocation>>('delivery/pickup-locations/', { params }).then(r => r.data),
+    create: (data: Partial<DeliveryPickupLocation>) =>
+      apiClient.post<DeliveryPickupLocation>('delivery/pickup-locations/', data).then(r => r.data),
+    update: (id: string, data: Partial<DeliveryPickupLocation>) =>
+      apiClient.patch<DeliveryPickupLocation>(`delivery/pickup-locations/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`delivery/pickup-locations/${id}/`),
+  },
+
+  zones: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<DeliveryZone>>('delivery/zones/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<DeliveryZone>(`delivery/zones/${id}/`).then(r => r.data),
+    create: (data: Partial<DeliveryZone>) =>
+      apiClient.post<DeliveryZone>('delivery/zones/', data).then(r => r.data),
+    update: (id: string, data: Partial<DeliveryZone>) =>
+      apiClient.patch<DeliveryZone>(`delivery/zones/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`delivery/zones/${id}/`),
+  },
+
+  agents: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<DeliveryAgent>>('delivery/agents/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<DeliveryAgent>(`delivery/agents/${id}/`).then(r => r.data),
+    create: (data: Partial<DeliveryAgent>) =>
+      apiClient.post<DeliveryAgent>('delivery/agents/', data).then(r => r.data),
+    update: (id: string, data: Partial<DeliveryAgent>) =>
+      apiClient.patch<DeliveryAgent>(`delivery/agents/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`delivery/agents/${id}/`),
+    stats: (period?: string) =>
+      apiClient.get<AgentStats[]>('delivery/agents/stats/', { params: period ? { period } : {} }).then(r => r.data),
+  },
+
+  deliveries: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<Delivery>>('delivery/deliveries/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<Delivery>(`delivery/deliveries/${id}/`).then(r => r.data),
+    create: (data: Partial<Delivery>) =>
+      apiClient.post<Delivery>('delivery/deliveries/', data).then(r => r.data),
+    update: (id: string, data: Partial<Delivery>) =>
+      apiClient.patch<Delivery>(`delivery/deliveries/${id}/`, data).then(r => r.data),
+    updateStatus: (id: string, data: { status: string; reason?: string }) =>
+      apiClient.post<Delivery>(`delivery/deliveries/${id}/update-status/`, data).then(r => r.data),
+    confirmDelivery: (id: string, data: { confirmation_code: string }) =>
+      apiClient.post<Delivery>(`delivery/deliveries/${id}/confirm-delivery/`, data).then(r => r.data),
+    notifyAgent: (id: string, data: { channel: string; message?: string }) =>
+      apiClient.post<{ detail: string; log_id: string }>(`delivery/deliveries/${id}/notify-agent/`, data).then(r => r.data),
+    dashboard: () =>
+      apiClient.get<DeliveryDashboard>('delivery/deliveries/dashboard/').then(r => r.data),
+    listBySale: (saleId: string) =>
+      apiClient.get<PaginatedResponse<Delivery>>('delivery/deliveries/', { params: { sale: saleId } }).then(r => r.data),
+    available: () =>
+      apiClient.get<Delivery[]>('delivery/deliveries/available/').then(r => r.data),
+    claim: (id: string) =>
+      apiClient.post<Delivery>(`delivery/deliveries/${id}/claim/`).then(r => r.data),
+    escalate: (id: string, data: { reason?: string }) =>
+      apiClient.post<{ detail: string }>(`delivery/deliveries/${id}/escalate/`, data).then(r => r.data),
+    markReady: (id: string) =>
+      apiClient.post<Delivery>(`delivery/deliveries/${id}/mark-ready/`).then(r => r.data),
+    confirmPickup: (id: string, data: { code: string }) =>
+      apiClient.post<Delivery>(`delivery/deliveries/${id}/confirm-pickup/`, data).then(r => r.data),
+  },
+};
+
+export const agentObjectivesApi = {
+  list: (period?: string) =>
+    apiClient.get<PaginatedResponse<AgentObjective>>('delivery/agent-objectives/', { params: period ? { period } : {} }).then(r => r.data),
+  create: (data: Partial<AgentObjective>) =>
+    apiClient.post<AgentObjective>('delivery/agent-objectives/', data).then(r => r.data),
+  update: (id: string, data: Partial<AgentObjective>) =>
+    apiClient.patch<AgentObjective>(`delivery/agent-objectives/${id}/`, data).then(r => r.data),
+  delete: (id: string) =>
+    apiClient.delete(`delivery/agent-objectives/${id}/`),
+};
+
+// ---------------------------------------------------------------------------
+// Communications
+// ---------------------------------------------------------------------------
+
+export const communicationApi = {
+  templates: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<MessageTemplate>>('communications/templates/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<MessageTemplate>(`communications/templates/${id}/`).then(r => r.data),
+    create: (data: Partial<MessageTemplate>) =>
+      apiClient.post<MessageTemplate>('communications/templates/', data).then(r => r.data),
+    update: (id: string, data: Partial<MessageTemplate>) =>
+      apiClient.patch<MessageTemplate>(`communications/templates/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`communications/templates/${id}/`),
+  },
+
+  logs: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<MessageLog>>('communications/logs/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<MessageLog>(`communications/logs/${id}/`).then(r => r.data),
+  },
+
+  campaigns: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<Campaign>>('communications/campaigns/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<Campaign>(`communications/campaigns/${id}/`).then(r => r.data),
+    create: (data: Partial<Campaign>) =>
+      apiClient.post<Campaign>('communications/campaigns/', data).then(r => r.data),
+    update: (id: string, data: Partial<Campaign>) =>
+      apiClient.patch<Campaign>(`communications/campaigns/${id}/`, data).then(r => r.data),
+    launch: (id: string) =>
+      apiClient.post<Campaign>(`communications/campaigns/${id}/launch/`).then(r => r.data),
+    cancel: (id: string) =>
+      apiClient.post<Campaign>(`communications/campaigns/${id}/cancel/`).then(r => r.data),
+    preview: (id: string) =>
+      apiClient.get<CampaignPreview>(`communications/campaigns/${id}/preview/`).then(r => r.data),
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Catalog Variants & Pricing
+// ---------------------------------------------------------------------------
+
+export const catalogExtApi = {
+  variants: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<ProductVariant>>('catalog/variants/', { params }).then(r => r.data),
+    listAll: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<ProductVariant>>('catalog/variants/', { params: { ...params, page_size: '200' } }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<ProductVariant>(`catalog/variants/${id}/`).then(r => r.data),
+    create: (data: Partial<ProductVariant>) =>
+      apiClient.post<ProductVariant>('catalog/variants/', data).then(r => r.data),
+    update: (id: string, data: Partial<ProductVariant>) =>
+      apiClient.patch<ProductVariant>(`catalog/variants/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`catalog/variants/${id}/`),
+  },
+
+  pricingPolicies: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<PricingPolicy>>('catalog/pricing-policies/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<PricingPolicy>(`catalog/pricing-policies/${id}/`).then(r => r.data),
+    create: (data: Partial<PricingPolicy>) =>
+      apiClient.post<PricingPolicy>('catalog/pricing-policies/', data).then(r => r.data),
+    update: (id: string, data: Partial<PricingPolicy>) =>
+      apiClient.patch<PricingPolicy>(`catalog/pricing-policies/${id}/`, data).then(r => r.data),
+    delete: (id: string) =>
+      apiClient.delete(`catalog/pricing-policies/${id}/`),
+    createRule: (policyId: string, data: Partial<PricingRule>) =>
+      apiClient.post<PricingRule>('catalog/pricing-policies/', { ...data, policy: policyId }).then(r => r.data),
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Loyalty
+// ---------------------------------------------------------------------------
+
+export const loyaltyApi = {
+  accounts: {
+    list: (params?: Record<string, string>) =>
+      apiClient.get<PaginatedResponse<LoyaltyAccount>>('loyalty/accounts/', { params }).then(r => r.data),
+    get: (id: string) =>
+      apiClient.get<LoyaltyAccount>(`loyalty/accounts/${id}/`).then(r => r.data),
+    redeem: (data: { customer_id: string; points: number; sale_id?: string }) =>
+      apiClient.post<LoyaltyAccount>('loyalty/accounts/redeem/', data).then(r => r.data),
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Recurring Sales
+// ---------------------------------------------------------------------------
+
+export const recurringSalesApi = {
+  list: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<RecurringSale>>('recurring-sales/', { params }).then(r => r.data),
+  get: (id: string) =>
+    apiClient.get<RecurringSale>(`recurring-sales/${id}/`).then(r => r.data),
+  create: (data: Partial<RecurringSale> & { items?: Partial<RecurringSaleItem>[] }) =>
+    apiClient.post<RecurringSale>('recurring-sales/', data).then(r => r.data),
+  update: (id: string, data: Partial<RecurringSale>) =>
+    apiClient.patch<RecurringSale>(`recurring-sales/${id}/`, data).then(r => r.data),
+  delete: (id: string) =>
+    apiClient.delete(`recurring-sales/${id}/`),
+  generateNow: (id: string) =>
+    apiClient.post<{ detail: string; sale_id: string }>(`recurring-sales/${id}/generate-now/`).then(r => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Cash Shift Denominations
+// ---------------------------------------------------------------------------
+
+export const denominationsApi = {
+  list: (shiftId: string) =>
+    apiClient.get<PaginatedResponse<CashShiftDenomination>>(`cash-shifts/${shiftId}/denominations/`).then(r => r.data),
+  save: (shiftId: string, data: { denomination: number; count: number }) =>
+    apiClient.post<CashShiftDenomination>(`cash-shifts/${shiftId}/denominations/`, data).then(r => r.data),
 };

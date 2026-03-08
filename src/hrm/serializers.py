@@ -23,7 +23,12 @@ from hrm.models import (
     PerformanceReview,
     PerformanceReviewScore,
     Position,
+    Replacement,
     SalaryComponent,
+    ScheduleEntry,
+    ScheduleTemplate,
+    ScheduleTemplateLine,
+    Shift,
 )
 
 
@@ -502,3 +507,82 @@ class HolidaySerializer(serializers.ModelSerializer):
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "enterprise", "created_at", "updated_at"]
+
+
+# ---------------------------------------------------------------------------
+# Planning & Scheduling
+# ---------------------------------------------------------------------------
+
+
+class ShiftSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Shift
+        fields = [
+            "id", "store", "name", "start_time", "end_time",
+            "color", "is_active", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "store", "created_at", "updated_at"]
+
+
+class ScheduleEntrySerializer(serializers.ModelSerializer):
+    employee_name = serializers.SerializerMethodField()
+    shift_name = serializers.CharField(source="shift.name", read_only=True)
+    shift_color = serializers.CharField(source="shift.color", read_only=True)
+
+    def get_employee_name(self, obj):
+        return f"{obj.employee.first_name} {obj.employee.last_name}".strip()
+
+    class Meta:
+        model = ScheduleEntry
+        fields = [
+            "id", "store", "employee", "employee_name",
+            "shift", "shift_name", "shift_color",
+            "date", "status", "notes", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "store", "created_at", "updated_at"]
+
+
+class ScheduleTemplateLineSerializer(serializers.ModelSerializer):
+    shift_name = serializers.CharField(source="shift.name", read_only=True)
+
+    class Meta:
+        model = ScheduleTemplateLine
+        fields = [
+            "id", "template", "day_of_week", "shift", "shift_name",
+            "position", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class ScheduleTemplateSerializer(serializers.ModelSerializer):
+    lines = ScheduleTemplateLineSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ScheduleTemplate
+        fields = [
+            "id", "store", "name", "is_active", "lines",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "store", "created_at", "updated_at"]
+
+
+class ReplacementSerializer(serializers.ModelSerializer):
+    original_employee_name = serializers.SerializerMethodField()
+    replacement_employee_name = serializers.SerializerMethodField()
+
+    def get_original_employee_name(self, obj):
+        emp = obj.original_entry.employee
+        return f"{emp.first_name} {emp.last_name}".strip()
+
+    def get_replacement_employee_name(self, obj):
+        emp = obj.replacement_employee
+        return f"{emp.first_name} {emp.last_name}".strip()
+
+    class Meta:
+        model = Replacement
+        fields = [
+            "id", "original_entry", "original_employee_name",
+            "replacement_employee", "replacement_employee_name",
+            "reason", "approved_by", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]

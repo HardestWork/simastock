@@ -1089,3 +1089,167 @@ class Holiday(TimeStampedModel):
 
     def __str__(self):
         return f"{self.name} ({self.date})"
+
+
+# ---------------------------------------------------------------------------
+# Planning & Scheduling
+# ---------------------------------------------------------------------------
+
+
+class Shift(TimeStampedModel):
+    """Creneau horaire de travail (ex: Matin, Soir, Nuit)."""
+
+    store = models.ForeignKey(
+        "stores.Store",
+        on_delete=models.CASCADE,
+        related_name="hrm_shifts",
+        verbose_name="boutique",
+    )
+    name = models.CharField("nom", max_length=80)
+    start_time = models.TimeField("heure debut")
+    end_time = models.TimeField("heure fin")
+    color = models.CharField("couleur", max_length=7, default="#3B82F6")
+    is_active = models.BooleanField("actif", default=True)
+
+    class Meta:
+        verbose_name = "creneau"
+        verbose_name_plural = "creneaux"
+        ordering = ["start_time"]
+
+    def __str__(self):
+        return f"{self.name} ({self.start_time}-{self.end_time})"
+
+
+class ScheduleEntry(TimeStampedModel):
+    """Affectation d'un employe a un creneau pour une journee."""
+
+    class Status(models.TextChoices):
+        SCHEDULED = "SCHEDULED", "Planifie"
+        CONFIRMED = "CONFIRMED", "Confirme"
+        ABSENT = "ABSENT", "Absent"
+        REPLACED = "REPLACED", "Remplace"
+
+    store = models.ForeignKey(
+        "stores.Store",
+        on_delete=models.CASCADE,
+        related_name="hrm_schedule_entries",
+        verbose_name="boutique",
+    )
+    employee = models.ForeignKey(
+        "hrm.Employee",
+        on_delete=models.CASCADE,
+        related_name="schedule_entries",
+        verbose_name="employe",
+    )
+    shift = models.ForeignKey(
+        Shift,
+        on_delete=models.CASCADE,
+        related_name="entries",
+        verbose_name="creneau",
+    )
+    date = models.DateField("date", db_index=True)
+    status = models.CharField(
+        "statut",
+        max_length=20,
+        choices=Status.choices,
+        default=Status.SCHEDULED,
+    )
+    notes = models.TextField("notes", blank=True, default="")
+
+    class Meta:
+        verbose_name = "entree planning"
+        verbose_name_plural = "entrees planning"
+        unique_together = [("employee", "date")]
+        ordering = ["date", "shift__start_time"]
+
+    def __str__(self):
+        return f"{self.employee} - {self.shift.name} ({self.date})"
+
+
+class ScheduleTemplate(TimeStampedModel):
+    """Modele de planning hebdomadaire reutilisable."""
+
+    store = models.ForeignKey(
+        "stores.Store",
+        on_delete=models.CASCADE,
+        related_name="hrm_schedule_templates",
+        verbose_name="boutique",
+    )
+    name = models.CharField("nom", max_length=100)
+    is_active = models.BooleanField("actif", default=True)
+
+    class Meta:
+        verbose_name = "modele de planning"
+        verbose_name_plural = "modeles de planning"
+
+    def __str__(self):
+        return self.name
+
+
+class ScheduleTemplateLine(TimeStampedModel):
+    """Ligne d'un modele de planning (jour + creneau)."""
+
+    template = models.ForeignKey(
+        ScheduleTemplate,
+        on_delete=models.CASCADE,
+        related_name="lines",
+        verbose_name="modele",
+    )
+    day_of_week = models.IntegerField(
+        "jour de la semaine",
+        help_text="0=Lundi, 6=Dimanche",
+    )
+    shift = models.ForeignKey(
+        Shift,
+        on_delete=models.CASCADE,
+        verbose_name="creneau",
+    )
+    position = models.ForeignKey(
+        "hrm.Position",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="poste",
+    )
+
+    class Meta:
+        verbose_name = "ligne de modele"
+        verbose_name_plural = "lignes de modele"
+        ordering = ["day_of_week", "shift__start_time"]
+
+    def __str__(self):
+        days = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+        day = days[self.day_of_week] if 0 <= self.day_of_week <= 6 else "?"
+        return f"{day} - {self.shift.name}"
+
+
+class Replacement(TimeStampedModel):
+    """Remplacement d'un employe sur une entree planning."""
+
+    original_entry = models.ForeignKey(
+        ScheduleEntry,
+        on_delete=models.CASCADE,
+        related_name="replacements",
+        verbose_name="entree originale",
+    )
+    replacement_employee = models.ForeignKey(
+        "hrm.Employee",
+        on_delete=models.CASCADE,
+        related_name="replacements_as_substitute",
+        verbose_name="remplacant",
+    )
+    reason = models.TextField("raison", blank=True, default="")
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="approuve par",
+    )
+
+    class Meta:
+        verbose_name = "remplacement"
+        verbose_name_plural = "remplacements"
+
+    def __str__(self):
+        return f"Remplacement de {self.original_entry.employee} par {self.replacement_employee}"

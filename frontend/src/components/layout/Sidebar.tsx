@@ -42,6 +42,9 @@ import {
   TrendingUp,
   RotateCcw,
   ScanFace,
+  MapPin,
+  MessageSquare,
+  CalendarDays,
 } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth-store';
 import { useCapabilities } from '@/lib/capabilities';
@@ -133,8 +136,8 @@ const navItems: NavItem[] = [
     label: 'Devis',
     icon: <FileText size={16} />,
     module: 'SELL',
-    roles: ['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
-    capability: 'CAN_SELL',
+    roles: ['COMMERCIAL', 'SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
+    capability: 'CAN_MANAGE_LEADS',
   },
   {
     section: 'VENTES',
@@ -142,14 +145,14 @@ const navItems: NavItem[] = [
     label: 'Clients & Credit',
     icon: <Users size={16} />,
     module: 'CUSTOMER',
-    roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER'],
+    roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER'],
     children: [
       {
         path: '/customers',
         label: 'Clients',
         icon: <Users size={14} />,
         module: 'CUSTOMER',
-        roles: ['SALES', 'MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER'],
+        roles: ['COMMERCIAL', 'SALES', 'MANAGER', 'ADMIN', 'CASHIER', 'SALES_CASHIER'],
       },
       {
         path: '/credits',
@@ -419,6 +422,14 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    section: 'LOGISTIQUE',
+    path: '/delivery',
+    label: 'Livraisons',
+    icon: <MapPin size={16} />,
+    module: 'DELIVERY',
+    roles: ['ADMIN', 'MANAGER', 'SALES', 'SALES_CASHIER', 'STOCKER', 'DELIVERY'],
+  },
+  {
     section: 'RH',
     path: '/hrm',
     label: 'Ressources Humaines',
@@ -473,6 +484,13 @@ const navItems: NavItem[] = [
         module: 'HRM',
         roles: ['HR', 'MANAGER', 'ADMIN'],
         capability: 'CAN_VIEW_HRM',
+      },
+      {
+        path: '/hrm/planning',
+        label: 'Planning',
+        icon: <CalendarDays size={14} />,
+        module: 'PLANNING',
+        roles: ['HR', 'MANAGER', 'ADMIN'],
       },
     ],
   },
@@ -549,6 +567,14 @@ const navItems: NavItem[] = [
     icon: <LayoutDashboard size={16} />,
     module: 'ANALYTICS_DG',
     roles: ['MANAGER', 'ADMIN'],
+  },
+  {
+    section: 'PILOTAGE',
+    path: '/communications',
+    label: 'Communication',
+    icon: <MessageSquare size={16} />,
+    module: 'COMMUNICATION',
+    roles: ['ADMIN', 'MANAGER', 'COMMERCIAL'],
   },
   {
     section: 'PILOTAGE',

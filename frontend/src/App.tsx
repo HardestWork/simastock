@@ -7,6 +7,8 @@ import ProtectedRoute from '@/auth/ProtectedRoute';
 import AppLayout from '@/components/layout/AppLayout';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import ThemeProvider from '@/components/shared/ThemeProvider';
+import { PwaUpdatePrompt } from '@/components/pwa/PwaUpdatePrompt';
+import { OfflineIndicator } from '@/components/pwa/OfflineIndicator';
 
 // Eager-loaded pages (critical path)
 import LoginPage from '@/features/auth/LoginPage';
@@ -113,6 +115,15 @@ const AuditLogPage = lazyRetry(() => import('@/features/audit/AuditLogPage'));
 const KioskAttendancePage = lazyRetry(() => import('@/features/kiosk/KioskAttendancePage'));
 const VerifyDocumentPage = lazyRetry(() => import('@/features/verify/VerifyDocumentPage'));
 
+// Delivery & Logistics
+const DeliveryListPage = lazyRetry(() => import('@/features/delivery/DeliveryListPage'));
+
+// Communications
+const CommunicationPage = lazyRetry(() => import('@/features/communications/CommunicationPage'));
+
+// Planning
+const HrmPlanningPage = lazyRetry(() => import('@/features/hrm/PlanningPage'));
+
 // Accounting (SYSCOHADA)
 const ChartOfAccountsPage = lazyRetry(() => import('@/features/accounting/ChartOfAccountsPage'));
 const JournalEntriesPage = lazyRetry(() => import('@/features/accounting/JournalEntriesPage'));
@@ -145,6 +156,8 @@ export default function App() {
     <ThemeProvider>
     <QueryClientProvider client={queryClient}>
       <Toaster richColors position="top-right" toastOptions={{ duration: 3000 }} />
+      <OfflineIndicator />
+      <PwaUpdatePrompt />
       <BrowserRouter>
         <ErrorBoundary>
           <Routes>
@@ -402,7 +415,32 @@ export default function App() {
                   <Route path="/hrm/leaves" element={<Suspense fallback={<PageLoader />}><HrmLeaveRequestListPage /></Suspense>} />
                   <Route path="/hrm/attendance" element={<Suspense fallback={<PageLoader />}><HrmAttendanceListPage /></Suspense>} />
                   <Route path="/hrm/payroll" element={<Suspense fallback={<PageLoader />}><HrmPayrollPage /></Suspense>} />
+                  <Route path="/hrm/planning" element={<Suspense fallback={<PageLoader />}><HrmPlanningPage /></Suspense>} />
                   <Route path="/hrm/kiosk" element={<Suspense fallback={<PageLoader />}><KioskAttendancePage /></Suspense>} />
+                </Route>
+
+                {/* Delivery & Logistics */}
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['ADMIN', 'MANAGER', 'SALES', 'SALES_CASHIER', 'STOCKER']}
+                      requiredModules={['DELIVERY']}
+                    />
+                  }
+                >
+                  <Route path="/delivery" element={<Suspense fallback={<PageLoader />}><DeliveryListPage /></Suspense>} />
+                </Route>
+
+                {/* Communications */}
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['ADMIN', 'MANAGER', 'COMMERCIAL']}
+                      requiredModules={['COMMUNICATION']}
+                    />
+                  }
+                >
+                  <Route path="/communications" element={<Suspense fallback={<PageLoader />}><CommunicationPage /></Suspense>} />
                 </Route>
 
                 {/* Audit Logs */}

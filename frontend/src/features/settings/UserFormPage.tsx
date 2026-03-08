@@ -25,6 +25,7 @@ const SYSTEM_ROLE_OPTIONS = [
   { value: 'CASHIER', label: 'Caissier' },
   { value: 'SALES_CASHIER', label: 'Vendeur-Caissier' },
   { value: 'STOCKER', label: 'Magasinier' },
+  { value: 'DELIVERY', label: 'Livreur' },
 ] as const;
 
 export default function UserFormPage() {

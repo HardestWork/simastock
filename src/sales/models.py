@@ -161,6 +161,12 @@ class Sale(TimeStampedModel):
         decimal_places=2,
         default=Decimal("0.00"),
     )
+    delivery_fee = models.DecimalField(
+        "frais de livraison",
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
     total = models.DecimalField(
         "total",
         max_digits=14,
@@ -349,7 +355,8 @@ class Sale(TimeStampedModel):
         else:
             self.tax_amount = Decimal("0.00")
 
-        self.total = taxable_base + self.tax_amount
+        delivery = self.delivery_fee if self.delivery_fee else Decimal("0.00")
+        self.total = taxable_base + self.tax_amount + delivery
         if self.total < 0:
             self.total = Decimal("0.00")
 
@@ -408,6 +415,14 @@ class SaleItem(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="sale_items",
         verbose_name="produit",
+    )
+    variant = models.ForeignKey(
+        "catalog.ProductVariant",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sale_items",
+        verbose_name="variante",
     )
     product_name = models.CharField(
         "nom produit (snapshot)",
@@ -550,6 +565,30 @@ class Refund(TimeStampedModel):
         "remettre en stock",
         default=False,
         help_text="Remettre les articles en stock lors du remboursement.",
+    )
+    return_reason_code = models.CharField(
+        "code motif",
+        max_length=30,
+        choices=[
+            ("DEFECT", "Defaut / produit defectueux"),
+            ("WRONG_ITEM", "Mauvais article"),
+            ("CHANGED_MIND", "Changement d'avis"),
+            ("NOT_AS_DESCRIBED", "Non conforme a la description"),
+            ("DAMAGED_DELIVERY", "Endommage a la livraison"),
+            ("OTHER", "Autre"),
+        ],
+        default="OTHER",
+    )
+    physical_return = models.BooleanField(
+        "retour physique",
+        default=False,
+        help_text="Le produit a ete physiquement rendu.",
+    )
+    inspection_notes = models.TextField("notes d'inspection", blank=True, default="")
+    is_abnormal = models.BooleanField(
+        "anormal",
+        default=False,
+        help_text="Flagge par le systeme comme taux de retour anormal.",
     )
 
     class Meta:
@@ -844,3 +883,103 @@ class QuoteItem(TimeStampedModel):
         if self.line_total < 0:
             self.line_total = Decimal("0.00")
         super().save(*args, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Recurring Sales
+# ---------------------------------------------------------------------------
+
+class RecurringSale(TimeStampedModel):
+    """Template for auto-generating periodic sales."""
+
+    class Frequency(models.TextChoices):
+        DAILY = "DAILY", "Quotidien"
+        WEEKLY = "WEEKLY", "Hebdomadaire"
+        MONTHLY = "MONTHLY", "Mensuel"
+
+    store = models.ForeignKey(
+        "stores.Store",
+        on_delete=models.PROTECT,
+        related_name="recurring_sales",
+        verbose_name="boutique",
+    )
+    customer = models.ForeignKey(
+        "customers.Customer",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recurring_sales",
+        verbose_name="client",
+    )
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="recurring_sales",
+        verbose_name="vendeur",
+    )
+    name = models.CharField("nom", max_length=100)
+    frequency = models.CharField("frequence", max_length=10, choices=Frequency.choices)
+    frequency_day = models.IntegerField(
+        "jour de declenchement",
+        null=True,
+        blank=True,
+        help_text="1=Lundi si WEEKLY, 1-28 si MONTHLY, ignore si DAILY.",
+    )
+    next_due_date = models.DateField("prochaine echeance", db_index=True)
+    last_generated_at = models.DateTimeField("derniere generation", null=True, blank=True)
+    is_active = models.BooleanField("actif", default=True)
+    auto_submit = models.BooleanField(
+        "soumettre automatiquement",
+        default=False,
+        help_text="Si True: cree en PENDING_PAYMENT, sinon DRAFT.",
+    )
+    notes = models.TextField("notes", blank=True, default="")
+
+    class Meta:
+        ordering = ["next_due_date"]
+        verbose_name = "Vente recurrente"
+        verbose_name_plural = "Ventes recurrentes"
+
+    def __str__(self):
+        return f"{self.name} ({self.get_frequency_display()}) — {self.next_due_date}"
+
+
+class RecurringSaleItem(TimeStampedModel):
+    """A line item template within a recurring sale."""
+
+    recurring_sale = models.ForeignKey(
+        RecurringSale,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="vente recurrente",
+    )
+    product = models.ForeignKey(
+        "catalog.Product",
+        on_delete=models.PROTECT,
+        related_name="recurring_sale_items",
+        verbose_name="produit",
+    )
+    variant = models.ForeignKey(
+        "catalog.ProductVariant",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recurring_sale_items",
+        verbose_name="variante",
+    )
+    quantity = models.PositiveIntegerField("quantite", default=1)
+    unit_price_override = models.DecimalField(
+        "prix unitaire specifique",
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Laisser vide pour utiliser le prix catalogue.",
+    )
+
+    class Meta:
+        verbose_name = "Article vente recurrente"
+        verbose_name_plural = "Articles ventes recurrentes"
+
+    def __str__(self):
+        return f"{self.product} x{self.quantity}"

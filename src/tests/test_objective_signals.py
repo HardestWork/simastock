@@ -38,18 +38,22 @@ def test_payment_signal_uses_payment_month(monkeypatch):
 
 def test_sale_cancel_signal_triggers_recompute(monkeypatch):
     calls = _capture_delay(monkeypatch)
+    # Use current month so only one recompute is triggered (sale period == now period)
+    now = datetime.now(tz=timezone.utc)
     sale = SimpleNamespace(
         store_id="store-2",
         seller_id="seller-2",
-        created_at=datetime(2026, 2, 20, 16, 0, tzinfo=timezone.utc),
+        created_at=now,
         status="CANCELLED",
         _previous_status="PENDING_PAYMENT",
     )
 
     on_sale_saved(sender=None, instance=sale, created=False)
 
+    # Only 1 call because sale period == current period
     assert len(calls) == 1
-    assert calls[0]["period"] == "2026-02"
+    expected_period = f"{now.year}-{now.month:02d}"
+    assert calls[0]["period"] == expected_period
     assert calls[0]["store_id"] == "store-2"
     assert calls[0]["seller_id"] == "seller-2"
 

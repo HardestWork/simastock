@@ -24,6 +24,9 @@ export const DEFAULT_MODULE_MATRIX: ModuleMatrix = {
   CLIENT_INTEL: true,
   ALERTS: true,
   ACCOUNTING: false,
+  DELIVERY: false,
+  COMMUNICATION: false,
+  PLANNING: false,
 };
 
 export function deriveModuleMatrixFromFlags(flags?: FeatureFlags): ModuleMatrix {
@@ -46,6 +49,9 @@ export function deriveModuleMatrixFromFlags(flags?: FeatureFlags): ModuleMatrix 
     CLIENT_INTEL: Boolean((f.enabled ?? true) && (f.credit_scoring ?? true) && (f.credit_management ?? true)),
     ALERTS: Boolean(f.alerts_center ?? true),
     ACCOUNTING: Boolean(f.accounting ?? false),
+    DELIVERY: Boolean(f.delivery_management ?? false),
+    COMMUNICATION: Boolean(f.communication_management ?? false),
+    PLANNING: Boolean(f.planning_management ?? false),
   };
 }
 

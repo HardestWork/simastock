@@ -28,7 +28,7 @@ export interface CustomRole {
   created_at: string;
 }
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'HR' | 'COMMERCIAL' | 'SALES' | 'CASHIER' | 'SALES_CASHIER' | 'STOCKER';
+export type UserRole = 'ADMIN' | 'MANAGER' | 'HR' | 'COMMERCIAL' | 'SALES' | 'CASHIER' | 'SALES_CASHIER' | 'STOCKER' | 'DELIVERY';
 
 export type Capability =
   | 'CAN_MANAGE_USERS'
@@ -87,7 +87,10 @@ export type FeatureFlagKey =
   | 'sales_forecast'
   | 'fraud_detection'
   | 'advanced_permissions'
-  | 'accounting';
+  | 'accounting'
+  | 'delivery_management'
+  | 'communication_management'
+  | 'planning_management';
 
 export type FeatureFlags = Partial<Record<FeatureFlagKey, boolean>>;
 
@@ -108,7 +111,10 @@ export type ModuleCode =
   | 'ANALYTICS_DG'
   | 'CLIENT_INTEL'
   | 'ALERTS'
-  | 'ACCOUNTING';
+  | 'ACCOUNTING'
+  | 'DELIVERY'
+  | 'COMMUNICATION'
+  | 'PLANNING';
 
 export type ModuleMatrix = Record<ModuleCode, boolean>;
 
@@ -717,6 +723,7 @@ export interface Sale {
   discount_amount: string;
   discount_percent: string;
   tax_amount: string;
+  delivery_fee: string;
   total: string;
   amount_paid: string;
   amount_due: string;
@@ -730,6 +737,8 @@ export interface Sale {
   verification_token: string | null;
   coupon: string | null;
   coupon_code: string;
+  has_delivery: boolean;
+  delivery_id: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1562,7 +1571,7 @@ export interface CsvImportResult {
 export type ExpenseCategoryType = 'STOCK' | 'FIXED' | 'VARIABLE';
 export type WalletType = 'CASH' | 'BANK' | 'MOBILE_MONEY';
 export type ExpenseStatus = 'POSTED' | 'VOIDED';
-export type RecurringFrequency = 'WEEKLY' | 'MONTHLY';
+export type RecurringFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 
 export interface ExpenseCategory {
   id: string;
@@ -2866,3 +2875,383 @@ export interface CompteResultatData {
     is_benefice: boolean;
   };
 }
+
+// ---------------------------------------------------------------------------
+// Delivery & Logistics
+// ---------------------------------------------------------------------------
+
+export interface DeliveryPickupLocation {
+  id: string;
+  store: string;
+  name: string;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeliveryZone {
+  id: string;
+  store: string;
+  name: string;
+  description: string;
+  fee: string;
+  estimated_minutes: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DeliveryVehicleType = 'MOTO' | 'VOITURE' | 'VELO' | 'PIETON';
+
+export interface DeliveryAgent {
+  id: string;
+  store: string;
+  employee: string | null;
+  employee_name: string | null;
+  name: string;
+  phone: string;
+  vehicle_type: DeliveryVehicleType;
+  is_active: boolean;
+  user: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DeliveryStatus =
+  | 'PENDING'
+  | 'PREPARING'
+  | 'READY'
+  | 'IN_TRANSIT'
+  | 'DELIVERED'
+  | 'RETURNED'
+  | 'CANCELLED';
+
+export interface DeliveryStatusHistory {
+  id: string;
+  from_status: string;
+  to_status: string;
+  changed_by: string | null;
+  reason: string;
+  created_at: string;
+}
+
+export interface Delivery {
+  id: string;
+  store: string;
+  sale: string | null;
+  sale_invoice: string | null;
+  agent: string | null;
+  agent_name: string | null;
+  agent_phone: string | null;
+  sale_items_summary: { name: string; quantity: number }[];
+  zone: string | null;
+  zone_name: string | null;
+  zone_fee: string | null;
+  status: DeliveryStatus;
+  delivery_address: string;
+  recipient_name: string;
+  recipient_phone: string;
+  scheduled_at: string | null;
+  picked_up_at: string | null;
+  delivered_at: string | null;
+  confirmation_code: string;
+  notes: string;
+  payout_amount: string | null;
+  expense: string | null;
+  expense_number: string | null;
+  is_broadcast: boolean;
+  seller: string | null;
+  seller_name: string | null;
+  pickup_location: string | null;
+  pickup_location_name: string | null;
+  pickup_notes: string;
+  pickup_code: string;
+  pickup_confirmed_at: string | null;
+  pickup_confirmed_by: string | null;
+  pickup_confirmed_by_name: string | null;
+  status_history: DeliveryStatusHistory[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeliveryDashboard {
+  total_today: number;
+  pending: number;
+  in_transit: number;
+  delivered: number;
+  returned: number;
+  cancelled: number;
+  broadcast: number;
+}
+
+export interface AgentObjective {
+  id: string;
+  store: string;
+  agent: string;
+  agent_name: string;
+  period: string;        // YYYY-MM
+  target_count: number;
+  bonus_amount: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface AgentStats {
+  agent_id: string;
+  agent_name: string;
+  agent_phone: string;
+  vehicle_type: string;
+  total: number;
+  delivered: number;
+  returned: number;
+  cancelled: number;
+  success_rate: number;
+  objective: {
+    id: string;
+    target_count: number;
+    bonus_amount: string;
+    achieved: boolean;
+  } | null;
+  bonus_earned: string;
+}
+
+// ---------------------------------------------------------------------------
+// Communications
+// ---------------------------------------------------------------------------
+
+export type MessageChannel = 'SMS' | 'WHATSAPP' | 'EMAIL';
+export type TriggerEvent = 'MANUAL' | 'SALE_COMPLETED' | 'PAYMENT_RECEIVED' | 'CREDIT_DUE' | 'DELIVERY_STATUS';
+export type MessageStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED';
+export type CampaignStatus = 'DRAFT' | 'SCHEDULED' | 'SENDING' | 'COMPLETED' | 'CANCELLED';
+
+export interface MessageTemplate {
+  id: string;
+  enterprise: string;
+  name: string;
+  channel: MessageChannel;
+  subject: string;
+  body: string;
+  trigger_event: TriggerEvent;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MessageLog {
+  id: string;
+  store: string;
+  customer: string | null;
+  customer_name: string | null;
+  template: string | null;
+  template_name: string | null;
+  channel: MessageChannel;
+  recipient_contact: string;
+  subject: string;
+  body_rendered: string;
+  status: MessageStatus;
+  error_message: string;
+  sent_at: string | null;
+  created_at: string;
+}
+
+export interface Campaign {
+  id: string;
+  enterprise: string;
+  store: string | null;
+  name: string;
+  channel: MessageChannel;
+  template: string;
+  template_name: string | null;
+  segment_filter: Record<string, unknown>;
+  status: CampaignStatus;
+  scheduled_at: string | null;
+  completed_at: string | null;
+  total_recipients: number;
+  sent_count: number;
+  failed_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CampaignPreview {
+  recipient_count: number;
+  sample_message: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Planning & Scheduling
+// ---------------------------------------------------------------------------
+
+export interface HrmShift {
+  id: string;
+  store: string;
+  name: string;
+  start_time: string;
+  end_time: string;
+  color: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ScheduleEntryStatus = 'SCHEDULED' | 'CONFIRMED' | 'ABSENT' | 'REPLACED';
+
+export interface HrmScheduleEntry {
+  id: string;
+  store: string;
+  employee: string;
+  employee_name: string;
+  shift: string;
+  shift_name: string;
+  shift_color: string;
+  date: string;
+  status: ScheduleEntryStatus;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrmScheduleTemplateLine {
+  id: string;
+  template: string;
+  day_of_week: number;
+  shift: string;
+  shift_name: string;
+  position: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrmScheduleTemplate {
+  id: string;
+  store: string;
+  name: string;
+  is_active: boolean;
+  lines: HrmScheduleTemplateLine[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrmReplacement {
+  id: string;
+  original_entry: string;
+  original_employee_name: string;
+  replacement_employee: string;
+  replacement_employee_name: string;
+  reason: string;
+  approved_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Améliorations modules existants
+// ---------------------------------------------------------------------------
+
+export interface ProductVariant {
+  id: string;
+  product: string;
+  name: string;
+  sku: string;
+  barcode: string;
+  cost_price: string | null;
+  selling_price: string | null;
+  effective_selling_price: string;
+  effective_cost_price: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type LoyaltyTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
+
+export interface LoyaltyTransaction {
+  id: string;
+  account: string;
+  transaction_type: 'EARN' | 'REDEEM' | 'ADJUST' | 'EXPIRE';
+  points: string;
+  balance_after: string;
+  sale: string | null;
+  reference: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface LoyaltyAccount {
+  id: string;
+  store: string;
+  customer: string;
+  points_balance: string;
+  points_earned: string;
+  points_redeemed: string;
+  transactions: LoyaltyTransaction[];
+  created_at: string;
+}
+
+export interface PricingRule {
+  id: string;
+  policy: string;
+  product: string | null;
+  category: string | null;
+  min_qty: number;
+  discount_type: 'PERCENT' | 'FIXED' | 'FIXED_PRICE';
+  discount_value: string;
+  created_at: string;
+}
+
+export interface PricingPolicy {
+  id: string;
+  enterprise: string;
+  name: string;
+  priority: number;
+  valid_from: string | null;
+  valid_until: string | null;
+  is_active: boolean;
+  customer_tier: LoyaltyTier | null;
+  store: string | null;
+  rules: PricingRule[];
+  created_at: string;
+}
+
+export type RefundReasonCode =
+  | 'DEFECT'
+  | 'WRONG_ITEM'
+  | 'CHANGED_MIND'
+  | 'NOT_AS_DESCRIBED'
+  | 'DAMAGED_DELIVERY'
+  | 'OTHER';
+
+export interface RecurringSaleItem {
+  id: string;
+  recurring_sale: string;
+  product: string;
+  variant: string | null;
+  quantity: number;
+  unit_price_override: string | null;
+}
+
+export interface RecurringSale {
+  id: string;
+  store: string;
+  customer: string | null;
+  seller: string;
+  name: string;
+  frequency: RecurringFrequency;
+  frequency_day: number | null;
+  next_due_date: string;
+  last_generated_at: string | null;
+  is_active: boolean;
+  auto_submit: boolean;
+  notes: string;
+  items: RecurringSaleItem[];
+  created_at: string;
+}
+
+export interface CashShiftDenomination {
+  id: string;
+  shift: string;
+  denomination: number;
+  count: number;
+  amount: number;
+}
+

@@ -318,6 +318,18 @@ class ModuleHRMEnabled(RequireStoreModuleEnabled):
     module_code = "HRM"
 
 
+class ModuleDeliveryEnabled(RequireStoreModuleEnabled):
+    module_code = "DELIVERY"
+
+
+class ModuleCommunicationEnabled(RequireStoreModuleEnabled):
+    module_code = "COMMUNICATION"
+
+
+class ModulePlanningEnabled(RequireStoreModuleEnabled):
+    module_code = "PLANNING"
+
+
 class RequireStoreFeatureFlag(BasePermission):
     """Enforce a store feature flag on API endpoints."""
 

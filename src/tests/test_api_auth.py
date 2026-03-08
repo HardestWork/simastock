@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
+@pytest.mark.django_db
 class TestLogin:
     """POST /api/v1/auth/token/"""
 
@@ -31,6 +32,7 @@ class TestLogin:
         assert resp.status_code == 401
 
 
+@pytest.mark.django_db
 class TestMeView:
     """GET/PATCH /api/v1/auth/me/"""
 
@@ -49,6 +51,7 @@ class TestMeView:
         assert resp.data["first_name"] == "Updated"
 
 
+@pytest.mark.django_db
 class TestChangePassword:
     """POST /api/v1/auth/password/change/"""
 

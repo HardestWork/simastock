@@ -66,4 +66,8 @@ app.conf.beat_schedule = {
         "task": "expenses.tasks.generate_due_recurring_expenses",
         "schedule": crontab(minute=0, hour="*"),  # Every hour
     },
+    "check-delayed-deliveries": {
+        "task": "delivery.tasks.check_delayed_deliveries",
+        "schedule": crontab(minute="*/15"),  # Every 15 minutes
+    },
 }

@@ -22,6 +22,14 @@ class ProductStock(TimeStampedModel):
         related_name="stock_records",
         verbose_name="produit",
     )
+    variant = models.ForeignKey(
+        "catalog.ProductVariant",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="stock_records",
+        verbose_name="variante",
+    )
     quantity = models.IntegerField("quantite en stock", default=0)
     reserved_qty = models.IntegerField(
         "quantite reservee",
@@ -36,7 +44,7 @@ class ProductStock(TimeStampedModel):
 
     class Meta:
         ordering = ["product__name"]
-        unique_together = [["store", "product"]]
+        unique_together = [["store", "product", "variant"]]
         verbose_name = "Stock produit"
         verbose_name_plural = "Stocks produits"
 

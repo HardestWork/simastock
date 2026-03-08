@@ -1114,3 +1114,55 @@ def duplicate_quote(quote: Quote, actor) -> Quote:
     recalculate_quote(new_quote)
     logger.info("Quote %s duplicated to %s by %s", quote.pk, new_quote.pk, actor)
     return new_quote
+
+
+# ---------------------------------------------------------------------------
+# Recurring Sales
+# ---------------------------------------------------------------------------
+
+def generate_from_template(recurring_sale) -> "Sale":
+    """Generate a Sale from a RecurringSale template."""
+    from sales.models import RecurringSale, SaleItem
+    from datetime import date, timedelta
+
+    with transaction.atomic():
+        status = Sale.Status.PENDING_PAYMENT if recurring_sale.auto_submit else Sale.Status.DRAFT
+        sale = Sale.objects.create(
+            store=recurring_sale.store,
+            seller=recurring_sale.seller,
+            customer=recurring_sale.customer,
+            status=status,
+            notes=f"[Recurrent] {recurring_sale.name}",
+        )
+        for item in recurring_sale.items.select_related("product", "variant"):
+            price = item.unit_price_override
+            if price is None:
+                if item.variant and item.variant.selling_price is not None:
+                    price = item.variant.selling_price
+                else:
+                    price = item.product.selling_price
+            SaleItem.objects.create(
+                sale=sale,
+                product=item.product,
+                variant=item.variant,
+                product_name=item.product.name,
+                unit_price=price,
+                cost_price=item.product.cost_price or Decimal("0"),
+                quantity=item.quantity,
+            )
+        from sales.services import recalculate_sale
+        recalculate_sale(sale)
+
+        # Update next due date
+        today = date.today()
+        if recurring_sale.frequency == RecurringSale.Frequency.DAILY:
+            recurring_sale.next_due_date = today + timedelta(days=1)
+        elif recurring_sale.frequency == RecurringSale.Frequency.WEEKLY:
+            recurring_sale.next_due_date = today + timedelta(weeks=1)
+        else:  # MONTHLY
+            from dateutil.relativedelta import relativedelta
+            recurring_sale.next_due_date = today + relativedelta(months=1)
+        recurring_sale.last_generated_at = timezone.now()
+        recurring_sale.save(update_fields=["next_due_date", "last_generated_at", "updated_at"])
+
+    return sale

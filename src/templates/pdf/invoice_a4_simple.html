@@ -314,6 +314,12 @@
             <div class="total-value">-{{ sale.discount_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
         </div>
         {% endif %}
+        {% if sale.delivery_fee and sale.delivery_fee > 0 %}
+        <div class="total-row">
+            <div class="total-label">Frais de livraison:</div>
+            <div class="total-value">{{ sale.delivery_fee|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>
+        </div>
+        {% endif %}
         <div class="total-row grand">
             <div class="total-label">TOTAL TTC:</div>
             <div class="total-value">{{ sale.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</div>

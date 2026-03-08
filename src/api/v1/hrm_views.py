@@ -16,6 +16,7 @@ from api.v1.permissions import (
     CanViewHRM,
     FeatureHRMManagementEnabled,
     ModuleHRMEnabled,
+    ModulePlanningEnabled,
 )
 from api.v1.views import (
     _filter_queryset_by_enterprise,
@@ -45,7 +46,12 @@ from hrm.models import (
     PerformanceReview,
     PerformanceReviewScore,
     Position,
+    Replacement,
     SalaryComponent,
+    ScheduleEntry,
+    ScheduleTemplate,
+    ScheduleTemplateLine,
+    Shift,
 )
 from hrm.serializers import (
     AttendancePolicySerializer,
@@ -72,7 +78,12 @@ from hrm.serializers import (
     PerformanceReviewScoreSerializer,
     PerformanceReviewSerializer,
     PositionSerializer,
+    ReplacementSerializer,
     SalaryComponentSerializer,
+    ScheduleEntrySerializer,
+    ScheduleTemplateLineSerializer,
+    ScheduleTemplateSerializer,
+    ShiftSerializer,
 )
 
 
@@ -1438,3 +1449,221 @@ def _compute_overtime_minutes(attendance):
         attendance.overtime_minutes = 0
 
     attendance.save(update_fields=["overtime_minutes", "policy"])
+
+
+# ---------------------------------------------------------------------------
+# Planning & Scheduling
+# ---------------------------------------------------------------------------
+
+
+def _current_store_id(request):
+    store = getattr(request, "current_store", None)
+    return store.id if store else None
+
+
+class ShiftViewSet(viewsets.ModelViewSet):
+    serializer_class = ShiftSerializer
+    permission_classes = [IsAuthenticated, ModulePlanningEnabled]
+    filterset_fields = ["is_active"]
+    search_fields = ["name"]
+
+    def get_queryset(self):
+        store_id = _current_store_id(self.request)
+        if not store_id:
+            return Shift.objects.none()
+        return Shift.objects.filter(store_id=store_id)
+
+    def perform_create(self, serializer):
+        store_id = _current_store_id(self.request)
+        serializer.save(store_id=store_id)
+
+
+class ScheduleEntryViewSet(viewsets.ModelViewSet):
+    serializer_class = ScheduleEntrySerializer
+    permission_classes = [IsAuthenticated, ModulePlanningEnabled]
+    filterset_fields = ["employee", "shift", "status", "date"]
+    ordering_fields = ["date"]
+
+    def get_queryset(self):
+        store_id = _current_store_id(self.request)
+        if not store_id:
+            return ScheduleEntry.objects.none()
+        return (
+            ScheduleEntry.objects.filter(store_id=store_id)
+            .select_related("employee", "shift")
+        )
+
+    def perform_create(self, serializer):
+        store_id = _current_store_id(self.request)
+        serializer.save(store_id=store_id)
+
+    @action(detail=False, methods=["get"])
+    def weekly_view(self, request):
+        """Return schedule entries for a given week (param: week_start=YYYY-MM-DD)."""
+        import datetime
+        store_id = _current_store_id(request)
+        if not store_id:
+            return Response([])
+
+        week_start_str = request.query_params.get("week_start")
+        if not week_start_str:
+            return Response(
+                {"detail": "Parametre week_start requis (YYYY-MM-DD)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            week_start = datetime.date.fromisoformat(week_start_str)
+        except ValueError:
+            return Response(
+                {"detail": "Format de date invalide."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        week_end = week_start + datetime.timedelta(days=6)
+        entries = (
+            ScheduleEntry.objects.filter(
+                store_id=store_id, date__gte=week_start, date__lte=week_end
+            )
+            .select_related("employee", "shift")
+            .order_by("date", "shift__start_time")
+        )
+        serializer = ScheduleEntrySerializer(entries, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["post"])
+    def apply_template(self, request):
+        """Apply a ScheduleTemplate for a given week, assigning employees."""
+        import datetime
+        store_id = _current_store_id(request)
+        if not store_id:
+            return Response({"detail": "Boutique non trouvee."}, status=status.HTTP_400_BAD_REQUEST)
+
+        template_id = request.data.get("template_id")
+        week_start_str = request.data.get("week_start")
+        employee_ids = request.data.get("employee_ids", [])
+
+        if not template_id or not week_start_str:
+            return Response(
+                {"detail": "template_id et week_start sont requis."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            week_start = datetime.date.fromisoformat(week_start_str)
+        except ValueError:
+            return Response({"detail": "Format de date invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            template = ScheduleTemplate.objects.get(pk=template_id, store_id=store_id)
+        except ScheduleTemplate.DoesNotExist:
+            return Response({"detail": "Modele non trouve."}, status=status.HTTP_404_NOT_FOUND)
+
+        lines = template.lines.select_related("shift").all()
+        employees = Employee.objects.filter(id__in=employee_ids, store_id=store_id, status=Employee.Status.ACTIVE)
+
+        created = 0
+        for emp in employees:
+            for line in lines:
+                entry_date = week_start + datetime.timedelta(days=line.day_of_week)
+                _, was_created = ScheduleEntry.objects.get_or_create(
+                    employee=emp,
+                    date=entry_date,
+                    defaults={
+                        "store_id": store_id,
+                        "shift": line.shift,
+                        "status": ScheduleEntry.Status.SCHEDULED,
+                    },
+                )
+                if was_created:
+                    created += 1
+
+        return Response({"created": created})
+
+    @action(detail=False, methods=["post"])
+    def copy_week(self, request):
+        """Copy schedule entries from one week to another."""
+        import datetime
+        store_id = _current_store_id(request)
+        if not store_id:
+            return Response({"detail": "Boutique non trouvee."}, status=status.HTTP_400_BAD_REQUEST)
+
+        source_start_str = request.data.get("source_week_start")
+        target_start_str = request.data.get("target_week_start")
+        if not source_start_str or not target_start_str:
+            return Response(
+                {"detail": "source_week_start et target_week_start sont requis."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            source_start = datetime.date.fromisoformat(source_start_str)
+            target_start = datetime.date.fromisoformat(target_start_str)
+        except ValueError:
+            return Response({"detail": "Format de date invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        source_end = source_start + datetime.timedelta(days=6)
+        delta = target_start - source_start
+
+        source_entries = ScheduleEntry.objects.filter(
+            store_id=store_id, date__gte=source_start, date__lte=source_end
+        )
+        created = 0
+        for entry in source_entries:
+            new_date = entry.date + delta
+            _, was_created = ScheduleEntry.objects.get_or_create(
+                employee=entry.employee,
+                date=new_date,
+                defaults={
+                    "store_id": store_id,
+                    "shift": entry.shift,
+                    "status": ScheduleEntry.Status.SCHEDULED,
+                },
+            )
+            if was_created:
+                created += 1
+
+        return Response({"created": created})
+
+
+class ScheduleTemplateViewSet(viewsets.ModelViewSet):
+    serializer_class = ScheduleTemplateSerializer
+    permission_classes = [IsAuthenticated, ModulePlanningEnabled]
+    search_fields = ["name"]
+    filterset_fields = ["is_active"]
+
+    def get_queryset(self):
+        store_id = _current_store_id(self.request)
+        if not store_id:
+            return ScheduleTemplate.objects.none()
+        return ScheduleTemplate.objects.filter(store_id=store_id).prefetch_related("lines__shift")
+
+    def perform_create(self, serializer):
+        store_id = _current_store_id(self.request)
+        serializer.save(store_id=store_id)
+
+
+class ScheduleTemplateLineViewSet(viewsets.ModelViewSet):
+    serializer_class = ScheduleTemplateLineSerializer
+    permission_classes = [IsAuthenticated, ModulePlanningEnabled]
+    filterset_fields = ["template", "day_of_week"]
+
+    def get_queryset(self):
+        store_id = _current_store_id(self.request)
+        if not store_id:
+            return ScheduleTemplateLine.objects.none()
+        return ScheduleTemplateLine.objects.filter(
+            template__store_id=store_id
+        ).select_related("shift")
+
+
+class ReplacementViewSet(viewsets.ModelViewSet):
+    serializer_class = ReplacementSerializer
+    permission_classes = [IsAuthenticated, ModulePlanningEnabled]
+
+    def get_queryset(self):
+        store_id = _current_store_id(self.request)
+        if not store_id:
+            return Replacement.objects.none()
+        return (
+            Replacement.objects.filter(original_entry__store_id=store_id)
+            .select_related("original_entry__employee", "replacement_employee")
+        )

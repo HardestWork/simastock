@@ -19,15 +19,15 @@ from stores.models import (
     StoreModuleEntitlement,
     StoreUser,
 )
-from catalog.models import Brand, Category, Product, ProductImage, ProductSpec
+from catalog.models import Brand, Category, PricingPolicy, PricingRule, Product, ProductImage, ProductSpec, ProductVariant
 from stock.models import (
     InventoryMovement, ProductStock,
     StockTransfer, StockTransferLine,
     StockCount, StockCountLine,
 )
-from customers.models import Customer
-from sales.models import Coupon, Quote, QuoteItem, Refund, Sale, SaleItem
-from cashier.models import CashShift, Payment
+from customers.models import Customer, LoyaltyAccount, LoyaltyTransaction
+from sales.models import Coupon, Quote, QuoteItem, RecurringSale, RecurringSaleItem, Refund, Sale, SaleItem
+from cashier.models import CashShift, CashShiftDenomination, Payment
 from credits.models import CustomerAccount, CreditLedgerEntry, PaymentSchedule
 from purchases.models import Supplier, PurchaseOrder, PurchaseOrderLine, GoodsReceipt, GoodsReceiptLine
 from accounts.models import CustomRole
@@ -81,9 +81,10 @@ def _validate_user_role_transition(*, request, target_role, current_role=None):
         "CASHIER",
         "STOCKER",
         "SALES_CASHIER",
+        "DELIVERY",
     ):
         raise serializers.ValidationError(
-            "Les managers ne peuvent creer/gerer que des utilisateurs SALES, COMMERCIAL, HR, CASHIER, STOCKER ou SALES_CASHIER."
+            "Les managers ne peuvent creer/gerer que des utilisateurs SALES, COMMERCIAL, HR, CASHIER, STOCKER, SALES_CASHIER ou DELIVERY."
         )
 
 
@@ -610,6 +611,7 @@ class StoreSerializer(serializers.ModelSerializer):
             'offer_validity_days', 'invoice_terms', 'invoice_footer',
             'analytics_feature_overrides', 'effective_feature_flags',
             'stock_decrement_on', 'allow_negative_stock',
+            'receipt_promo_message', 'receipt_show_loyalty_points', 'receipt_custom_footer',
             'is_active',
         ]
         read_only_fields = ['id', 'enterprise']
@@ -1026,6 +1028,8 @@ class SaleSerializer(serializers.ModelSerializer):
     cashier_name = serializers.SerializerMethodField()
     source_quote_number = serializers.SerializerMethodField()
     payment_status = serializers.CharField(read_only=True)
+    has_delivery = serializers.SerializerMethodField()
+    delivery_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
@@ -1033,15 +1037,16 @@ class SaleSerializer(serializers.ModelSerializer):
             'id', 'store', 'seller', 'seller_name', 'customer', 'customer_name',
             'customer_phone', 'customer_is_default',
             'invoice_number', 'status', 'payment_status', 'subtotal', 'discount_amount',
-            'discount_percent', 'tax_amount', 'total', 'amount_paid',
+            'discount_percent', 'tax_amount', 'delivery_fee', 'total', 'amount_paid',
             'amount_due', 'items', 'is_credit_sale', 'notes',
             'cashier_name',
             'source_quote', 'source_quote_number', 'submitted_at', 'created_at',
             'verification_token', 'coupon_code',
+            'has_delivery', 'delivery_id',
         ]
         read_only_fields = [
-            'id', 'invoice_number', 'payment_status', 'subtotal', 'tax_amount', 'total',
-            'amount_paid', 'amount_due', 'source_quote', 'source_quote_number',
+            'id', 'invoice_number', 'payment_status', 'subtotal', 'tax_amount', 'delivery_fee',
+            'total', 'amount_paid', 'amount_due', 'source_quote', 'source_quote_number',
             'submitted_at', 'created_at', 'verification_token', 'coupon_code',
         ]
 
@@ -1084,6 +1089,17 @@ class SaleSerializer(serializers.ModelSerializer):
         if obj.source_quote_id:
             return getattr(obj.source_quote, "quote_number", None)
         return None
+
+    def get_has_delivery(self, obj):
+        return obj.deliveries.filter(
+            status__in=["PENDING", "PREPARING", "IN_TRANSIT"]
+        ).exists()
+
+    def get_delivery_id(self, obj):
+        d = obj.deliveries.filter(
+            status__in=["PENDING", "PREPARING", "IN_TRANSIT"]
+        ).first()
+        return str(d.pk) if d else None
 
 
 class SaleCreateSerializer(serializers.Serializer):
@@ -1699,9 +1715,11 @@ class RefundSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'sale', 'store', 'amount', 'reason',
             'approved_by', 'processed_by', 'refund_method',
-            'reference', 'credit_note_number', 'restore_stock', 'created_at',
+            'reference', 'credit_note_number', 'restore_stock',
+            'return_reason_code', 'physical_return', 'inspection_notes', 'is_abnormal',
+            'created_at',
         ]
-        read_only_fields = ['id', 'store', 'approved_by', 'processed_by', 'credit_note_number', 'created_at']
+        read_only_fields = ['id', 'store', 'approved_by', 'processed_by', 'credit_note_number', 'is_abnormal', 'created_at']
 
 
 class RefundCreateSerializer(serializers.Serializer):
@@ -2036,3 +2054,116 @@ class AccountingSettingsSerializer(serializers.ModelSerializer):
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "enterprise", "created_at", "updated_at"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 Serializers
+# ---------------------------------------------------------------------------
+
+class ProductVariantSerializer(serializers.ModelSerializer):
+    """Serializer for ProductVariant."""
+
+    effective_selling_price = serializers.DecimalField(
+        max_digits=12, decimal_places=2, read_only=True,
+    )
+    effective_cost_price = serializers.DecimalField(
+        max_digits=12, decimal_places=2, read_only=True,
+    )
+
+    class Meta:
+        model = ProductVariant
+        fields = [
+            "id", "product", "name", "sku", "barcode",
+            "cost_price", "selling_price",
+            "effective_selling_price", "effective_cost_price",
+            "is_active", "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        product = attrs.get("product") or (self.instance.product if self.instance else None)
+        name = attrs.get("name") or (self.instance.name if self.instance else None)
+        qs = ProductVariant.objects.filter(product=product, name=name)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError({"name": "Cette variante existe deja pour ce produit."})
+        return attrs
+
+
+class LoyaltyTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LoyaltyTransaction
+        fields = [
+            "id", "account", "transaction_type", "points",
+            "balance_after", "sale", "reference", "notes", "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class LoyaltyAccountSerializer(serializers.ModelSerializer):
+    transactions = LoyaltyTransactionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = LoyaltyAccount
+        fields = [
+            "id", "store", "customer", "points_balance",
+            "points_earned", "points_redeemed", "transactions", "created_at",
+        ]
+        read_only_fields = ["id", "store", "points_balance", "points_earned", "points_redeemed", "created_at"]
+
+
+class PricingRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PricingRule
+        fields = [
+            "id", "policy", "product", "category", "min_qty",
+            "discount_type", "discount_value", "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class PricingPolicySerializer(serializers.ModelSerializer):
+    rules = PricingRuleSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PricingPolicy
+        fields = [
+            "id", "enterprise", "name", "priority", "valid_from", "valid_until",
+            "is_active", "customer_tier", "store", "rules", "created_at",
+        ]
+        read_only_fields = ["id", "enterprise", "created_at"]
+
+
+class RecurringSaleItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RecurringSaleItem
+        fields = [
+            "id", "recurring_sale", "product", "variant",
+            "quantity", "unit_price_override",
+        ]
+        read_only_fields = ["id"]
+
+
+class RecurringSaleSerializer(serializers.ModelSerializer):
+    items = RecurringSaleItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = RecurringSale
+        fields = [
+            "id", "store", "customer", "seller", "name",
+            "frequency", "frequency_day", "next_due_date",
+            "last_generated_at", "is_active", "auto_submit", "notes",
+            "items", "created_at",
+        ]
+        read_only_fields = ["id", "store", "last_generated_at", "created_at"]
+
+
+class CashShiftDenominationSerializer(serializers.ModelSerializer):
+    amount = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = CashShiftDenomination
+        fields = ["id", "shift", "denomination", "count", "amount"]
+        read_only_fields = ["id", "shift", "amount"]

@@ -24,6 +24,7 @@ class Alert(TimeStampedModel):
         STOCK_RUPTURE_FORECAST = "STOCK_RUPTURE_FORECAST", "Prevision de rupture de stock"
         SELF_CHECKOUT = "SELF_CHECKOUT", "Auto-encaissement"
         SUBSCRIPTION_EXPIRING = "SUBSCRIPTION_EXPIRING", "Abonnement bientot expire"
+        DELIVERY_LATE = "DELIVERY_LATE", "Livraison en retard"
 
     class Severity(models.TextChoices):
         INFO = "INFO", "Information"

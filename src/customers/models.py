@@ -6,6 +6,11 @@ from django.db.models import Q
 from core.models import TimeStampedModel
 
 
+# ---------------------------------------------------------------------------
+# Utility appended after Customer class definition — avoid circular import
+# ---------------------------------------------------------------------------
+
+
 class Customer(TimeStampedModel):
     """A customer belonging to an enterprise (shared across all stores)."""
 
@@ -65,6 +70,22 @@ class Customer(TimeStampedModel):
             )
         ]
 
+    # --- Loyalty / scoring fields ---
+    loyalty_score = models.DecimalField(
+        "score fidelite", max_digits=7, decimal_places=2, default=0,
+    )
+    loyalty_tier = models.CharField(
+        "niveau fidelite",
+        max_length=10,
+        choices=[("BRONZE", "Bronze"), ("SILVER", "Argent"), ("GOLD", "Or"), ("PLATINUM", "Platine")],
+        default="BRONZE",
+    )
+    total_purchase_amount = models.DecimalField(
+        "total achats", max_digits=14, decimal_places=2, default=0,
+    )
+    purchase_count = models.PositiveIntegerField("nombre d'achats", default=0)
+    last_purchase_at = models.DateTimeField("dernier achat", null=True, blank=True)
+
     @property
     def full_name(self):
         """Return the customer's full name."""
@@ -72,3 +93,86 @@ class Customer(TimeStampedModel):
 
     def __str__(self):
         return self.full_name or self.phone
+
+
+# ---------------------------------------------------------------------------
+# Loyalty
+# ---------------------------------------------------------------------------
+
+class LoyaltyAccount(TimeStampedModel):
+    """Points balance for a customer at a specific store."""
+
+    store = models.ForeignKey(
+        "stores.Store",
+        on_delete=models.PROTECT,
+        related_name="loyalty_accounts",
+        verbose_name="boutique",
+    )
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT,
+        related_name="loyalty_accounts",
+        verbose_name="client",
+    )
+    points_balance = models.DecimalField(
+        "solde points", max_digits=12, decimal_places=2, default=0,
+    )
+    points_earned = models.DecimalField(
+        "points gagnes (total)", max_digits=12, decimal_places=2, default=0,
+    )
+    points_redeemed = models.DecimalField(
+        "points utilises (total)", max_digits=12, decimal_places=2, default=0,
+    )
+
+    class Meta:
+        unique_together = [["store", "customer"]]
+        verbose_name = "Compte fidelite"
+        verbose_name_plural = "Comptes fidelite"
+
+    def __str__(self):
+        return f"Fidelite {self.customer} @ {self.store} — {self.points_balance} pts"
+
+
+class LoyaltyTransaction(TimeStampedModel):
+    """Individual points earn/redeem event on a loyalty account."""
+
+    class TransactionType(models.TextChoices):
+        EARN = "EARN", "Gain"
+        REDEEM = "REDEEM", "Utilisation"
+        ADJUST = "ADJUST", "Ajustement"
+        EXPIRE = "EXPIRE", "Expiration"
+
+    account = models.ForeignKey(
+        LoyaltyAccount,
+        on_delete=models.CASCADE,
+        related_name="transactions",
+        verbose_name="compte fidelite",
+    )
+    transaction_type = models.CharField(
+        "type", max_length=10, choices=TransactionType.choices,
+    )
+    points = models.DecimalField(
+        "points", max_digits=12, decimal_places=2,
+        help_text="Positif=gagnes, negatif=utilises/expires.",
+    )
+    balance_after = models.DecimalField(
+        "solde apres", max_digits=12, decimal_places=2,
+    )
+    sale = models.ForeignKey(
+        "sales.Sale",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="loyalty_transactions",
+        verbose_name="vente",
+    )
+    reference = models.CharField("reference", max_length=100, blank=True, default="")
+    notes = models.TextField("notes", blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Transaction fidelite"
+        verbose_name_plural = "Transactions fidelite"
+
+    def __str__(self):
+        return f"{self.get_transaction_type_display()} {self.points:+.0f} pts — {self.account}"

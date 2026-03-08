@@ -58,6 +58,7 @@ class CustomRole(models.Model):
             ("CASHIER", "Caissier"),
             ("SALES_CASHIER", "Vendeur Caissier"),
             ("STOCKER", "Magasinier"),
+            ("DELIVERY", "Livreur"),
         ],
         default="SALES",
     )
@@ -93,6 +94,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         CASHIER = "CASHIER", "Caissier"
         SALES_CASHIER = "SALES_CASHIER", "Vendeur Caissier"
         STOCKER = "STOCKER", "Magasinier"
+        DELIVERY = "DELIVERY", "Livreur"
 
     id = models.UUIDField(
         primary_key=True,

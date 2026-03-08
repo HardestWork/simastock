@@ -792,5 +792,15 @@ def _update_shift_totals(shift: CashShift, payments: list[Payment]):
     shift.save()
 
 
+def _decrement_shift_expected_cash(store, amount):
+    """Decrement expected_cash of the current open shift for a cash outflow."""
+    shift = CashShift.objects.filter(store=store, status=CashShift.Status.OPEN).first()
+    if shift:
+        shift.expected_cash = (shift.expected_cash or 0) - amount
+        if shift.expected_cash < 0:
+            shift.expected_cash = 0
+        shift.save(update_fields=["expected_cash"])
+
+
 # Compatibility alias kept for old imports.
 _release_reserved_stock_for_sale = _sync_reserved_stock_for_sale_products

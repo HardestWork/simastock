@@ -10,6 +10,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   CASHIER: 'Caissier',
   SALES_CASHIER: 'Vendeur-Caissier',
   STOCKER: 'Magasinier',
+  DELIVERY: 'Livreur',
 };
 
 /** Check if a role is at least manager level (MANAGER or ADMIN). */

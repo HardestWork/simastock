@@ -302,5 +302,104 @@ export const queryKeys = {
       all: ['hrm', 'holidays'] as const,
       list: (params?: Record<string, string>) => ['hrm', 'holidays', 'list', params] as const,
     },
+    shifts: {
+      all: ['hrm', 'shifts'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'shifts', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'shifts', id] as const,
+    },
+    scheduleEntries: {
+      all: ['hrm', 'schedule-entries'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'schedule-entries', 'list', params] as const,
+      weekly: (weekStart: string) => ['hrm', 'schedule-entries', 'weekly', weekStart] as const,
+    },
+    scheduleTemplates: {
+      all: ['hrm', 'schedule-templates'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'schedule-templates', 'list', params] as const,
+      detail: (id: string) => ['hrm', 'schedule-templates', id] as const,
+    },
+    replacements: {
+      all: ['hrm', 'replacements'] as const,
+      list: (params?: Record<string, string>) => ['hrm', 'replacements', 'list', params] as const,
+    },
+  },
+
+  // Delivery & Logistics
+  delivery: {
+    pickupLocations: {
+      all: ['delivery', 'pickup-locations'] as const,
+      list: (params?: Record<string, string>) => ['delivery', 'pickup-locations', 'list', params] as const,
+    },
+    zones: {
+      all: ['delivery', 'zones'] as const,
+      list: (params?: Record<string, string>) => ['delivery', 'zones', 'list', params] as const,
+      detail: (id: string) => ['delivery', 'zones', id] as const,
+    },
+    agents: {
+      all: ['delivery', 'agents'] as const,
+      list: (params?: Record<string, string>) => ['delivery', 'agents', 'list', params] as const,
+      detail: (id: string) => ['delivery', 'agents', id] as const,
+      stats: (period?: string) => ['delivery', 'agents', 'stats', period] as const,
+    },
+    deliveries: {
+      all: ['delivery', 'deliveries'] as const,
+      list: (params?: Record<string, string>) => ['delivery', 'deliveries', 'list', params] as const,
+      detail: (id: string) => ['delivery', 'deliveries', id] as const,
+      dashboard: ['delivery', 'deliveries', 'dashboard'] as const,
+      bySale: (saleId: string) => ['delivery', 'deliveries', 'sale', saleId] as const,
+      available: ['delivery', 'deliveries', 'available'] as const,
+    },
+    agentObjectives: {
+      all: ['delivery', 'agent-objectives'] as const,
+      list: (period?: string) => ['delivery', 'agent-objectives', 'list', period] as const,
+    },
+  },
+
+  // Communications
+  communications: {
+    templates: {
+      all: ['communications', 'templates'] as const,
+      list: (params?: Record<string, string>) => ['communications', 'templates', 'list', params] as const,
+      detail: (id: string) => ['communications', 'templates', id] as const,
+    },
+    logs: {
+      all: ['communications', 'logs'] as const,
+      list: (params?: Record<string, string>) => ['communications', 'logs', 'list', params] as const,
+      detail: (id: string) => ['communications', 'logs', id] as const,
+    },
+    campaigns: {
+      all: ['communications', 'campaigns'] as const,
+      list: (params?: Record<string, string>) => ['communications', 'campaigns', 'list', params] as const,
+      detail: (id: string) => ['communications', 'campaigns', id] as const,
+      preview: (id: string) => ['communications', 'campaigns', id, 'preview'] as const,
+    },
+  },
+
+  // Phase 3
+  variants: {
+    all: ['variants'] as const,
+    list: (params?: Record<string, string>) => ['variants', 'list', params] as const,
+    byProduct: (productId: string) => ['variants', 'product', productId] as const,
+    detail: (id: string) => ['variants', id] as const,
+  },
+  pricingPolicies: {
+    all: ['pricing-policies'] as const,
+    list: (params?: Record<string, string>) => ['pricing-policies', 'list', params] as const,
+    detail: (id: string) => ['pricing-policies', id] as const,
+  },
+  loyalty: {
+    accounts: {
+      all: ['loyalty', 'accounts'] as const,
+      list: (params?: Record<string, string>) => ['loyalty', 'accounts', 'list', params] as const,
+      detail: (id: string) => ['loyalty', 'accounts', id] as const,
+      byCustomer: (customerId: string) => ['loyalty', 'accounts', 'customer', customerId] as const,
+    },
+  },
+  recurringSales: {
+    all: ['recurring-sales'] as const,
+    list: (params?: Record<string, string>) => ['recurring-sales', 'list', params] as const,
+    detail: (id: string) => ['recurring-sales', id] as const,
+  },
+  denominations: {
+    byShift: (shiftId: string) => ['denominations', 'shift', shiftId] as const,
   },
 } as const;

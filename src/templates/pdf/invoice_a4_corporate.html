@@ -303,6 +303,12 @@ body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a2e
         <span>{{ sale.tax_amount|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
       </div>
       {% endif %}
+      {% if sale.delivery_fee and sale.delivery_fee > 0 %}
+      <div class="tot-row">
+        <span class="tot-label">Frais de livraison</span>
+        <span>{{ sale.delivery_fee|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
+      </div>
+      {% endif %}
       <div class="tot-row grand">
         <span>TOTAL TTC</span>
         <span>{{ sale.total|floatformat:0 }} {{ store.effective_currency|default:"FCFA" }}</span>
