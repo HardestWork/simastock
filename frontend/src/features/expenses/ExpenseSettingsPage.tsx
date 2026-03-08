@@ -989,7 +989,7 @@ export default function ExpenseSettingsPage() {
                             setRecAmount(String(r.amount));
                             setRecDescription(r.description);
                             setRecSupplier(r.supplier_name ?? '');
-                            setRecFrequency(r.frequency);
+                            setRecFrequency(r.frequency as 'WEEKLY' | 'MONTHLY');
                             setRecNextDate(r.next_run_date);
                             setRecIsActive(r.is_active);
                           }}

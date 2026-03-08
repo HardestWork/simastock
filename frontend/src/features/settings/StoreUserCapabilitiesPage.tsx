@@ -22,6 +22,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   CASHIER: 'Caissier',
   SALES_CASHIER: 'Vendeur-Caissier',
   STOCKER: 'Magasinier',
+  DELIVERY: 'Livreur',
 };
 
 const ROLE_BADGE_CLASSES: Record<UserRole, string> = {
@@ -33,6 +34,7 @@ const ROLE_BADGE_CLASSES: Record<UserRole, string> = {
   CASHIER: 'bg-amber-100 text-amber-700',
   SALES_CASHIER: 'bg-teal-100 text-teal-700',
   STOCKER: 'bg-gray-100 text-gray-700',
+  DELIVERY: 'bg-orange-100 text-orange-700',
 };
 
 const CAPABILITY_COLORS: Record<Capability, string> = {
@@ -156,6 +158,7 @@ const ROLE_CAPABILITY_WHITELIST: Record<UserRole, Capability[]> = {
   CASHIER: ['CAN_CASH', 'CAN_REFUND', 'CAN_OVERRIDE_PRICE', 'CAN_CREATE_EXPENSE', 'CAN_VIEW_EXPENSE_REPORTS'],
   SALES_CASHIER: ['CAN_SELL', 'CAN_CASH', 'CAN_REFUND', 'CAN_OVERRIDE_PRICE', 'CAN_CREATE_EXPENSE', 'CAN_VIEW_EXPENSE_REPORTS'],
   STOCKER: ['CAN_STOCK'],
+  DELIVERY: [],
 };
 
 function canAssignCapability(userRole: UserRole, capability: Capability): boolean {

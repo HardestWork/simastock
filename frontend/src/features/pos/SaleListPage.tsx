@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { saleApi, storeUserApi, reportApi } from '@/api/endpoints';
+import { saleApi, storeUserApi, reportApi, deliveryApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreStore } from '@/store-context/store-store';
@@ -13,11 +13,13 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import Pagination from '@/components/shared/Pagination';
 import { useSort } from '@/hooks/use-sort';
 import SortableHeader from '@/components/shared/SortableHeader';
-import { Plus, Download, FileSpreadsheet, Trash2, RotateCcw, MessageCircle, Pencil } from 'lucide-react';
+import { Plus, Download, FileSpreadsheet, Trash2, RotateCcw, MessageCircle, Pencil, Truck, X } from 'lucide-react';
 import { downloadCsv } from '@/lib/export';
 import { toast } from '@/lib/toast';
 import RefundCreateModal from '@/features/sales/RefundCreateModal';
-import type { Sale, StoreUserRecord } from '@/api/types';
+import { useModuleMatrix } from '@/lib/module-access';
+import { extractApiError } from '@/lib/api-error';
+import type { Sale, StoreUserRecord, Delivery } from '@/api/types';
 
 const PAGE_SIZE = 25;
 
@@ -150,11 +152,13 @@ export default function SaleListPage() {
   const currentStore = useStoreStore((s) => s.currentStore);
   const user = useAuthStore((s) => s.user);
   const capabilities = useCapabilities();
+  const { isModuleEnabled } = useModuleMatrix();
   const canCancel = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const canRefund = capabilities.includes('CAN_REFUND');
   const canSell = capabilities.includes('CAN_SELL');
   const canAdminAdvancedFilters = user?.role === 'ADMIN' || user?.role === 'MANAGER';
-  const showActionsCol = canCancel || canRefund || canSell;
+  const canDeliver = isModuleEnabled('DELIVERY');
+  const showActionsCol = canCancel || canRefund || canSell || canDeliver;
   const todayIso = useMemo(() => toLocalIsoDate(new Date()), []);
 
   const [page, setPage] = useState(1);
@@ -169,6 +173,13 @@ export default function SaleListPage() {
   const [cancelTarget, setCancelTarget] = useState<Sale | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [refundTarget, setRefundTarget] = useState<Sale | null>(null);
+  const [deliveryTarget, setDeliveryTarget] = useState<Sale | null>(null);
+  const [dFormRecipient, setDFormRecipient] = useState('');
+  const [dFormPhone, setDFormPhone] = useState('');
+  const [dFormAddress, setDFormAddress] = useState('');
+  const [dFormZone, setDFormZone] = useState('');
+  const [dFormAgent, setDFormAgent] = useState('');
+  const [dFormNotes, setDFormNotes] = useState('');
 
   const queryClient = useQueryClient();
 
@@ -258,6 +269,52 @@ export default function SaleListPage() {
         ?? 'Erreur lors de l\'annulation.';
       toast.error(msg);
     },
+  });
+
+  // Delivery data
+  const { data: zonesData } = useQuery({
+    queryKey: queryKeys.delivery.zones.list({ page_size: '200', is_active: 'true' }),
+    queryFn: () => deliveryApi.zones.list({ page_size: '200', is_active: 'true' }),
+    enabled: canDeliver && !!currentStore,
+  });
+  const { data: agentsData } = useQuery({
+    queryKey: queryKeys.delivery.agents.list({ page_size: '200', is_active: 'true' }),
+    queryFn: () => deliveryApi.agents.list({ page_size: '200', is_active: 'true' }),
+    enabled: canDeliver && !!currentStore,
+  });
+  const deliveriesParams: Record<string, string> = { page_size: '200' };
+  if (currentStore?.id) deliveriesParams.store = currentStore.id;
+  if (dateFrom) deliveriesParams.date_from = dateFrom;
+  if (dateTo) deliveriesParams.date_to = dateTo;
+  const { data: deliveriesData } = useQuery({
+    queryKey: queryKeys.delivery.deliveries.list(deliveriesParams),
+    queryFn: () => deliveryApi.deliveries.list(deliveriesParams),
+    enabled: canDeliver && !!currentStore,
+  });
+  const deliveryBySaleId = useMemo(() => {
+    const map = new Map<string, Delivery>();
+    deliveriesData?.results.forEach((d) => { if (d.sale) map.set(d.sale, d); });
+    return map;
+  }, [deliveriesData]);
+
+  const createDeliveryMutation = useMutation({
+    mutationFn: () => deliveryApi.deliveries.create({
+      sale: deliveryTarget!.id,
+      recipient_name: dFormRecipient.trim(),
+      recipient_phone: dFormPhone.trim(),
+      delivery_address: dFormAddress.trim(),
+      zone: dFormZone || undefined,
+      agent: dFormAgent || undefined,
+      notes: dFormNotes.trim(),
+    } as Partial<Delivery>),
+    onSuccess: () => {
+      toast.success('Livraison creee avec succes');
+      setDeliveryTarget(null);
+      setDFormRecipient(''); setDFormPhone(''); setDFormAddress('');
+      setDFormZone(''); setDFormAgent(''); setDFormNotes('');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.delivery.deliveries.all });
+    },
+    onError: (err: unknown) => toast.error(extractApiError(err, 'Erreur lors de la creation de la livraison')),
   });
 
   const totalPages = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
@@ -462,7 +519,30 @@ export default function SaleListPage() {
               <tbody>
                 {data?.results.map((sale) => (
                   <tr key={sale.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{sale.invoice_number || '\u2014'}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                      {sale.invoice_number || '\u2014'}
+                      {canDeliver && (() => {
+                        const d = deliveryBySaleId.get(sale.id);
+                        if (!d) return null;
+                        const colors: Record<string, string> = {
+                          DELIVERED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+                          IN_TRANSIT: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+                          RETURNED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+                          CANCELLED: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
+                        };
+                        const labels: Record<string, string> = {
+                          PENDING: 'Livraison',PREPARING: 'Livraison',READY: 'Livraison',
+                          IN_TRANSIT: 'En transit',DELIVERED: 'Livré',
+                          RETURNED: 'Retourné',CANCELLED: 'Annulé',
+                        };
+                        const cls = colors[d.status] ?? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+                        return (
+                          <span className={`ml-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs rounded-full font-medium ${cls}`}>
+                            <Truck size={10} />{labels[d.status] ?? d.status}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{sale.customer_name ?? '\u2014'}</td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{sale.seller_name ?? '\u2014'}</td>
                     <td className="px-4 py-3"><StatusBadge type="sale" value={sale.status} /></td>
@@ -538,6 +618,23 @@ export default function SaleListPage() {
                               <RotateCcw size={16} />
                             </button>
                           )}
+                          {canDeliver && (sale.status === 'PAID' || sale.status === 'PARTIALLY_PAID') && !deliveryBySaleId.has(sale.id) && (
+                            <button
+                              onClick={() => {
+                                setDeliveryTarget(sale);
+                                setDFormRecipient(sale.customer_name ?? '');
+                                setDFormPhone(sale.customer_phone ?? '');
+                                setDFormAddress('');
+                                setDFormZone('');
+                                setDFormAgent('');
+                                setDFormNotes('');
+                              }}
+                              title="Creer une livraison"
+                              className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            >
+                              <Truck size={16} />
+                            </button>
+                          )}
                           {canCancel && CANCELLABLE.has(sale.status) && (
                             <button
                               onClick={() => { setCancelTarget(sale); setCancelReason(''); }}
@@ -605,6 +702,89 @@ export default function SaleListPage() {
           <p className="text-xs text-red-500 mt-1">Veuillez indiquer une raison pour annuler.</p>
         )}
       </ConfirmDialog>
+
+      {/* Create delivery modal */}
+      {deliveryTarget && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/40" onClick={() => !createDeliveryMutation.isPending && setDeliveryTarget(null)} />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl">
+              <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <Truck size={18} className="text-blue-500" />
+                    Creer une livraison
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    Vente : {deliveryTarget.invoice_number} — {formatCurrency(deliveryTarget.total)}
+                  </p>
+                </div>
+                <button onClick={() => setDeliveryTarget(null)} disabled={createDeliveryMutation.isPending} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Destinataire *</label>
+                    <input type="text" value={dFormRecipient} onChange={(e) => setDFormRecipient(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Telephone</label>
+                    <input type="text" value={dFormPhone} onChange={(e) => setDFormPhone(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Adresse de livraison *</label>
+                    <input type="text" value={dFormAddress} onChange={(e) => setDFormAddress(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Zone</label>
+                    <select value={dFormZone} onChange={(e) => setDFormZone(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100">
+                      <option value="">Selectionner...</option>
+                      {zonesData?.results.map((z) => (
+                        <option key={z.id} value={z.id}>{z.name} ({formatCurrency(z.fee)})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Agent</label>
+                    <select value={dFormAgent} onChange={(e) => setDFormAgent(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100">
+                      <option value="">Selectionner...</option>
+                      {agentsData?.results.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Notes</label>
+                    <textarea rows={2} value={dFormNotes} onChange={(e) => setDFormNotes(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100" />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button onClick={() => setDeliveryTarget(null)} disabled={createDeliveryMutation.isPending}
+                    className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Annuler
+                  </button>
+                  <button
+                    onClick={() => createDeliveryMutation.mutate()}
+                    disabled={createDeliveryMutation.isPending || !dFormRecipient.trim() || !dFormAddress.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2"
+                  >
+                    <Truck size={14} />
+                    {createDeliveryMutation.isPending ? 'Enregistrement...' : 'Creer la livraison'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

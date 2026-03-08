@@ -2,14 +2,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { productApi, saleApi, customerApi } from '@/api/endpoints';
+import { productApi, saleApi, customerApi, deliveryApi } from '@/api/endpoints';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreStore } from '@/store-context/store-store';
 import { useCapabilities } from '@/lib/capabilities';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { Sale, PosProduct, SaleItem } from '@/api/types';
-import { Search, Plus, Minus, Trash2, Send, Banknote, UserPlus, Percent, X, AlertCircle, Tag } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Send, Banknote, UserPlus, Percent, X, AlertCircle, Tag, Truck } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { extractApiError as extractErrorMessage } from '@/lib/api-error';
 
@@ -42,6 +42,16 @@ export default function PosPage() {
 
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
+
+  // Delivery state
+  const [showDelivery, setShowDelivery] = useState(false);
+  const [deliveryZoneId, setDeliveryZoneId] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryRecipientName, setDeliveryRecipientName] = useState('');
+  const [deliveryRecipientPhone, setDeliveryRecipientPhone] = useState('');
+  const [deliveryAgentId, setDeliveryAgentId] = useState('');
+  const [deliveryPickupLocationId, setDeliveryPickupLocationId] = useState('');
+  const [deliveryPickupNotes, setDeliveryPickupNotes] = useState('');
 
   // Inline customer creation state
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -197,6 +207,69 @@ export default function PosPage() {
     },
     onError: (err) => { toast.error(extractErrorMessage(err)); },
   });
+
+  // Delivery queries
+  const { data: deliveryZones } = useQuery({
+    queryKey: queryKeys.delivery.zones.list(),
+    queryFn: () => deliveryApi.zones.list({ page_size: '100' }),
+    enabled: !!currentStore && showDelivery,
+  });
+  const { data: deliveryAgents } = useQuery({
+    queryKey: queryKeys.delivery.agents.list(),
+    queryFn: () => deliveryApi.agents.list({ page_size: '100', is_active: 'true' }),
+    enabled: !!currentStore && showDelivery,
+  });
+  const { data: pickupLocations } = useQuery({
+    queryKey: queryKeys.delivery.pickupLocations.list(),
+    queryFn: () => deliveryApi.pickupLocations.list({ page_size: '100', is_active: 'true' }),
+    enabled: !!currentStore && showDelivery,
+  });
+
+  // Delivery mutations
+  const setDeliveryMut = useMutation({
+    mutationFn: () => saleApi.setDelivery(sale!.id, {
+      zone_id: deliveryZoneId || undefined,
+      agent_id: deliveryAgentId || undefined,
+      delivery_address: deliveryAddress,
+      recipient_name: deliveryRecipientName,
+      recipient_phone: deliveryRecipientPhone,
+      pickup_location_id: deliveryPickupLocationId || undefined,
+      pickup_notes: deliveryPickupNotes,
+    }),
+    onSuccess: (updatedSale) => {
+      setSale(updatedSale);
+      toast.success('Livraison ajoutee.');
+    },
+    onError: (err) => { toast.error(extractErrorMessage(err)); },
+  });
+
+  const removeDeliveryMut = useMutation({
+    mutationFn: () => saleApi.removeDelivery(sale!.id),
+    onSuccess: (updatedSale) => {
+      setSale(updatedSale);
+      setShowDelivery(false);
+      setDeliveryZoneId('');
+      setDeliveryAddress('');
+      setDeliveryRecipientName('');
+      setDeliveryRecipientPhone('');
+      setDeliveryAgentId('');
+      setDeliveryPickupLocationId('');
+      setDeliveryPickupNotes('');
+      toast.success('Livraison retiree.');
+    },
+    onError: (err) => { toast.error(extractErrorMessage(err)); },
+  });
+
+  // Pre-fill delivery form from customer
+  function handleShowDelivery() {
+    setShowDelivery(true);
+    if (sale?.customer_name && !sale.customer_is_default) {
+      setDeliveryRecipientName(sale.customer_name);
+    }
+    if (sale?.customer_phone) {
+      setDeliveryRecipientPhone(sale.customer_phone);
+    }
+  }
 
   // Load existing sale when editing
   useEffect(() => {
@@ -805,6 +878,162 @@ export default function PosPage() {
             </div>
           )}
 
+          {/* Delivery section */}
+          {sale && sale.items.length > 0 && (
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mb-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Truck size={14} className="text-gray-500 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Livraison</span>
+                </div>
+                {sale.has_delivery && (
+                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded text-xs font-medium">
+                    Incluse
+                  </span>
+                )}
+              </div>
+              {sale.has_delivery ? (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                    <span>Frais de livraison</span>
+                    <span className="font-medium">{formatCurrency(sale.delivery_fee)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeDeliveryMut.mutate()}
+                    disabled={removeDeliveryMut.isPending}
+                    className="text-xs text-red-500 hover:underline disabled:opacity-50"
+                  >
+                    {removeDeliveryMut.isPending ? '...' : 'Retirer la livraison'}
+                  </button>
+                </div>
+              ) : !showDelivery ? (
+                <button
+                  type="button"
+                  onClick={handleShowDelivery}
+                  className="text-xs text-primary hover:underline"
+                >
+                  + Ajouter une livraison
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  {/* Zone */}
+                  <div>
+                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Zone</label>
+                    <select
+                      value={deliveryZoneId}
+                      onChange={(e) => setDeliveryZoneId(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs dark:bg-gray-700 dark:text-gray-100"
+                    >
+                      <option value="">-- Sans zone --</option>
+                      {deliveryZones?.results.map((z) => (
+                        <option key={z.id} value={z.id}>
+                          {z.name}{z.fee ? ` — ${formatCurrency(z.fee)}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Recipient */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Destinataire</label>
+                      <input
+                        type="text"
+                        value={deliveryRecipientName}
+                        onChange={(e) => setDeliveryRecipientName(e.target.value)}
+                        placeholder="Nom"
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs dark:bg-gray-700 dark:text-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Telephone</label>
+                      <input
+                        type="tel"
+                        value={deliveryRecipientPhone}
+                        onChange={(e) => setDeliveryRecipientPhone(e.target.value)}
+                        placeholder="Tel"
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs dark:bg-gray-700 dark:text-gray-100"
+                      />
+                    </div>
+                  </div>
+                  {/* Address */}
+                  <div>
+                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Adresse *</label>
+                    <input
+                      type="text"
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      placeholder="Adresse de livraison"
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                  {/* Pickup location */}
+                  {pickupLocations && pickupLocations.results.length > 0 && (
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Emplacement colis</label>
+                      <select
+                        value={deliveryPickupLocationId}
+                        onChange={(e) => setDeliveryPickupLocationId(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs dark:bg-gray-700 dark:text-gray-100"
+                      >
+                        <option value="">-- Aucun --</option>
+                        {pickupLocations.results.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {/* Agent (optional) */}
+                  <div>
+                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Livreur (optionnel)</label>
+                    <select
+                      value={deliveryAgentId}
+                      onChange={(e) => setDeliveryAgentId(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs dark:bg-gray-700 dark:text-gray-100"
+                    >
+                      <option value="">-- Diffuser a tous --</option>
+                      {deliveryAgents?.results.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                    {!deliveryAgentId && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                        Sera diffusee a tous les livreurs actifs.
+                      </p>
+                    )}
+                  </div>
+                  {/* Notes */}
+                  <div>
+                    <input
+                      type="text"
+                      value={deliveryPickupNotes}
+                      onChange={(e) => setDeliveryPickupNotes(e.target.value)}
+                      placeholder="Notes sur l'emplacement du colis..."
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryMut.mutate()}
+                      disabled={setDeliveryMut.isPending || !deliveryAddress.trim()}
+                      className="flex-1 px-3 py-1.5 bg-primary text-white rounded text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {setDeliveryMut.isPending ? '...' : 'Confirmer livraison'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDelivery(false)}
+                      className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Totals */}
           {sale && (
             <div className="border-t border-gray-200 dark:border-gray-700 pt-3 space-y-1">
@@ -827,6 +1056,15 @@ export default function PosPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">TVA</span>
                   <span className="text-gray-900 dark:text-gray-100">{formatCurrency(sale.tax_amount)}</span>
+                </div>
+              )}
+              {parseFloat(sale.delivery_fee) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <Truck size={12} />
+                    Livraison
+                  </span>
+                  <span className="text-gray-900 dark:text-gray-100">{formatCurrency(sale.delivery_fee)}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-bold pt-1 text-gray-900 dark:text-gray-100">

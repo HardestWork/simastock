@@ -19,6 +19,7 @@ const BASE_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'CASHIER', label: 'Caissier' },
   { value: 'SALES_CASHIER', label: 'Vendeur-Caissier' },
   { value: 'STOCKER', label: 'Magasinier' },
+  { value: 'DELIVERY', label: 'Livreur' },
 ];
 
 const BASE_ROLE_LABELS: Record<UserRole, string> = {
@@ -30,6 +31,7 @@ const BASE_ROLE_LABELS: Record<UserRole, string> = {
   CASHIER: 'Caissier',
   SALES_CASHIER: 'Vendeur-Caissier',
   STOCKER: 'Magasinier',
+  DELIVERY: 'Livreur',
 };
 
 interface FormState {

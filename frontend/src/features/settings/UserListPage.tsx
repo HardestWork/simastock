@@ -25,6 +25,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   CASHIER: 'Caissier',
   SALES_CASHIER: 'Vendeur-Caissier',
   STOCKER: 'Magasinier',
+  DELIVERY: 'Livreur',
 };
 
 const ROLE_BADGE_CLASSES: Record<UserRole, string> = {
@@ -36,6 +37,7 @@ const ROLE_BADGE_CLASSES: Record<UserRole, string> = {
   CASHIER: 'bg-amber-100 text-amber-700',
   SALES_CASHIER: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
   STOCKER: 'bg-gray-100 text-gray-700',
+  DELIVERY: 'bg-orange-100 text-orange-700',
 };
 
 const ROLE_OPTIONS: { value: string; label: string }[] = [
@@ -48,6 +50,7 @@ const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'CASHIER', label: 'Caissier' },
   { value: 'SALES_CASHIER', label: 'Vendeur-Caissier' },
   { value: 'STOCKER', label: 'Magasinier' },
+  { value: 'DELIVERY', label: 'Livreur' },
 ];
 
 export default function UserListPage() {
