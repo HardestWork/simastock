@@ -8,6 +8,7 @@ import { useAuthStore } from '@/auth/auth-store';
 import { useStoreStore } from '@/store-context/store-store';
 import { useProductPrecache } from '@/hooks/use-product-precache';
 import { usePushListener } from '@/hooks/usePushListener';
+import PushPermissionBanner from '@/components/pwa/PushPermissionBanner';
 
 export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -99,6 +100,7 @@ export default function AppLayout() {
       {/* Main content */}
       <div className="flex-1 min-w-0 overflow-y-auto">
         <Topbar onMenuToggle={toggleMobile} onSidebarToggle={toggleSidebarHidden} sidebarHidden={sidebarHidden} />
+        <PushPermissionBanner />
         <main className="p-3 sm:p-4 md:p-6 dark:text-gray-100">
           <Outlet />
         </main>
