@@ -177,7 +177,7 @@ export default function CommercialPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const tab = resolveTab(location.pathname);
-  const [period, setPeriod] = useState(currentPeriod());
+  const [period, setPeriod] = useState(() => currentPeriod());
   const [selectedRunId, setSelectedRunId] = useState<string>('');
   const [isProspectModalOpen, setProspectModalOpen] = useState(false);
   const [isOpportunityModalOpen, setOpportunityModalOpen] = useState(false);
@@ -752,8 +752,9 @@ export default function CommercialPage() {
           )}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap items-end gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Periode</label>
+              <label htmlFor="incentive-period" className="block text-xs text-gray-500 mb-1">Periode</label>
               <input
+                id="incentive-period"
                 type="month"
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
@@ -770,8 +771,9 @@ export default function CommercialPage() {
               </button>
             )}
             <div className="ml-auto">
-              <label className="block text-xs text-gray-500 mb-1">Run</label>
+              <label htmlFor="incentive-run" className="block text-xs text-gray-500 mb-1">Run</label>
               <select
+                id="incentive-run"
                 value={selectedRunId}
                 onChange={(e) => setSelectedRunId(e.target.value)}
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
@@ -836,8 +838,9 @@ export default function CommercialPage() {
           }}
         >
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Entreprise *</label>
+            <label htmlFor="prospect-company" className="block text-xs text-gray-500 mb-1">Entreprise *</label>
             <input
+              id="prospect-company"
               value={prospectForm.company_name}
               onChange={(e) => setProspectForm((prev) => ({ ...prev, company_name: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
@@ -846,16 +849,18 @@ export default function CommercialPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Contact</label>
+              <label htmlFor="prospect-contact" className="block text-xs text-gray-500 mb-1">Contact</label>
               <input
+                id="prospect-contact"
                 value={prospectForm.contact_name}
                 onChange={(e) => setProspectForm((prev) => ({ ...prev, contact_name: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Telephone</label>
+              <label htmlFor="prospect-phone" className="block text-xs text-gray-500 mb-1">Telephone</label>
               <input
+                id="prospect-phone"
                 value={prospectForm.phone}
                 onChange={(e) => setProspectForm((prev) => ({ ...prev, phone: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
@@ -864,8 +869,9 @@ export default function CommercialPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Email</label>
+              <label htmlFor="prospect-email" className="block text-xs text-gray-500 mb-1">Email</label>
               <input
+                id="prospect-email"
                 type="email"
                 value={prospectForm.email}
                 onChange={(e) => setProspectForm((prev) => ({ ...prev, email: e.target.value }))}
@@ -873,8 +879,9 @@ export default function CommercialPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Potentiel estime</label>
+              <label htmlFor="prospect-potential" className="block text-xs text-gray-500 mb-1">Potentiel estime</label>
               <input
+                id="prospect-potential"
                 type="number"
                 min="0"
                 step="0.01"
@@ -885,8 +892,9 @@ export default function CommercialPage() {
             </div>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Notes</label>
+            <label htmlFor="prospect-notes" className="block text-xs text-gray-500 mb-1">Notes</label>
             <textarea
+              id="prospect-notes"
               value={prospectForm.notes}
               onChange={(e) => setProspectForm((prev) => ({ ...prev, notes: e.target.value }))}
               rows={3}
@@ -918,8 +926,9 @@ export default function CommercialPage() {
           }}
         >
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Nom opportunite *</label>
+            <label htmlFor="opp-name" className="block text-xs text-gray-500 mb-1">Nom opportunite *</label>
             <input
+              id="opp-name"
               value={opportunityForm.name}
               onChange={(e) => setOpportunityForm((prev) => ({ ...prev, name: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
@@ -927,8 +936,9 @@ export default function CommercialPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Prospect lie</label>
+            <label htmlFor="opp-prospect" className="block text-xs text-gray-500 mb-1">Prospect lie</label>
             <select
+              id="opp-prospect"
               value={opportunityForm.prospect}
               onChange={(e) => setOpportunityForm((prev) => ({ ...prev, prospect: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
@@ -943,8 +953,9 @@ export default function CommercialPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Montant estime</label>
+              <label htmlFor="opp-amount" className="block text-xs text-gray-500 mb-1">Montant estime</label>
               <input
+                id="opp-amount"
                 type="number"
                 min="0"
                 step="0.01"
@@ -954,8 +965,9 @@ export default function CommercialPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Probabilite %</label>
+              <label htmlFor="opp-probability" className="block text-xs text-gray-500 mb-1">Probabilite %</label>
               <input
+                id="opp-probability"
                 type="number"
                 min="0"
                 max="100"
@@ -965,8 +977,9 @@ export default function CommercialPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Date cloture</label>
+              <label htmlFor="opp-close-date" className="block text-xs text-gray-500 mb-1">Date cloture</label>
               <input
+                id="opp-close-date"
                 type="date"
                 value={opportunityForm.expected_close_date}
                 onChange={(e) => setOpportunityForm((prev) => ({ ...prev, expected_close_date: e.target.value }))}
@@ -1003,8 +1016,9 @@ export default function CommercialPage() {
           }}
         >
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Titre *</label>
+            <label htmlFor="task-title" className="block text-xs text-gray-500 mb-1">Titre *</label>
             <input
+              id="task-title"
               value={taskForm.title}
               onChange={(e) => setTaskForm((prev) => ({ ...prev, title: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
@@ -1012,8 +1026,9 @@ export default function CommercialPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Description</label>
+            <label htmlFor="task-description" className="block text-xs text-gray-500 mb-1">Description</label>
             <textarea
+              id="task-description"
               value={taskForm.description}
               onChange={(e) => setTaskForm((prev) => ({ ...prev, description: e.target.value }))}
               rows={3}
@@ -1022,8 +1037,9 @@ export default function CommercialPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Priorite</label>
+              <label htmlFor="task-priority" className="block text-xs text-gray-500 mb-1">Priorite</label>
               <select
+                id="task-priority"
                 value={taskForm.priority}
                 onChange={(e) =>
                   setTaskForm((prev) => ({ ...prev, priority: e.target.value as TaskFormState['priority'] }))
@@ -1036,8 +1052,9 @@ export default function CommercialPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Echeance *</label>
+              <label htmlFor="task-due-at" className="block text-xs text-gray-500 mb-1">Echeance *</label>
               <input
+                id="task-due-at"
                 type="datetime-local"
                 value={taskForm.due_at_local}
                 onChange={(e) => setTaskForm((prev) => ({ ...prev, due_at_local: e.target.value }))}
@@ -1048,8 +1065,9 @@ export default function CommercialPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Prospect (optionnel)</label>
+              <label htmlFor="task-prospect" className="block text-xs text-gray-500 mb-1">Prospect (optionnel)</label>
               <select
+                id="task-prospect"
                 value={taskForm.prospect}
                 onChange={(e) => setTaskForm((prev) => ({ ...prev, prospect: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
@@ -1063,8 +1081,9 @@ export default function CommercialPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Opportunite (optionnel)</label>
+              <label htmlFor="task-opportunity" className="block text-xs text-gray-500 mb-1">Opportunite (optionnel)</label>
               <select
+                id="task-opportunity"
                 value={taskForm.opportunity}
                 onChange={(e) => setTaskForm((prev) => ({ ...prev, opportunity: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"

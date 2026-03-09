@@ -57,7 +57,7 @@ function DepartmentModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
       <div
         className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -72,8 +72,9 @@ function DepartmentModal({
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom *</label>
+            <label htmlFor="dept-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom *</label>
             <input
+              id="dept-name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
@@ -81,8 +82,9 @@ function DepartmentModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code *</label>
+            <label htmlFor="dept-code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code *</label>
             <input
+              id="dept-code"
               value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
               className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
@@ -90,10 +92,11 @@ function DepartmentModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="dept-parent" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Departement parent
             </label>
             <select
+              id="dept-parent"
               value={form.parent}
               onChange={(e) => setForm({ ...form, parent: e.target.value })}
               className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
@@ -176,7 +179,7 @@ function PositionModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
       <div
         className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -191,8 +194,9 @@ function PositionModal({
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Intitule *</label>
+            <label htmlFor="pos-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Intitule *</label>
             <input
+              id="pos-title"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
@@ -200,8 +204,9 @@ function PositionModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code *</label>
+            <label htmlFor="pos-code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code *</label>
             <input
+              id="pos-code"
               value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
               className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
@@ -209,8 +214,9 @@ function PositionModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Departement</label>
+            <label htmlFor="pos-department" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Departement</label>
             <select
+              id="pos-department"
               value={form.department}
               onChange={(e) => setForm({ ...form, department: e.target.value })}
               className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
@@ -225,10 +231,11 @@ function PositionModal({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="pos-min-salary" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Salaire min (FCFA)
               </label>
               <input
+                id="pos-min-salary"
                 type="number"
                 value={form.min_salary}
                 onChange={(e) => setForm({ ...form, min_salary: e.target.value })}
@@ -236,10 +243,11 @@ function PositionModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="pos-max-salary" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Salaire max (FCFA)
               </label>
               <input
+                id="pos-max-salary"
                 type="number"
                 value={form.max_salary}
                 onChange={(e) => setForm({ ...form, max_salary: e.target.value })}
@@ -316,7 +324,7 @@ function PolicyModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
       <div
         className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -331,8 +339,9 @@ function PolicyModal({
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom *</label>
+            <label htmlFor="policy-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom *</label>
             <input
+              id="policy-name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
@@ -340,8 +349,9 @@ function PolicyModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Departement</label>
+            <label htmlFor="policy-dept" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Departement</label>
             <select
+              id="policy-dept"
               value={form.department}
               onChange={(e) => setForm({ ...form, department: e.target.value })}
               className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
@@ -356,10 +366,11 @@ function PolicyModal({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="policy-work-start" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Heure d'arrivee *
               </label>
               <input
+                id="policy-work-start"
                 type="time"
                 value={form.work_start}
                 onChange={(e) => setForm({ ...form, work_start: e.target.value })}
@@ -367,10 +378,11 @@ function PolicyModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="policy-work-end" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Heure de depart *
               </label>
               <input
+                id="policy-work-end"
                 type="time"
                 value={form.work_end}
                 onChange={(e) => setForm({ ...form, work_end: e.target.value })}
@@ -380,10 +392,11 @@ function PolicyModal({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="policy-break" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Pause (minutes)
               </label>
               <input
+                id="policy-break"
                 type="number"
                 min={0}
                 value={form.break_minutes}
@@ -392,10 +405,11 @@ function PolicyModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="policy-late-tolerance" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Tolerance retard (min)
               </label>
               <input
+                id="policy-late-tolerance"
                 type="number"
                 min={0}
                 value={form.late_tolerance_minutes}

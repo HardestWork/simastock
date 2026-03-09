@@ -474,10 +474,11 @@ export default function EnterpriseSubscriptionPage() {
 
             {isSuperuser && (
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <label htmlFor="sub-enterprise" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                   Entreprise
                 </label>
                 <select
+                  id="sub-enterprise"
                   value={form.enterprise}
                   onChange={(e) => setForm((prev) => ({ ...prev, enterprise: e.target.value }))}
                   className={inputClass}
@@ -494,10 +495,11 @@ export default function EnterpriseSubscriptionPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <label htmlFor="sub-plan-code" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                   Code plan
                 </label>
                 <input
+                  id="sub-plan-code"
                   value={form.plan_code}
                   onChange={(e) => setForm((prev) => ({ ...prev, plan_code: e.target.value }))}
                   className={inputClass}
@@ -505,10 +507,11 @@ export default function EnterpriseSubscriptionPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <label htmlFor="sub-plan-name" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                   Nom plan
                 </label>
                 <input
+                  id="sub-plan-name"
                   value={form.plan_name}
                   onChange={(e) => setForm((prev) => ({ ...prev, plan_name: e.target.value }))}
                   className={inputClass}
@@ -516,10 +519,11 @@ export default function EnterpriseSubscriptionPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <label htmlFor="sub-billing-cycle" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                   Cycle
                 </label>
                 <select
+                  id="sub-billing-cycle"
                   value={form.billing_cycle}
                   onChange={(e) => setForm((prev) => ({ ...prev, billing_cycle: e.target.value as EnterpriseSubscriptionBillingCycle }))}
                   className={inputClass}
@@ -532,10 +536,11 @@ export default function EnterpriseSubscriptionPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <label htmlFor="sub-status" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                   Statut
                 </label>
                 <select
+                  id="sub-status"
                   value={form.status}
                   onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as EnterpriseSubscriptionStatus }))}
                   className={inputClass}
@@ -548,10 +553,11 @@ export default function EnterpriseSubscriptionPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <label htmlFor="sub-amount" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                   Montant
                 </label>
                 <input
+                  id="sub-amount"
                   type="number"
                   min="0"
                   step="0.01"
@@ -561,10 +567,11 @@ export default function EnterpriseSubscriptionPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <label htmlFor="sub-currency" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                   Devise
                 </label>
                 <input
+                  id="sub-currency"
                   value={form.currency}
                   onChange={(e) => setForm((prev) => ({ ...prev, currency: e.target.value }))}
                   className={inputClass}
@@ -572,10 +579,11 @@ export default function EnterpriseSubscriptionPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <label htmlFor="sub-starts-on" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                   Debut
                 </label>
                 <input
+                  id="sub-starts-on"
                   type="date"
                   value={form.starts_on}
                   onChange={(e) => setForm((prev) => ({ ...prev, starts_on: e.target.value }))}
@@ -583,10 +591,11 @@ export default function EnterpriseSubscriptionPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <label htmlFor="sub-ends-on" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                   Fin
                 </label>
                 <input
+                  id="sub-ends-on"
                   type="date"
                   value={form.ends_on}
                   onChange={(e) => setForm((prev) => ({ ...prev, ends_on: e.target.value }))}
@@ -596,10 +605,11 @@ export default function EnterpriseSubscriptionPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <label htmlFor="sub-external-id" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                 ID externe
               </label>
               <input
+                id="sub-external-id"
                 value={form.external_subscription_id}
                 onChange={(e) => setForm((prev) => ({ ...prev, external_subscription_id: e.target.value }))}
                 className={inputClass}
@@ -608,10 +618,11 @@ export default function EnterpriseSubscriptionPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <label htmlFor="sub-metadata" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                 Metadata (JSON objet)
               </label>
               <textarea
+                id="sub-metadata"
                 value={form.metadata_text}
                 onChange={(e) => setForm((prev) => ({ ...prev, metadata_text: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm min-h-24 font-mono dark:bg-gray-700 dark:text-gray-100"

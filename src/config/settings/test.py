@@ -37,6 +37,9 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # Disable API throttling in tests for deterministic runs
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []  # noqa: F405
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F405
+    "auth_burst": None,
+    "auth_sustained": None,
+    "password_reset": None,
     "document_verify": None,  # keep scope defined but unlimited in tests
 }
 

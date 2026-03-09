@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from rest_framework.test import APIClient
 
 from accounts.models import User
 from catalog.models import Brand, Category, Product
@@ -8,6 +9,11 @@ from credits.models import CustomerAccount
 from customers.models import Customer
 from stock.models import ProductStock
 from stores.models import Enterprise, Store, StoreUser
+
+
+@pytest.fixture
+def api_client():
+    return APIClient()
 
 
 @pytest.fixture
@@ -163,3 +169,36 @@ def customer_account(store, customer):
         credit_limit=Decimal("500000.00"),
         balance=Decimal("0.00"),
     )
+
+
+@pytest.fixture
+def admin_client(api_client, admin_user, store):
+    StoreUser.objects.get_or_create(
+        store=store,
+        user=admin_user,
+        defaults={"is_default": True},
+    )
+    api_client.force_authenticate(user=admin_user)
+    return api_client
+
+
+@pytest.fixture
+def sales_client(api_client, sales_user, store):
+    StoreUser.objects.get_or_create(
+        store=store,
+        user=sales_user,
+        defaults={"is_default": True},
+    )
+    api_client.force_authenticate(user=sales_user)
+    return api_client
+
+
+@pytest.fixture
+def manager_client(api_client, manager_user, store):
+    StoreUser.objects.get_or_create(
+        store=store,
+        user=manager_user,
+        defaults={"is_default": True},
+    )
+    api_client.force_authenticate(user=manager_user)
+    return api_client

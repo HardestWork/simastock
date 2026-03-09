@@ -210,10 +210,11 @@ export default function ProductFormPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Nom */}
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+              <label htmlFor="product-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Nom <span className="text-red-500">*</span>
               </label>
               <input
+                id="product-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -225,10 +226,11 @@ export default function ProductFormPage() {
 
             {/* SKU */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+              <label htmlFor="product-sku" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 SKU <span className="text-red-500">*</span>
               </label>
               <input
+                id="product-sku"
                 type="text"
                 value={sku}
                 onChange={(e) => setSku(e.target.value)}
@@ -240,10 +242,11 @@ export default function ProductFormPage() {
 
             {/* Code-barres */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+              <label htmlFor="product-barcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Code-barres
               </label>
               <input
+                id="product-barcode"
                 type="text"
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
@@ -254,10 +257,11 @@ export default function ProductFormPage() {
 
             {/* Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+              <label htmlFor="product-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Type
               </label>
               <select
+                id="product-type"
                 value={productType}
                 onChange={(e) => setProductType(e.target.value as 'PRODUCT' | 'SERVICE')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
@@ -269,10 +273,11 @@ export default function ProductFormPage() {
 
             {/* Categorie */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+              <label htmlFor="product-category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Categorie
               </label>
               <select
+                id="product-category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
@@ -290,10 +295,11 @@ export default function ProductFormPage() {
 
             {/* Marque */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+              <label htmlFor="product-brand" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Marque
               </label>
               <select
+                id="product-brand"
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
@@ -311,10 +317,11 @@ export default function ProductFormPage() {
 
             {/* Prix d'achat */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+              <label htmlFor="product-cost-price" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Prix d'achat (FCFA) <span className="text-red-500">*</span>
               </label>
               <input
+                id="product-cost-price"
                 type="number"
                 min="0"
                 step="any"
@@ -328,10 +335,11 @@ export default function ProductFormPage() {
 
             {/* Prix de vente */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+              <label htmlFor="product-selling-price" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Prix de vente (FCFA) <span className="text-red-500">*</span>
               </label>
               <input
+                id="product-selling-price"
                 type="number"
                 min="0"
                 step="any"
@@ -345,10 +353,11 @@ export default function ProductFormPage() {
 
             {/* Description */}
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="product-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Description
               </label>
               <textarea
+                id="product-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
@@ -378,7 +387,7 @@ export default function ProductFormPage() {
 
             {/* Image upload */}
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Image
               </label>
 
