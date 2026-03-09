@@ -191,7 +191,7 @@ export default function App() {
                 <Route
                   element={
                     <ProtectedRoute
-                      allowedRoles={['MANAGER', 'ADMIN']}
+                      allowedRoles={['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN']}
                       allowedCapabilities={['CAN_REFUND']}
                       requiredModules={['SELL']}
                     />

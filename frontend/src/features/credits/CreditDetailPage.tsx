@@ -136,6 +136,7 @@ export default function CreditDetailPage() {
   const [amount, setAmount] = useState('');
   const [reference, setReference] = useState('');
   const [selectedSaleId, setSelectedSaleId] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [successMessage, setSuccessMessage] = useState('');
   const [latestReceiptUrl, setLatestReceiptUrl] = useState<string | null>(null);
 
@@ -179,7 +180,7 @@ export default function CreditDetailPage() {
     error: paymentError,
   } = useMutation({
     mutationFn: () => {
-      const payload: { amount: string; reference?: string; sale_id?: string } = { amount };
+      const payload: { amount: string; reference?: string; sale_id?: string; payment_method?: string } = { amount, payment_method: paymentMethod };
       if (reference.trim()) payload.reference = reference.trim();
       if (selectedSaleId) payload.sale_id = selectedSaleId;
       return creditApi.pay(accountId, payload);
@@ -310,7 +311,7 @@ export default function CreditDetailPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label htmlFor="pay-amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Montant <span className="text-red-500">*</span>
@@ -326,6 +327,21 @@ export default function CreditDetailPage() {
                 placeholder={`Max ${formatCurrency(account.balance)}`}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
               />
+            </div>
+            <div>
+              <label htmlFor="pay-method" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Methode
+              </label>
+              <select
+                id="pay-method"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
+              >
+                <option value="CASH">Especes</option>
+                <option value="MOBILE_MONEY">Mobile Money</option>
+                <option value="BANK_TRANSFER">Virement</option>
+              </select>
             </div>
             <div>
               <label htmlFor="pay-ref" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -363,7 +379,7 @@ export default function CreditDetailPage() {
                 Selectionnez une facture pour separer clairement l'historique client.
               </p>
             </div>
-            <div className="md:col-span-3 flex justify-end">
+            <div className="md:col-span-4 flex justify-end">
               <button
                 onClick={() => submitPayment()}
                 disabled={paymentPending || !amount || parseFloat(amount) <= 0 || parseFloat(amount) > balance}

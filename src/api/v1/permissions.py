@@ -675,9 +675,9 @@ class CanProcessPayment(_CapabilityPermission):
 
 
 class CanApproveRefund(_CapabilityPermission):
-    """Allow only managers and admins to approve refunds."""
+    """Allow cashiers, managers, and admins to process refunds."""
     capability = "CAN_REFUND"
-    allowed_roles = ("MANAGER", "ADMIN")
+    allowed_roles = ("CASHIER", "SALES_CASHIER", "MANAGER", "ADMIN")
 
 
 class CanOverridePrice(_CapabilityPermission):

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A4; margin: 20mm; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #333; line-height: 1.5; }
+
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #dc2626; }
+        .company-info h1 { font-size: 24pt; color: #dc2626; margin-bottom: 5px; }
+        .company-info p { font-size: 9pt; color: #666; }
+        .invoice-meta { text-align: right; }
+        .invoice-meta h2 { font-size: 20pt; color: #333; margin-bottom: 10px; }
+        .invoice-meta .label { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .invoice-meta .value { font-size: 11pt; font-weight: bold; color: #333; }
+
+        .parties { display: flex; justify-content: space-between; margin-bottom: 30px; }
+        .party { width: 48%; }
+        .party h3 { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .party p { font-size: 10pt; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        thead th { background: #fef2f2; padding: 10px 12px; text-align: left; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.5px; color: #666; border-bottom: 2px solid #fecaca; }
+        thead th.right { text-align: right; }
+        tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 10pt; }
+        tbody td.right { text-align: right; }
+        tbody tr:nth-child(even) { background: #fafbfc; }
+
+        .totals { width: 340px; margin-left: auto; }
+        .totals .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 10pt; }
+        .totals .row.total { border-top: 2px solid #333; padding-top: 10px; margin-top: 5px; font-size: 14pt; font-weight: bold; color: #dc2626; }
+        .totals .row .label { color: #666; }
+
+        .reason-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+        .reason-box h3 { font-size: 10pt; color: #dc2626; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .reason-box p { font-size: 10pt; color: #333; }
+
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+        .footer p { font-size: 8pt; color: #999; text-align: center; white-space: pre-line; }
+
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 9pt; font-weight: bold; background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-info">
+            {% if invoice_config.logo_uri %}
+            <p style="margin-bottom: 8px;">
+                <img src="{{ invoice_config.logo_uri }}" alt="Logo" style="height:72px; width:auto; max-width:220px;">
+            </p>
+            {% endif %}
+            <h1>{{ invoice_config.business_name }}</h1>
+            {% if invoice_config.address %}<p>{{ invoice_config.address }}</p>{% endif %}
+            <p>
+                {% if invoice_config.phone %}Tel: {{ invoice_config.phone }}{% endif %}
+                {% if invoice_config.phone and invoice_config.email %} · {% endif %}
+                {% if invoice_config.email %}{{ invoice_config.email }}{% endif %}
+                {% if invoice_config.website %} · {{ invoice_config.website }}{% endif %}
+            </p>
+            {% if invoice_config.registration_number %}<p>RCCM: {{ invoice_config.registration_number }}</p>{% endif %}
+            {% if invoice_config.tax_id %}<p>NIF: {{ invoice_config.tax_id }}</p>{% endif %}
+        </div>
+        <div class="invoice-meta">
+            <h2>AVOIR</h2>
+            <div><span class="label">No</span> <span class="value">{{ refund.credit_note_number|default:"N/A" }}</span></div>
+            <div><span class="label">Date</span> <span class="value">{{ refund.created_at|date:"d/m/Y H:i" }}</span></div>
+            <div><span class="label">Vente</span> <span class="value">{{ sale.invoice_number|default:"-" }}</span></div>
+            <div style="margin-top: 8px;"><span class="status-badge">REMBOURSEMENT</span></div>
+        </div>
+    </div>
+
+    <div class="parties">
+        <div class="party">
+            <h3>Client</h3>
+            {% if sale.customer %}
+            <p><strong>{{ sale.customer.full_name }}</strong></p>
+            {% if sale.customer.phone %}<p>{{ sale.customer.phone }}</p>{% endif %}
+            {% if sale.customer.email %}<p>{{ sale.customer.email }}</p>{% endif %}
+            {% else %}
+            <p><strong>Client comptoir</strong></p>
+            {% endif %}
+        </div>
+        <div class="party">
+            <h3>Details du remboursement</h3>
+            <p>Methode: {{ refund.get_refund_method_display }}</p>
+            <p>Approuve par: {{ refund.approved_by.get_full_name|default:"-" }}</p>
+            {% if refund.processed_by %}
+            <p>Traite par: {{ refund.processed_by.get_full_name|default:"-" }}</p>
+            {% endif %}
+            {% if refund.reference %}<p>Reference: {{ refund.reference }}</p>{% endif %}
+            <p>Motif: {{ refund.get_return_reason_code_display|default:"Autre" }}</p>
+        </div>
+    </div>
+
+    <div class="reason-box">
+        <h3>Raison du remboursement</h3>
+        <p>{{ refund.reason }}</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 8%">#</th>
+                <th style="width: 42%">Article</th>
+                <th class="right" style="width: 12%">Qte</th>
+                <th class="right" style="width: 18%">Prix unit.</th>
+                <th class="right" style="width: 20%">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in sale_items %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.product_name }}</td>
+                <td class="right">{{ item.quantity|floatformat:0 }}</td>
+                <td class="right">{{ item.unit_price|floatformat:0 }} {{ currency }}</td>
+                <td class="right">{{ item.line_total|floatformat:0 }} {{ currency }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <div class="row">
+            <span class="label">Total vente originale</span>
+            <span>{{ sale.total|floatformat:0 }} {{ currency }}</span>
+        </div>
+        {% if sale.discount_amount and sale.discount_amount > 0 %}
+        <div class="row">
+            <span class="label">Remise appliquee</span>
+            <span>-{{ sale.discount_amount|floatformat:0 }} {{ currency }}</span>
+        </div>
+        {% endif %}
+        <div class="row total">
+            <span>MONTANT REMBOURSE</span>
+            <span>{{ refund.amount|floatformat:0 }} {{ currency }}</span>
+        </div>
+    </div>
+
+    {% if refund.restore_stock %}
+    <p style="margin-top: 16px; font-size: 9pt; color: #666; text-align: center;">
+        Les articles ont ete remis en stock.
+    </p>
+    {% endif %}
+
+    <div class="footer">
+        {% if invoice_config.footer %}
+        <p>{{ invoice_config.footer }}</p>
+        {% else %}
+        <p>{{ invoice_config.business_name }}{% if invoice_config.address %} · {{ invoice_config.address }}{% endif %}</p>
+        {% endif %}
+        <p>Avoir genere le {{ now|date:"d/m/Y a H:i" }}</p>
+    </div>
+</body>
+</html>

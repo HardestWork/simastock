@@ -66,6 +66,7 @@ from core.pdf import (
     generate_credit_payment_receipt_pdf,
     generate_invoice_pdf,
     generate_receipt_pdf,
+    generate_refund_receipt_pdf,
 )
 
 from accounts.models import CustomRole
@@ -3911,13 +3912,18 @@ class CustomerAccountViewSet(viewsets.ModelViewSet):
 
     Filter by store and customer.
     Filtered to user's accessible stores.
+    Read access for CASHIER/SALES_CASHIER; write restricted to MANAGER/ADMIN.
     """
 
     serializer_class = CustomerAccountSerializer
     queryset = CustomerAccount.objects.select_related('store', 'customer')
     filterset_fields = ['store', 'customer', 'is_active']
     ordering_fields = ['balance', 'created_at', 'credit_limit', 'is_active']
-    permission_classes = [IsManagerOrAdmin, FeatureCreditManagementEnabled]
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'pay'):
+            return [IsAuthenticated(), FeatureCreditManagementEnabled()]
+        return [IsManagerOrAdmin(), FeatureCreditManagementEnabled()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -3932,6 +3938,7 @@ class CustomerAccountViewSet(viewsets.ModelViewSet):
         amount = request.data.get('amount')
         reference = request.data.get('reference', '')
         sale_id = request.data.get('sale_id')
+        payment_method = request.data.get('payment_method', 'CASH')
 
         if not amount:
             raise ValidationError({'amount': 'Ce champ est requis.'})
@@ -3977,6 +3984,22 @@ class CustomerAccountViewSet(viewsets.ModelViewSet):
             )
         except ValueError as e:
             raise ValidationError({'detail': str(e)})
+
+        # Add cash credit payments to the current open shift
+        if payment_method == 'CASH':
+            try:
+                from cashier.models import CashShift
+                shift = CashShift.objects.filter(
+                    store=account.store, status=CashShift.Status.OPEN,
+                ).first()
+                if shift:
+                    shift.total_cash_payments = (shift.total_cash_payments or 0) + amount
+                    shift.calculate_expected_cash()
+                    shift.save(update_fields=[
+                        "total_cash_payments", "expected_cash",
+                    ])
+            except Exception:
+                pass  # Don't block credit payment if shift update fails
 
         account.refresh_from_db()
         response_data = CustomerAccountSerializer(account).data
@@ -4061,7 +4084,10 @@ class PaymentScheduleViewSet(
     mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
-    """List, retrieve, and update payment schedules."""
+    """List, retrieve, and update payment schedules.
+
+    Read access for all authenticated users; update restricted to MANAGER/ADMIN.
+    """
 
     serializer_class = PaymentScheduleSerializer
     queryset = PaymentSchedule.objects.select_related(
@@ -4069,7 +4095,11 @@ class PaymentScheduleViewSet(
     )
     filterset_fields = ['account', 'status']
     ordering_fields = ['due_date', 'created_at']
-    permission_classes = [IsManagerOrAdmin, FeatureCreditManagementEnabled]
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated(), FeatureCreditManagementEnabled()]
+        return [IsManagerOrAdmin(), FeatureCreditManagementEnabled()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -5793,6 +5823,12 @@ class RefundViewSet(
             RefundSerializer(refund).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=['get'], url_path='receipt')
+    def receipt(self, request, pk=None):
+        """Generate and return a PDF refund receipt (avoir)."""
+        refund = self.get_object()
+        return generate_refund_receipt_pdf(refund, refund.store)
 
 
 # ---------------------------------------------------------------------------

@@ -176,7 +176,7 @@ const navItems: NavItem[] = [
     label: 'Remboursements',
     icon: <RotateCcw size={16} />,
     module: 'SELL',
-    roles: ['MANAGER', 'ADMIN'],
+    roles: ['CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     capability: 'CAN_REFUND',
   },
   {

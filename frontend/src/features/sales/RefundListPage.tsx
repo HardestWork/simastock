@@ -1,7 +1,7 @@
 /** Sales refunds list page. */
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, FileText } from 'lucide-react';
 import { refundApi } from '@/api/endpoints';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreStore } from '@/store-context/store-store';
@@ -92,6 +92,7 @@ export default function RefundListPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Methode</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Raison</th>
                 <th className="text-center px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Stock</th>
+                <th className="text-center px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Recu</th>
               </tr>
             </thead>
             <tbody>
@@ -126,11 +127,22 @@ export default function RefundListPage() {
                       <span className="text-gray-300 dark:text-gray-600">—</span>
                     )}
                   </td>
+                  <td className="px-4 py-3 text-center">
+                    <a
+                      href={refundApi.receiptUrl(refund.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition"
+                      title="Telecharger le recu"
+                    >
+                      <FileText size={16} />
+                    </a>
+                  </td>
                 </tr>
               ))}
               {data?.results.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     Aucun remboursement trouve.
                   </td>
                 </tr>

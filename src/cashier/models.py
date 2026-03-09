@@ -134,7 +134,8 @@ class CashShift(TimeStampedModel):
     def calculate_expected_cash(self):
         """Calculate the expected cash in the register.
 
-        Expected cash = opening float + cash payments received - cash expenses paid
+        Expected cash = opening float + cash payments received
+                        - cash expenses paid - cash refunds issued
         during this shift.
         """
         from django.db.models import Sum
@@ -152,7 +153,26 @@ class CashShift(TimeStampedModel):
             )
         except Exception:
             cash_out = 0
-        self.expected_cash = self.opening_float + self.total_cash_payments - cash_out
+
+        # Subtract cash refunds issued during this shift
+        cash_refunds = 0
+        try:
+            from sales.models import Refund
+            end = self.closed_at or timezone.now()
+            cash_refunds = (
+                Refund.objects.filter(
+                    store=self.store,
+                    refund_method=Refund.Method.CASH,
+                    created_at__gte=self.opened_at,
+                    created_at__lt=end,
+                ).aggregate(total=Sum("amount"))["total"] or 0
+            )
+        except Exception:
+            cash_refunds = 0
+
+        self.expected_cash = (
+            self.opening_float + self.total_cash_payments - cash_out - cash_refunds
+        )
         return self.expected_cash
 
     @property

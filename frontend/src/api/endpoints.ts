@@ -722,6 +722,8 @@ export const refundApi = {
     refund_method: RefundMethod;
     restore_stock?: boolean;
   }) => apiClient.post<Refund>('refunds/', data).then((r) => r.data),
+
+  receiptUrl: (id: string) => `/api/v1/refunds/${id}/receipt/`,
 };
 
 // ---------------------------------------------------------------------------

@@ -406,6 +406,32 @@ def generate_credit_payment_receipt_pdf(account, entry, store):
     return render_pdf("pdf/credit_payment_receipt.html", context, filename)
 
 
+def generate_refund_receipt_pdf(refund, store):
+    """Generate PDF receipt (avoir) for a sale refund."""
+    from django.utils import timezone
+    from django.conf import settings as django_settings
+
+    sale = refund.sale
+    sale_items = list(sale.items.select_related("product").all())
+    for item in sale_items:
+        item.product_name = item.product.name if item.product else "Produit supprime"
+        item.line_total = item.quantity * item.unit_price
+
+    currency = getattr(django_settings, "CURRENCY_SYMBOL", "FCFA")
+    context = {
+        "refund": refund,
+        "sale": sale,
+        "sale_items": sale_items,
+        "store": store,
+        "currency": currency,
+        "invoice_config": _build_invoice_config(store),
+        "now": timezone.now(),
+    }
+    cn = refund.credit_note_number or str(refund.pk).split("-")[0].upper()
+    filename = _safe_pdf_filename(f"AVOIR-{cn}", fallback="avoir-remboursement")
+    return render_pdf("pdf/refund_receipt.html", context, filename)
+
+
 def generate_quote_pdf(quote, store):
     """Generate A4 PDF for a quote (devis) or proforma."""
     from django.utils import timezone
