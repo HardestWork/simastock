@@ -5,8 +5,10 @@ import { Bell, ChevronDown, LogOut, Menu, Moon, PanelLeft, Search, Sun, User as 
 import { useAuthStore } from '@/auth/auth-store';
 import { useThemeStore } from '@/lib/theme-store';
 import { useStoreStore } from '@/store-context/store-store';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ROLE_LABELS } from '@/lib/roles';
+import { OfflineSyncIndicator } from '@/components/pwa/OfflineSyncIndicator';
+import { alertApi } from '@/api/endpoints';
 
 const POS_ROLES = ['ADMIN', 'MANAGER', 'SALES', 'SALES_CASHIER'] as const;
 
@@ -27,6 +29,15 @@ export default function Topbar({ onMenuToggle, onSidebarToggle, sidebarHidden }:
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const storeRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
+
+  // Unread alert badge count — poll every 30s
+  const { data: unreadData } = useQuery({
+    queryKey: ['alerts', 'unread-count'],
+    queryFn: () => alertApi.unreadCount(),
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+  const unreadCount = unreadData?.unread_count ?? 0;
 
   // Close menus on outside click
   useEffect(() => {
@@ -91,6 +102,9 @@ export default function Topbar({ onMenuToggle, onSidebarToggle, sidebarHidden }:
           </Link>
         )}
 
+        {/* Offline sync badge */}
+        <OfflineSyncIndicator />
+
         {/* Store switcher */}
         <div className="relative min-w-0" ref={storeRef}>
           <button
@@ -149,7 +163,12 @@ export default function Topbar({ onMenuToggle, onSidebarToggle, sidebarHidden }:
           onClick={() => navigate('/alerts')}
           className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
-          <Bell size={20} className="text-gray-600" />
+          <Bell size={20} className="text-gray-600 dark:text-gray-300" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </button>
 
         {/* User menu */}

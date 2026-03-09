@@ -6,6 +6,8 @@ import Topbar from './Topbar';
 import SearchPalette from '@/components/shared/SearchPalette';
 import { useAuthStore } from '@/auth/auth-store';
 import { useStoreStore } from '@/store-context/store-store';
+import { useProductPrecache } from '@/hooks/use-product-precache';
+import { usePushListener } from '@/hooks/usePushListener';
 
 export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -16,6 +18,12 @@ export default function AppLayout() {
   const { stores, user, loadUser, isAuthenticated, initialized } = useAuthStore();
   const { initializeStore, currentStore } = useStoreStore();
   const location = useLocation();
+
+  // Pre-cache POS products into IndexedDB for offline mode
+  useProductPrecache();
+
+  // Listen for push notifications and show in-app toasts
+  usePushListener();
 
   // Load user data if route is already authenticated but profile is not hydrated.
   useEffect(() => {

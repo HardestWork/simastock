@@ -25,6 +25,10 @@ qrcode[pil]>=7.4
 # Excel
 openpyxl>=3.1
 
+# Web Push (VAPID)
+pywebpush>=2.0
+py-vapid>=1.9
+
 # Utils
 Pillow>=10.2
 python-dateutil>=2.9

@@ -292,6 +292,13 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# Web Push (VAPID)
+WEBPUSH_VAPID_PRIVATE_KEY = env("WEBPUSH_VAPID_PRIVATE_KEY", default="")
+WEBPUSH_VAPID_PUBLIC_KEY = env("WEBPUSH_VAPID_PUBLIC_KEY", default="")
+WEBPUSH_VAPID_CLAIMS_EMAIL = env(
+    "WEBPUSH_VAPID_CLAIMS_EMAIL", default="mailto:admin@simastok.com"
+)
+
 # DRF
 DEFAULT_RENDERER_CLASSES = [
     "rest_framework.renderers.JSONRenderer",

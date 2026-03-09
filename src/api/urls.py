@@ -140,6 +140,12 @@ router.register(r'accounting/settings', v1_views.AccountingSettingsViewSet, base
 
 app_name = 'api'
 urlpatterns = [
+    # Push notifications & alert count (before router to avoid alerts/ conflict)
+    path('push/vapid-key/', v1_views.VapidPublicKeyView.as_view(), name='push-vapid-key'),
+    path('push/subscribe/', v1_views.PushSubscribeView.as_view(), name='push-subscribe'),
+    path('push/unsubscribe/', v1_views.PushUnsubscribeView.as_view(), name='push-unsubscribe'),
+    path('alerts/unread-count/', v1_views.UnreadAlertCountView.as_view(), name='alerts-unread-count'),
+
     path('', include(router.urls)),
 
     # Auth endpoints

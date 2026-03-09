@@ -2,9 +2,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Save, RefreshCw, Plus, X, Loader2, Check } from 'lucide-react';
+import { Save, RefreshCw, Plus, X, Loader2, Check, BellRing } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { extractApiError } from '@/lib/api-error';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 import { enterpriseApi, storeApi } from '@/api/endpoints';
 import type { Enterprise, FeatureFlags, Store } from '@/api/types';
@@ -539,40 +540,45 @@ export default function SettingsPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nom</label>
+                      <label htmlFor="store-name" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nom</label>
                       <input
+                        id="store-name"
                         value={storeDraft.name ?? ''}
                         onChange={(e) => setStoreDraft((d) => ({ ...d, name: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Code</label>
+                      <label htmlFor="store-code" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Code</label>
                       <input
+                        id="store-code"
                         value={storeDraft.code ?? ''}
                         onChange={(e) => setStoreDraft((d) => ({ ...d, code: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Telephone</label>
+                      <label htmlFor="store-phone" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Telephone</label>
                       <input
+                        id="store-phone"
                         value={storeDraft.phone ?? ''}
                         onChange={(e) => setStoreDraft((d) => ({ ...d, phone: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+                      <label htmlFor="store-email" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
                       <input
+                        id="store-email"
                         value={storeDraft.email ?? ''}
                         onChange={(e) => setStoreDraft((d) => ({ ...d, email: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Adresse</label>
+                      <label htmlFor="store-address" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Adresse</label>
                       <input
+                        id="store-address"
                         value={storeDraft.address ?? ''}
                         onChange={(e) => setStoreDraft((d) => ({ ...d, address: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
@@ -674,8 +680,9 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Adresse / Localisation</label>
+                    <label htmlFor="inv-address" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Adresse / Localisation</label>
                     <textarea
+                      id="inv-address"
                       value={invoiceDraft.address ?? ''}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, address: e.target.value }))}
                       placeholder="Ex : Somgade - Ouagadougou, Burkina Faso"
@@ -684,8 +691,9 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Telephone</label>
+                    <label htmlFor="inv-phone" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Telephone</label>
                     <input
+                      id="inv-phone"
                       value={invoiceDraft.phone ?? ''}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, phone: e.target.value }))}
                       placeholder="+226 XX XX XX XX"
@@ -693,8 +701,9 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+                    <label htmlFor="inv-email" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
                     <input
+                      id="inv-email"
                       type="email"
                       value={invoiceDraft.email ?? ''}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, email: e.target.value }))}
@@ -712,8 +721,9 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Raison sociale</label>
+                    <label htmlFor="inv-legal-name" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Raison sociale</label>
                     <input
+                      id="inv-legal-name"
                       value={invoiceDraft.legal_name ?? ''}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, legal_name: e.target.value }))}
                       placeholder="Ex : TechXperts Solutions"
@@ -721,8 +731,9 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Forme juridique</label>
+                    <label htmlFor="inv-legal-form" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Forme juridique</label>
                     <select
+                      id="inv-legal-form"
                       value={invoiceDraft.legal_form ?? ''}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, legal_form: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
@@ -739,8 +750,9 @@ export default function SettingsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Capital social</label>
+                    <label htmlFor="inv-share-capital" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Capital social</label>
                     <input
+                      id="inv-share-capital"
                       value={invoiceDraft.share_capital ?? ''}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, share_capital: e.target.value }))}
                       placeholder="Ex : 1 000 000 FCFA"
@@ -748,8 +760,9 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">RCCM</label>
+                    <label htmlFor="inv-rccm" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">RCCM</label>
                     <input
+                      id="inv-rccm"
                       value={invoiceDraft.registration_number ?? ''}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, registration_number: e.target.value }))}
                       placeholder="Ex : BF-OUA-2024-B-12345"
@@ -757,8 +770,9 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">NIF / IFU</label>
+                    <label htmlFor="inv-tax-id" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">NIF / IFU</label>
                     <input
+                      id="inv-tax-id"
                       value={invoiceDraft.tax_id ?? ''}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, tax_id: e.target.value }))}
                       placeholder="Ex : 00123456T"
@@ -775,8 +789,9 @@ export default function SettingsPage() {
                 </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Titre facture</label>
+                  <label htmlFor="inv-header" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Titre facture</label>
                   <input
+                    id="inv-header"
                     value={invoiceDraft.invoice_header ?? ''}
                     onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_header: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
@@ -817,15 +832,17 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Couleur primaire</label>
+                  <label htmlFor="inv-primary-color-text" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Couleur primaire</label>
                   <div className="flex gap-2">
                     <input
                       type="color"
+                      aria-label="Couleur primaire (sélecteur)"
                       value={invoiceDraft.invoice_primary_color ?? '#0F4C9A'}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_primary_color: e.target.value }))}
                       className="h-10 w-10 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                     />
                     <input
+                      id="inv-primary-color-text"
                       value={invoiceDraft.invoice_primary_color ?? '#0F4C9A'}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_primary_color: e.target.value }))}
                       className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono dark:bg-gray-700 dark:text-gray-100"
@@ -833,15 +850,17 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Couleur secondaire</label>
+                  <label htmlFor="inv-secondary-color-text" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Couleur secondaire</label>
                   <div className="flex gap-2">
                     <input
                       type="color"
+                      aria-label="Couleur secondaire (sélecteur)"
                       value={invoiceDraft.invoice_secondary_color ?? '#21A8F6'}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_secondary_color: e.target.value }))}
                       className="h-10 w-10 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                     />
                     <input
+                      id="inv-secondary-color-text"
                       value={invoiceDraft.invoice_secondary_color ?? '#21A8F6'}
                       onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_secondary_color: e.target.value }))}
                       className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono dark:bg-gray-700 dark:text-gray-100"
@@ -849,8 +868,9 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Validite devis (jours)</label>
+                  <label htmlFor="inv-offer-validity" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Validite devis (jours)</label>
                   <input
+                    id="inv-offer-validity"
                     type="number"
                     min={1}
                     max={365}
@@ -860,24 +880,27 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Coordonnees bancaires</label>
+                  <label htmlFor="inv-bank-details" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Coordonnees bancaires</label>
                   <input
+                    id="inv-bank-details"
                     value={invoiceDraft.bank_details ?? ''}
                     onChange={(e) => setInvoiceDraft((d) => ({ ...d, bank_details: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Conditions</label>
+                  <label htmlFor="inv-terms" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Conditions</label>
                   <textarea
+                    id="inv-terms"
                     value={invoiceDraft.invoice_terms ?? ''}
                     onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_terms: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm min-h-24 dark:bg-gray-700 dark:text-gray-100"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Pied de page</label>
+                  <label htmlFor="inv-footer" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Pied de page</label>
                   <textarea
+                    id="inv-footer"
                     value={invoiceDraft.invoice_footer ?? ''}
                     onChange={(e) => setInvoiceDraft((d) => ({ ...d, invoice_footer: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm min-h-20 dark:bg-gray-700 dark:text-gray-100"
@@ -952,6 +975,64 @@ export default function SettingsPage() {
           )}
         </div>
       )}
+
+      {/* ============================================================= */}
+      {/* Push Notifications — always visible (personal preference)      */}
+      {/* ============================================================= */}
+      <PushNotificationCard />
+    </div>
+  );
+}
+
+
+// ---- Push notification toggle card ----------------------------------------
+
+function PushNotificationCard() {
+  const { isSupported, isSubscribed, permission, loading, subscribe, unsubscribe } = usePushNotifications();
+
+  if (!isSupported) return null;
+
+  const handleToggle = async () => {
+    if (isSubscribed) {
+      const ok = await unsubscribe();
+      if (ok) toast.success('Notifications push desactivees.');
+    } else {
+      const ok = await subscribe();
+      if (ok) toast.success('Notifications push activees !');
+      else if (permission === 'denied') toast.error('Notifications bloquees par le navigateur. Verifiez les parametres du site.');
+    }
+  };
+
+  return (
+    <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <div className="flex items-center gap-3 mb-3">
+        <BellRing size={20} className="text-primary" />
+        <div>
+          <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Notifications push</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            Recevez des alertes en temps reel sur votre appareil
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-600 dark:text-gray-300">
+          {isSubscribed ? 'Activees' : permission === 'denied' ? 'Bloquees par le navigateur' : 'Desactivees'}
+        </div>
+        <button
+          type="button"
+          onClick={handleToggle}
+          disabled={loading || permission === 'denied'}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 ${
+            isSubscribed ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              isSubscribed ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
+      </div>
     </div>
   );
 }

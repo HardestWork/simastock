@@ -11,6 +11,23 @@ from django.utils import timezone
 logger = logging.getLogger("boutique")
 
 
+@shared_task(name="alerts.tasks.send_push_for_alert_task", bind=True, max_retries=2)
+def send_push_for_alert_task(self, alert_id):
+    """Send push notifications for a newly created alert."""
+    from alerts.models import Alert
+    from alerts.services import send_push_for_alert
+
+    try:
+        alert = Alert.objects.get(pk=alert_id)
+    except Alert.DoesNotExist:
+        logger.warning("send_push_for_alert_task: Alert %s not found.", alert_id)
+        return "Alert not found"
+
+    count = send_push_for_alert(alert)
+    logger.info("Push sent for alert %s: %d deliveries.", alert_id, count)
+    return f"{count} push(es) sent"
+
+
 @shared_task(name="alerts.tasks.check_low_stock")
 def check_low_stock():
     """Check for products with available_qty <= min_qty in each active store.

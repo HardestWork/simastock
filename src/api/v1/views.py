@@ -94,6 +94,7 @@ from api.v1.serializers import (
     SaleAddItemSerializer,
     SaleSetItemQuantitySerializer,
     SaleSetItemUnitPriceSerializer,
+    OfflineSaleSyncSerializer,
     PaymentSerializer,
     PaymentCreateSerializer,
     CashShiftSerializer,
@@ -466,7 +467,7 @@ class EnterpriseViewSet(viewsets.ModelViewSet):
     RESET_STOCK_STRATEGIES = ("keep", "zero", "delete")
 
     serializer_class = EnterpriseSerializer
-    queryset = Enterprise.objects.all()
+    queryset = Enterprise.objects.all().prefetch_related('stores')
     search_fields = ['name', 'code']
     ordering_fields = ['name', 'created_at', 'subscription_end', 'is_active']
     filterset_fields = ['is_active']
@@ -1576,7 +1577,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):
             return [IsManagerOrAdmin(), ModuleStockEnabled()]
-        return [IsAuthenticated(), ModuleStockEnabled()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -2711,7 +2712,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = CustomerSerializer
-    queryset = Customer.objects.all()
+    queryset = Customer.objects.select_related('created_by').all()
     permission_classes = [IsAuthenticated]
     filterset_fields = ['is_active']
     search_fields = ['first_name', 'last_name', 'phone']
@@ -2912,7 +2913,7 @@ class SaleViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
-        if self.action in ('create', 'add_item', 'set_item_quantity', 'remove_item', 'submit', 'apply_coupon', 'remove_coupon', 'set_delivery', 'remove_delivery'):
+        if self.action in ('create', 'add_item', 'set_item_quantity', 'remove_item', 'submit', 'apply_coupon', 'remove_coupon', 'set_delivery', 'remove_delivery', 'offline_sync'):
             return [IsSales(), FeatureSalesPOSEnabled()]
         if self.action == 'set_item_unit_price':
             return [IsSales(), FeatureSalesPOSEnabled()]
@@ -3097,9 +3098,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         """
         sale = self.get_object()
 
-        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
+        if sale.status != Sale.Status.DRAFT:
             return Response(
-                {'detail': 'Les articles ne peuvent etre ajoutes qu\'avant encaissement.'},
+                {'detail': 'Les articles ne peuvent etre ajoutes que sur une vente en brouillon.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -3158,9 +3159,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         """Remove an item from a draft sale."""
         sale = self.get_object()
 
-        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
+        if sale.status != Sale.Status.DRAFT:
             return Response(
-                {'detail': 'Les articles ne peuvent etre retires qu\'avant encaissement.'},
+                {'detail': 'Les articles ne peuvent etre retires que sur une vente en brouillon.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -3200,9 +3201,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         """Set an exact quantity for one item in a draft sale."""
         sale = self.get_object()
 
-        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
+        if sale.status != Sale.Status.DRAFT:
             return Response(
-                {'detail': 'La quantite ne peut etre modifiee qu\'avant encaissement.'},
+                {'detail': 'La quantite ne peut etre modifiee que sur une vente en brouillon.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -3234,9 +3235,9 @@ class SaleViewSet(viewsets.ModelViewSet):
         """Set an exact unit price for one item in a draft sale."""
         sale = self.get_object()
 
-        if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
+        if sale.status != Sale.Status.DRAFT:
             return Response(
-                {'detail': 'Le prix ne peut etre modifie qu\'avant encaissement.'},
+                {'detail': 'Le prix ne peut etre modifie que sur une vente en brouillon.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -3507,6 +3508,130 @@ class SaleViewSet(viewsets.ModelViewSet):
 
         sale = self.get_queryset().get(pk=sale.pk)
         return Response(SaleSerializer(sale).data)
+
+    @action(detail=False, methods=["post"], url_path="offline-sync")
+    def offline_sync(self, request):
+        """Sync a sale created offline.
+
+        Idempotent: if a Sale with the same ``offline_id`` already exists,
+        its serialized data is returned without creating a duplicate.
+        """
+        serializer = OfflineSaleSyncSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+
+        # --- Store isolation ---
+        store_id = d["store_id"]
+        store_ids = _user_store_ids(request.user)
+        if store_id not in store_ids:
+            return Response(
+                {"detail": "Vous n'avez pas acces a cette boutique."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            store = Store.objects.get(pk=store_id, is_active=True)
+        except Store.DoesNotExist:
+            return Response(
+                {"detail": "Boutique introuvable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # --- Idempotent check (after store access verification) ---
+        existing = Sale.objects.filter(offline_id=d["offline_id"]).first()
+        if existing:
+            # Only return if the existing sale belongs to an accessible store
+            if existing.store_id in store_ids:
+                return Response(SaleSerializer(existing).data, status=status.HTTP_200_OK)
+            return Response(
+                {"detail": "Vous n'avez pas acces a cette vente."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # --- Customer (resolved inside the atomic block below) ---
+        customer_id = d.get("customer_id")
+        if customer_id:
+            try:
+                customer = Customer.objects.get(pk=customer_id, enterprise=store.enterprise)
+            except Customer.DoesNotExist:
+                return Response(
+                    {"detail": "Client introuvable dans cette entreprise."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            customer = None  # resolved inside atomic block
+
+        # --- Atomic creation: sale + items + submit ---
+        from django.db import transaction as db_transaction
+        from sales.services import create_sale, add_item_to_sale, submit_sale_to_cashier
+
+        enterprise_id = _user_enterprise_id(request.user)
+
+        try:
+            with db_transaction.atomic():
+                # Resolve default customer inside transaction (select_for_update)
+                if customer is None:
+                    try:
+                        from customers.services import get_or_create_default_customer
+                        customer = get_or_create_default_customer(enterprise=store.enterprise)
+                    except Exception:
+                        pass
+
+                sale = create_sale(store=store, seller=request.user, customer=customer)
+                sale.offline_id = d["offline_id"]
+                update_fields = ["offline_id"]
+
+                # Preserve the original offline timestamp
+                if d.get("created_at"):
+                    sale.created_at = d["created_at"]
+                    update_fields.append("created_at")
+
+                if d.get("discount_percent"):
+                    sale.discount_percent = d["discount_percent"]
+                    update_fields.append("discount_percent")
+                if d.get("notes"):
+                    sale.notes = d["notes"]
+                    update_fields.append("notes")
+
+                sale.save(update_fields=update_fields + ["updated_at"])
+
+                errors = []
+                for idx, item_data in enumerate(d["items"]):
+                    product_id = item_data.get("product_id")
+                    quantity = item_data.get("quantity", 1)
+                    discount_amount = Decimal(str(item_data.get("discount_amount", "0")))
+                    unit_price_override_raw = item_data.get("unit_price_override")
+                    unit_price = Decimal(str(unit_price_override_raw)) if unit_price_override_raw else None
+
+                    try:
+                        product = Product.objects.get(pk=product_id, enterprise_id=enterprise_id)
+                    except Product.DoesNotExist:
+                        errors.append(f"Article #{idx + 1}: produit introuvable.")
+                        continue
+
+                    try:
+                        add_item_to_sale(
+                            sale=sale, product=product, qty=quantity,
+                            discount=discount_amount, unit_price=unit_price,
+                            actor=request.user,
+                        )
+                    except ValueError as e:
+                        errors.append(f"Article #{idx + 1} ({product.name}): {e}")
+
+                if not sale.items.exists():
+                    raise ValueError("Aucun article valide dans la vente offline.")
+
+                # Refresh to pick up recalculated totals from add_item_to_sale
+                sale.refresh_from_db()
+                sale = submit_sale_to_cashier(sale, actor=request.user)
+
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        sale = self.get_queryset().get(pk=sale.pk)
+        response_data = SaleSerializer(sale).data
+        if errors:
+            response_data["_warnings"] = errors
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'], url_path='export-csv')
     def export_csv(self, request):
@@ -4019,7 +4144,13 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
             supplier = Supplier.objects.get(pk=supplier_id, enterprise_id=store.enterprise_id)
         except Supplier.DoesNotExist:
             return Response(
-                {"detail": "Fournisseur introuvable pour cette boutique."},
+                {"supplier": ["Fournisseur introuvable pour cette boutique."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not serializer.validated_data.get("lines"):
+            return Response(
+                {"lines": ["Ce champ est obligatoire."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -4244,6 +4375,86 @@ class AlertViewSet(
             is_read=False,
         ).update(is_read=True, read_by=request.user, read_at=timezone.now())
         return Response({'detail': f'{updated} alerte(s) marquee(s) comme lue(s).'})
+
+
+# ---------------------------------------------------------------------------
+# Push Notifications
+# ---------------------------------------------------------------------------
+
+
+class VapidPublicKeyView(APIView):
+    """Return the VAPID public key for Web Push subscription."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.conf import settings as s
+        key = getattr(s, "WEBPUSH_VAPID_PUBLIC_KEY", "")
+        return Response({"vapid_public_key": key})
+
+
+class PushSubscribeView(APIView):
+    """Register a push subscription for the current user."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from alerts.models import PushSubscription
+
+        data = request.data
+        endpoint = data.get("endpoint", "")
+        keys = data.get("keys", {})
+        if not endpoint or not keys.get("p256dh") or not keys.get("auth"):
+            return Response(
+                {"detail": "endpoint et keys (p256dh, auth) requis."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        subscription_info = {
+            "endpoint": endpoint,
+            "keys": keys,
+        }
+        expiration = data.get("expirationTime")
+        if expiration is not None:
+            subscription_info["expirationTime"] = expiration
+
+        sub, created = PushSubscription.objects.update_or_create(
+            user=request.user,
+            endpoint=endpoint,
+            defaults={
+                "subscription_info": subscription_info,
+                "is_active": True,
+                "user_agent": request.META.get("HTTP_USER_AGENT", "")[:300],
+            },
+        )
+        return Response(
+            {"detail": "Abonnement push enregistre.", "created": created},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class PushUnsubscribeView(APIView):
+    """Deactivate a push subscription."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from alerts.models import PushSubscription
+
+        endpoint = request.data.get("endpoint", "")
+        updated = PushSubscription.objects.filter(
+            user=request.user,
+            endpoint=endpoint,
+            is_active=True,
+        ).update(is_active=False)
+        return Response({"detail": f"{updated} abonnement(s) desactive(s)."})
+
+
+class UnreadAlertCountView(APIView):
+    """Return the count of unread alerts for the user's stores."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        store_ids = _user_store_ids(request.user)
+        count = Alert.objects.filter(store_id__in=store_ids, is_read=False).count()
+        return Response({"unread_count": count})
 
 
 # ---------------------------------------------------------------------------

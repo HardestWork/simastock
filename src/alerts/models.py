@@ -6,6 +6,45 @@ from django.utils import timezone
 from core.models import TimeStampedModel
 
 
+class PushSubscription(TimeStampedModel):
+    """Browser Web Push subscription for a specific user.
+
+    Stores the PushSubscription JSON from the browser Push API
+    (endpoint, keys.p256dh, keys.auth).
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="push_subscriptions",
+        verbose_name="utilisateur",
+    )
+    endpoint = models.URLField(
+        max_length=500,
+        db_index=True,
+        help_text="Push service endpoint URL.",
+    )
+    subscription_info = models.JSONField(
+        "subscription info",
+        help_text='PushSubscription JSON: {endpoint, keys: {p256dh, auth}}',
+    )
+    user_agent = models.CharField(max_length=300, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Abonnement push"
+        verbose_name_plural = "Abonnements push"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "endpoint"],
+                name="unique_user_push_endpoint",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Push({self.user}) -> {self.endpoint[:60]}..."
+
+
 class Alert(TimeStampedModel):
     """An alert raised by the system for a specific store.
 

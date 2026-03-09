@@ -1039,6 +1039,24 @@ export const alertApi = {
 
   markAllRead: () =>
     apiClient.post('alerts/mark-all-read/').then((r) => r.data),
+
+  unreadCount: () =>
+    apiClient.get<{ unread_count: number }>('alerts/unread-count/').then((r) => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// Push Notifications
+// ---------------------------------------------------------------------------
+
+export const pushApi = {
+  getVapidKey: () =>
+    apiClient.get<{ vapid_public_key: string }>('push/vapid-key/').then((r) => r.data),
+
+  subscribe: (subscription: PushSubscriptionJSON) =>
+    apiClient.post('push/subscribe/', subscription).then((r) => r.data),
+
+  unsubscribe: (endpoint: string) =>
+    apiClient.post('push/unsubscribe/', { endpoint }).then((r) => r.data),
 };
 
 // ---------------------------------------------------------------------------

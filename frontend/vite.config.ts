@@ -71,10 +71,12 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
+          // Import push notification handler into the generated SW
+          importScripts: ['/sw-push.js'],
           // Précache tous les assets statiques générés par Vite
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-          // Exclure les logos sources (>2MB) du précache — trop lourds pour Workbox
-          globIgnores: ['logo-icon.png', 'logo-full.png'],
+          // Exclure les logos sources et sw-push.js du précache
+          globIgnores: ['logo-icon.png', 'logo-full.png', 'sw-push.js'],
           // Ne jamais mettre en cache les appels API ni les médias
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api\//, /^\/media\//, /^\/admin\//],

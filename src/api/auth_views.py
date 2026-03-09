@@ -3,6 +3,13 @@
 import logging
 from datetime import timedelta
 
+try:
+    from redis.exceptions import ConnectionError as RedisConnectionError
+    from redis.exceptions import TimeoutError as RedisTimeoutError
+    _REDIS_ERRORS: tuple = (ConnectionError, TimeoutError, OSError, RedisConnectionError, RedisTimeoutError)
+except ImportError:
+    _REDIS_ERRORS = (ConnectionError, TimeoutError, OSError)
+
 from django.core.cache import cache
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -56,21 +63,25 @@ def _record_login_failure(ip: str) -> int:
         count = cache.get(key, 0) + 1
         cache.set(key, count, timeout=LOGIN_LOCKOUT_SECONDS)
         return count
-    except Exception:
+    except _REDIS_ERRORS as exc:
+        logger.error("Cache unavailable — login failure not recorded for %s: %s", ip, exc)
         return 0
 
 
 def _clear_login_failures(ip: str) -> None:
     try:
         cache.delete(_login_fail_cache_key(ip))
-    except Exception:
-        pass
+    except _REDIS_ERRORS as exc:
+        logger.warning("Cache unavailable — login failure counter not cleared for %s: %s", ip, exc)
 
 
 def _is_ip_locked(ip: str) -> bool:
     try:
         return (cache.get(_login_fail_cache_key(ip)) or 0) >= LOGIN_FAILURE_LIMIT
-    except Exception:
+    except _REDIS_ERRORS as exc:
+        # Cache unavailable: fail open to avoid blocking all logins during an outage.
+        # The narrow exception type ensures programming errors (AttributeError, etc.) still propagate.
+        logger.error("Cache unavailable — brute-force check skipped for %s: %s", ip, exc)
         return False
 
 

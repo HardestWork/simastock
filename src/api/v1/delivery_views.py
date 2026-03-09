@@ -64,7 +64,12 @@ def _get_user_store(user):
 
 
 def _recompute_agent_stats(agent, period, store):
-    """Recompute AgentMonthlyStats for a given agent and period."""
+    """Recompute AgentMonthlyStats for a given agent and period.
+
+    Wrapped in an atomic block with select_for_update to prevent a race
+    condition when two concurrent requests (e.g. simultaneous deliveries)
+    both trigger a recompute for the same agent+period.
+    """
     year, month = period.split("-")
     qs = Delivery.objects.filter(agent=agent, created_at__year=year, created_at__month=month)
     delivered = qs.filter(status=Delivery.Status.DELIVERED).count()
@@ -72,17 +77,18 @@ def _recompute_agent_stats(agent, period, store):
     total = qs.count()
     obj = AgentObjective.objects.filter(agent=agent, period=period).first()
     bonus = obj.bonus_amount if (obj and delivered >= obj.target_count) else 0
-    AgentMonthlyStats.objects.update_or_create(
-        agent=agent,
-        period=period,
-        defaults={
-            "store": store,
-            "delivered_count": delivered,
-            "total_count": total,
-            "returned_count": returned,
-            "bonus_earned": bonus,
-        },
-    )
+    with transaction.atomic():
+        stats, _ = AgentMonthlyStats.objects.select_for_update().get_or_create(
+            agent=agent,
+            period=period,
+            defaults={"store": store},
+        )
+        stats.store = store
+        stats.delivered_count = delivered
+        stats.total_count = total
+        stats.returned_count = returned
+        stats.bonus_earned = bonus
+        stats.save(update_fields=["store", "delivered_count", "total_count", "returned_count", "bonus_earned"])
 
 
 def _send_delivery_notification(delivery, channel, recipient, body):

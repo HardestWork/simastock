@@ -262,6 +262,18 @@ class Sale(TimeStampedModel):
     )
 
     # ------------------------------------------------------------------
+    # Offline sync
+    # ------------------------------------------------------------------
+    offline_id = models.UUIDField(
+        "identifiant offline",
+        null=True,
+        blank=True,
+        unique=True,
+        db_index=True,
+        help_text="UUID genere cote client pour deduplication des ventes offline.",
+    )
+
+    # ------------------------------------------------------------------
     # Document verification
     # ------------------------------------------------------------------
     verification_token = models.CharField(

@@ -90,8 +90,8 @@ def add_item_to_sale(
     # Lock the sale row to prevent concurrent modifications
     sale = Sale.objects.select_for_update().get(pk=sale.pk)
 
-    if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
-        raise ValueError("Impossible d'ajouter un article: la vente est deja encaissee.")
+    if sale.status != Sale.Status.DRAFT:
+        raise ValueError("Impossible d'ajouter un article: la vente n'est plus en brouillon.")
 
     if not product.is_active:
         raise ValueError(f"Le produit '{product.name}' n'est pas actif.")
@@ -156,8 +156,8 @@ def remove_item_from_sale(sale: Sale, item_id, actor=None) -> None:
     """
     sale = Sale.objects.select_for_update().get(pk=sale.pk)
 
-    if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
-        raise ValueError("Impossible de supprimer un article: la vente est deja encaissee.")
+    if sale.status != Sale.Status.DRAFT:
+        raise ValueError("Impossible de supprimer un article: la vente n'est plus en brouillon.")
 
     try:
         item = sale.items.get(pk=item_id)
@@ -197,8 +197,8 @@ def update_item_quantity(sale: Sale, item_id, new_qty: int, actor=None) -> SaleI
     """
     sale = Sale.objects.select_for_update().get(pk=sale.pk)
 
-    if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
-        raise ValueError("Impossible de modifier la quantite: la vente est deja encaissee.")
+    if sale.status != Sale.Status.DRAFT:
+        raise ValueError("Impossible de modifier la quantite: la vente n'est plus en brouillon.")
 
     if new_qty < 1:
         raise ValueError("La quantite doit etre d'au moins 1.")
@@ -230,9 +230,9 @@ def update_item_unit_price(
     """Update the unit price of an item on a DRAFT sale."""
     sale = Sale.objects.select_for_update().get(pk=sale.pk)
 
-    if sale.status not in (Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT):
+    if sale.status != Sale.Status.DRAFT:
         raise ValueError(
-            "Impossible de modifier le prix: la vente est deja encaissee."
+            "Impossible de modifier le prix: la vente n'est plus en brouillon."
         )
 
     try:

@@ -1,4 +1,6 @@
 """Models for the cashier app (cash shifts and payments)."""
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator
@@ -215,7 +217,7 @@ class Payment(TimeStampedModel):
         "montant",
         max_digits=14,
         decimal_places=2,
-        validators=[MinValueValidator(0.01)],
+        validators=[MinValueValidator(Decimal("0.01"))],
     )
     reference = models.CharField(
         "reference",

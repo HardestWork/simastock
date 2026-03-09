@@ -245,7 +245,11 @@ class EnterpriseSerializer(serializers.ModelSerializer):
     stores_count = serializers.SerializerMethodField(read_only=True)
 
     def get_stores_count(self, obj):
-        return obj.stores.count()
+        # Use prefetch cache when available (avoids N+1 on list view).
+        stores_qs = obj.stores.all()
+        if stores_qs._result_cache is not None:
+            return len(stores_qs._result_cache)
+        return stores_qs.count()
 
     class Meta:
         model = Enterprise
@@ -1160,6 +1164,32 @@ class SaleSubmitSerializer(serializers.Serializer):
     pass
 
 
+class OfflineSaleSyncSerializer(serializers.Serializer):
+    """Serializer for syncing a sale created offline.
+
+    Accepts a full sale payload (items + metadata) in one request
+    so that the offline queue can be flushed atomically.
+    ``offline_id`` is used for idempotent deduplication.
+    """
+
+    offline_id = serializers.UUIDField()
+    store_id = serializers.UUIDField()
+    customer_id = serializers.UUIDField(required=False, allow_null=True)
+    discount_percent = serializers.DecimalField(
+        max_digits=5, decimal_places=2, required=False, default=Decimal('0.00'),
+    )
+    notes = serializers.CharField(required=False, default='', allow_blank=True)
+    items = serializers.ListField(
+        child=serializers.DictField(),
+        min_length=1,
+        help_text="List of {product_id, quantity, discount_amount?, unit_price_override?}",
+    )
+    created_at = serializers.DateTimeField(
+        required=False, allow_null=True,
+        help_text="Timestamp from the client when the sale was created offline.",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Payment Serializers
 # ---------------------------------------------------------------------------
@@ -1379,10 +1409,10 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     po_number = serializers.CharField(required=False, allow_blank=True, default="")
     submit_now = serializers.BooleanField(required=False, default=False)
-    lines = _PurchaseOrderLineInputSerializer(many=True)
+    lines = _PurchaseOrderLineInputSerializer(many=True, required=False)
 
     def validate_lines(self, value):
-        if not value:
+        if value is not None and not value:
             raise serializers.ValidationError("Au moins une ligne est requise.")
         return value
 

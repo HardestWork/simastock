@@ -162,6 +162,16 @@ export default function CreditDetailPage() {
     enabled: !!accountId,
   });
 
+  const ledgerEntries = ledgerData?.results ?? [];
+  const invoiceHistory = useMemo(() => buildInvoiceHistory(ledgerEntries), [ledgerEntries]);
+  const unassignedPaymentTotal = useMemo(
+    () => ledgerEntries
+      .filter((entry) => entry.entry_type === 'CREDIT_PAYMENT' && !entry.sale)
+      .reduce((sum, entry) => sum + Math.abs(Number(entry.amount) || 0), 0),
+    [ledgerEntries],
+  );
+  const schedules = schedulesData?.results ?? [];
+
   // --- Payment mutation ---
   const {
     mutate: submitPayment,
@@ -218,15 +228,6 @@ export default function CreditDetailPage() {
 
   const balance = parseFloat(account.balance);
   const healthBanner = getHealthBanner(account);
-  const ledgerEntries = ledgerData?.results ?? [];
-  const invoiceHistory = useMemo(() => buildInvoiceHistory(ledgerEntries), [ledgerEntries]);
-  const unassignedPaymentTotal = useMemo(
-    () => ledgerEntries
-      .filter((entry) => entry.entry_type === 'CREDIT_PAYMENT' && !entry.sale)
-      .reduce((sum, entry) => sum + Math.abs(Number(entry.amount) || 0), 0),
-    [ledgerEntries],
-  );
-  const schedules = schedulesData?.results ?? [];
 
   return (
     <div className="max-w-4xl mx-auto">

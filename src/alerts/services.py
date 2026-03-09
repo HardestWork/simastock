@@ -1,4 +1,5 @@
 """Service functions for the alerts app."""
+import json
 import logging
 from datetime import date, timedelta
 from decimal import Decimal
@@ -10,6 +11,89 @@ from django.db.models.functions import Coalesce
 from alerts.models import Alert
 
 logger = logging.getLogger("boutique")
+
+
+# ---------------------------------------------------------------------------
+# Web Push helpers
+# ---------------------------------------------------------------------------
+
+def send_push_to_subscription(subscription_info, title, body, data=None):
+    """Send a single push notification. Returns True on success."""
+    try:
+        from pywebpush import webpush, WebPushException
+    except ImportError:
+        logger.debug("pywebpush not installed — skipping push.")
+        return False
+
+    vapid_private = getattr(settings, "WEBPUSH_VAPID_PRIVATE_KEY", "")
+    if not vapid_private:
+        return False
+
+    payload = json.dumps({
+        "title": title,
+        "body": body,
+        "data": data or {},
+        "icon": "/pwa-192.png",
+        "badge": "/pwa-192.png",
+        "tag": (data or {}).get("alert_id", "simastok-alert"),
+    })
+
+    try:
+        webpush(
+            subscription_info=subscription_info,
+            data=payload,
+            vapid_private_key=vapid_private,
+            vapid_claims={
+                "sub": getattr(
+                    settings, "WEBPUSH_VAPID_CLAIMS_EMAIL",
+                    "mailto:admin@simastok.com",
+                ),
+            },
+        )
+        return True
+    except WebPushException as exc:
+        logger.warning("Push failed for %s: %s", subscription_info.get("endpoint", "?"), exc)
+        # 404/410 = subscription expired — deactivate it
+        resp = getattr(exc, "response", None)
+        if resp is not None and resp.status_code in (404, 410):
+            from alerts.models import PushSubscription
+            PushSubscription.objects.filter(
+                endpoint=subscription_info.get("endpoint", ""),
+                is_active=True,
+            ).update(is_active=False)
+        return False
+    except Exception:
+        logger.exception("Unexpected push error")
+        return False
+
+
+def send_push_for_alert(alert):
+    """Send push notifications for an alert to all users with store access."""
+    from alerts.models import PushSubscription
+    from stores.models import StoreUser
+
+    user_ids = StoreUser.objects.filter(
+        store=alert.store,
+    ).values_list("user_id", flat=True)
+
+    subscriptions = PushSubscription.objects.filter(
+        user_id__in=user_ids,
+        is_active=True,
+    )
+
+    data = {
+        "alert_id": str(alert.id),
+        "alert_type": alert.alert_type,
+        "severity": alert.severity,
+        "store_id": str(alert.store_id),
+        "url": "/alerts",
+    }
+
+    count = 0
+    for sub in subscriptions:
+        if send_push_to_subscription(sub.subscription_info, alert.title, alert.message, data):
+            count += 1
+    return count
 
 
 def create_alert(store, alert_type, severity, title, message, payload=None):
@@ -47,6 +131,14 @@ def create_alert(store, alert_type, severity, title, message, payload=None):
         "Alert created: [%s] %s for store %s",
         severity, title, store,
     )
+
+    # Trigger async push notification
+    try:
+        from alerts.tasks import send_push_for_alert_task
+        send_push_for_alert_task.delay(str(alert.id))
+    except Exception:
+        logger.debug("Could not dispatch push task for alert %s", alert.id)
+
     return alert
 
 
