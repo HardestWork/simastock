@@ -127,7 +127,7 @@ const navItems: NavItem[] = [
     label: 'Point de Vente',
     icon: <ShoppingCart size={16} />,
     module: 'SELL',
-    roles: ['SALES', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
+    roles: ['SALES', 'CASHIER', 'SALES_CASHIER', 'MANAGER', 'ADMIN'],
     capability: 'CAN_SELL',
   },
   {

@@ -593,9 +593,9 @@ class IsCashier(_CapabilityPermission):
 
 
 class IsSales(_CapabilityPermission):
-    """Allow access to sales staff, managers, and admins (or users with CAN_SELL)."""
+    """Allow access to sales staff, cashiers, managers, and admins (or users with CAN_SELL)."""
     capability = "CAN_SELL"
-    allowed_roles = ("SALES", "SALES_CASHIER", "ADMIN", "MANAGER")
+    allowed_roles = ("SALES", "CASHIER", "SALES_CASHIER", "ADMIN", "MANAGER")
 
 
 class IsStoreMember(BasePermission):
