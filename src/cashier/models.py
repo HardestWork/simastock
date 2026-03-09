@@ -139,6 +139,7 @@ class CashShift(TimeStampedModel):
         during this shift.
         """
         from django.db.models import Sum
+        _zero = Decimal("0")
         try:
             from expenses.models import Expense, Wallet as ExpenseWallet
             end = self.closed_at or timezone.now()
@@ -149,13 +150,13 @@ class CashShift(TimeStampedModel):
                     status=Expense.Status.POSTED,
                     created_at__gte=self.opened_at,
                     created_at__lt=end,
-                ).aggregate(total=Sum("amount"))["total"] or 0
+                ).aggregate(total=Sum("amount"))["total"] or _zero
             )
         except Exception:
-            cash_out = 0
+            cash_out = _zero
 
         # Subtract cash refunds issued during this shift
-        cash_refunds = 0
+        cash_refunds = _zero
         try:
             from sales.models import Refund
             end = self.closed_at or timezone.now()
@@ -165,14 +166,14 @@ class CashShift(TimeStampedModel):
                     refund_method=Refund.Method.CASH,
                     created_at__gte=self.opened_at,
                     created_at__lt=end,
-                ).aggregate(total=Sum("amount"))["total"] or 0
+                ).aggregate(total=Sum("amount"))["total"] or _zero
             )
         except Exception:
-            cash_refunds = 0
+            cash_refunds = _zero
 
         self.expected_cash = (
             self.opening_float + self.total_cash_payments - cash_out - cash_refunds
-        )
+        ).quantize(Decimal("0.01"))
         return self.expected_cash
 
     @property

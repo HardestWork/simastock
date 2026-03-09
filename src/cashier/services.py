@@ -796,9 +796,9 @@ def _decrement_shift_expected_cash(store, amount):
     """Decrement expected_cash of the current open shift for a cash outflow."""
     shift = CashShift.objects.filter(store=store, status=CashShift.Status.OPEN).first()
     if shift:
-        shift.expected_cash = (shift.expected_cash or 0) - amount
+        shift.expected_cash = ((shift.expected_cash or Decimal("0")) - Decimal(str(amount))).quantize(Decimal("0.01"))
         if shift.expected_cash < 0:
-            shift.expected_cash = 0
+            shift.expected_cash = Decimal("0")
         shift.save(update_fields=["expected_cash"])
 
 

@@ -3993,7 +3993,7 @@ class CustomerAccountViewSet(viewsets.ModelViewSet):
                     store=account.store, status=CashShift.Status.OPEN,
                 ).first()
                 if shift:
-                    shift.total_cash_payments = (shift.total_cash_payments or 0) + amount
+                    shift.total_cash_payments = (shift.total_cash_payments or Decimal("0")) + Decimal(str(amount))
                     shift.calculate_expected_cash()
                     shift.save(update_fields=[
                         "total_cash_payments", "expected_cash",
