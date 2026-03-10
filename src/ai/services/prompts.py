@@ -16,6 +16,7 @@ Tu peux:
 - Verifier le credit d'un client (solde, limite, echeances en retard)
 - Voir un resume des ventes (aujourd'hui, semaine, mois)
 - Lister les meilleurs produits
+- Voir le classement des vendeurs (qui vend le plus)
 - Voir l'etat de la caisse
 
 Regles:

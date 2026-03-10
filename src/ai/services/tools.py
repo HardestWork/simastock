@@ -127,6 +127,25 @@ TOOL_DEFINITIONS = [
             "required": ["query"],
         },
     },
+    {
+        "name": "get_top_sellers",
+        "description": "Obtenir le classement des vendeurs par chiffre d'affaires et nombre de ventes sur une periode donnee.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "period": {
+                    "type": "string",
+                    "enum": ["today", "week", "month", "year"],
+                    "description": "Periode d'analyse",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Nombre de vendeurs (defaut: 10)",
+                },
+            },
+            "required": ["period"],
+        },
+    },
 ]
 
 
@@ -404,6 +423,42 @@ def _search_customers(params: dict, store) -> dict:
     }
 
 
+def _get_top_sellers(params: dict, store) -> dict:
+    from sales.models import Sale
+
+    period = params.get("period", "month")
+    limit = params.get("limit", 10)
+    start, end = _get_period_range(period)
+
+    top = (
+        Sale.objects.filter(
+            store=store,
+            created_at__gte=start,
+            created_at__lt=end,
+            status__in=["PAID", "PARTIALLY_PAID"],
+            seller__isnull=False,
+        )
+        .values("seller__first_name", "seller__last_name", "seller__email")
+        .annotate(
+            nb_ventes=Count("id"),
+            chiffre_affaires=Sum("total"),
+        )
+        .order_by("-chiffre_affaires")[:limit]
+    )
+
+    return {
+        "periode": period,
+        "top_vendeurs": [
+            {
+                "nom": f"{t['seller__first_name'] or ''} {t['seller__last_name'] or ''}".strip() or t["seller__email"],
+                "nombre_ventes": t["nb_ventes"],
+                "chiffre_affaires": str(t["chiffre_affaires"] or 0),
+            }
+            for t in top
+        ],
+    }
+
+
 # ---------------------------------------------------------------------------
 # Handler registry
 # ---------------------------------------------------------------------------
@@ -417,4 +472,5 @@ TOOL_HANDLERS = {
     "get_overdue_credits": _get_overdue_credits,
     "get_cash_shift_summary": _get_cash_shift_summary,
     "search_customers": _search_customers,
+    "get_top_sellers": _get_top_sellers,
 }
