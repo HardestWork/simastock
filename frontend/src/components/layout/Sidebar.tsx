@@ -45,6 +45,8 @@ import {
   MapPin,
   MessageSquare,
   CalendarDays,
+  Coins,
+  Activity,
 } from 'lucide-react';
 import { useAuthStore } from '@/auth/auth-store';
 import { useCapabilities } from '@/lib/capabilities';
@@ -583,6 +585,20 @@ const navItems: NavItem[] = [
     icon: <ScrollText size={16} />,
     module: 'ANALYTICS_MANAGER',
     roles: ['MANAGER', 'ADMIN'],
+  },
+  {
+    section: 'PILOTAGE',
+    path: '/ai/credits',
+    label: 'Credits IA',
+    icon: <Coins size={16} />,
+    roles: ['MANAGER', 'ADMIN'] as UserRole[],
+  },
+  {
+    section: 'PILOTAGE',
+    path: '/ai/activity',
+    label: 'Activite utilisateurs',
+    icon: <Activity size={16} />,
+    roles: ['MANAGER', 'ADMIN'] as UserRole[],
   },
   {
     section: 'ADMINISTRATION',

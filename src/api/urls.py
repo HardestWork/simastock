@@ -13,6 +13,7 @@ from api.v1 import dg_views as dg_views
 from api.v1 import hrm_views as hrm_api_views
 from api.v1 import delivery_views as delivery_api_views
 from api.v1 import communication_views as communication_api_views
+from ai import views as ai_views
 from api.auth_views import (
     CookieTokenObtainPairView,
     CookieTokenRefreshView,
@@ -231,4 +232,16 @@ urlpatterns = [
     path('invoices/dl/<str:token>/', v1_views.InvoiceDownloadView.as_view(), name='invoice-download'),
 
     # (Phase 3 denominations are handled as an action on CashShiftViewSet)
+
+    # AI Assistant
+    path('ai/chat/', ai_views.AIChatView.as_view(), name='ai-chat'),
+    path('ai/chat/stream/', ai_views.AIChatStreamView.as_view(), name='ai-chat-stream'),
+    path('ai/conversations/', ai_views.AIConversationListView.as_view(), name='ai-conversations'),
+    path('ai/conversations/<uuid:pk>/', ai_views.AIConversationDetailView.as_view(), name='ai-conversation-detail'),
+    path('ai/usage/', ai_views.AIUsageView.as_view(), name='ai-usage'),
+    path('ai/credits/', ai_views.AICreditBalanceView.as_view(), name='ai-credits'),
+    path('ai/credits/add/', ai_views.AICreditAddView.as_view(), name='ai-credits-add'),
+    path('ai/credits/transactions/', ai_views.AICreditTransactionListView.as_view(), name='ai-credits-transactions'),
+    path('ai/activity/heartbeat/', ai_views.ActivityHeartbeatView.as_view(), name='ai-activity-heartbeat'),
+    path('ai/activity/summary/', ai_views.ActivitySummaryView.as_view(), name='ai-activity-summary'),
 ]

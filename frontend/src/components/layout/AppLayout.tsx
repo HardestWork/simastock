@@ -9,6 +9,8 @@ import { useStoreStore } from '@/store-context/store-store';
 import { useProductPrecache } from '@/hooks/use-product-precache';
 import { usePushListener } from '@/hooks/usePushListener';
 import PushPermissionBanner from '@/components/pwa/PushPermissionBanner';
+import AIChatBubble from '@/features/ai/components/AIChatBubble';
+import { useHeartbeat } from '@/features/ai/hooks/use-heartbeat';
 
 export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -25,6 +27,9 @@ export default function AppLayout() {
 
   // Listen for push notifications and show in-app toasts
   usePushListener();
+
+  // Track user activity via heartbeat
+  useHeartbeat();
 
   // Load user data if route is already authenticated but profile is not hydrated.
   useEffect(() => {
@@ -106,6 +111,7 @@ export default function AppLayout() {
         </main>
       </div>
       <SearchPalette />
+      <AIChatBubble />
     </div>
   );
 }

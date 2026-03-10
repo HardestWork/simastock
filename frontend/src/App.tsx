@@ -133,6 +133,10 @@ const AccountingSettingsPage = lazyRetry(() => import('@/features/accounting/Acc
 const BilanPage = lazyRetry(() => import('@/features/accounting/BilanPage'));
 const CompteResultatPage = lazyRetry(() => import('@/features/accounting/CompteResultatPage'));
 
+// AI
+const AICreditPage = lazyRetry(() => import('@/features/ai/pages/AICreditPage'));
+const ActivitySummaryPage = lazyRetry(() => import('@/features/ai/pages/ActivitySummaryPage'));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -441,6 +445,12 @@ export default function App() {
                   }
                 >
                   <Route path="/communications" element={<Suspense fallback={<PageLoader />}><CommunicationPage /></Suspense>} />
+                </Route>
+
+                {/* AI — Credits & Activity */}
+                <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}>
+                  <Route path="/ai/credits" element={<Suspense fallback={<PageLoader />}><AICreditPage /></Suspense>} />
+                  <Route path="/ai/activity" element={<Suspense fallback={<PageLoader />}><ActivitySummaryPage /></Suspense>} />
                 </Route>
 
                 {/* Audit Logs */}

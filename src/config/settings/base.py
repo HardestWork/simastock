@@ -88,6 +88,7 @@ LOCAL_APPS = [
     "accounting",
     "delivery",
     "communications",
+    "ai",
     "api",
 ]
 
@@ -291,6 +292,12 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 3600,  # every hour (for scheduled campaigns)
     },
 }
+
+# AI (Claude)
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+AI_MODEL_DEFAULT = env("AI_MODEL_DEFAULT", default="claude-sonnet-4-20250514")
+AI_MODEL_COMPLEX = env("AI_MODEL_COMPLEX", default="claude-opus-4-20250514")
+AI_ENABLED = bool(ANTHROPIC_API_KEY)
 
 # Web Push (VAPID)
 WEBPUSH_VAPID_PRIVATE_KEY = env("WEBPUSH_VAPID_PRIVATE_KEY", default="")
