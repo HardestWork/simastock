@@ -140,6 +140,10 @@ export default function CreditDetailPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [latestReceiptUrl, setLatestReceiptUrl] = useState<string | null>(null);
 
+  // --- Credit limit editing state ---
+  const [editingLimit, setEditingLimit] = useState(false);
+  const [newLimit, setNewLimit] = useState('');
+
   // --- Queries ---
   const {
     data: account,
@@ -207,6 +211,21 @@ export default function CreditDetailPage() {
     },
   });
 
+  // --- Credit limit mutation ---
+  const { mutate: updateLimit, isPending: limitPending } = useMutation({
+    mutationFn: (creditLimit: string) =>
+      creditApi.updateAccount(accountId, { credit_limit: creditLimit }),
+    onSuccess: () => {
+      toast.success('Limite de credit mise a jour.');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.creditAccounts.detail(accountId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.creditAccounts.all });
+      setEditingLimit(false);
+    },
+    onError: (err: unknown) => {
+      toast.error(extractApiError(err));
+    },
+  });
+
   // --- Loading / error states ---
   if (accountLoading) {
     return (
@@ -262,7 +281,42 @@ export default function CreditDetailPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">Limite de credit</span>
-            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 dark:text-gray-100">{formatCurrency(account.credit_limit)}</p>
+            {editingLimit ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={newLimit}
+                  onChange={(e) => setNewLimit(e.target.value)}
+                  className="w-40 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none dark:bg-gray-700 dark:text-gray-100"
+                  placeholder="0 = illimite"
+                  autoFocus
+                />
+                <button
+                  onClick={() => updateLimit(newLimit || '0')}
+                  disabled={limitPending}
+                  className="px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {limitPending ? '...' : 'OK'}
+                </button>
+                <button
+                  onClick={() => setEditingLimit(false)}
+                  className="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-sm"
+                >
+                  Annuler
+                </button>
+              </div>
+            ) : (
+              <p
+                className="text-lg font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-primary flex items-center gap-2"
+                onClick={() => { setNewLimit(account.credit_limit); setEditingLimit(true); }}
+                title="Cliquer pour modifier"
+              >
+                {parseFloat(account.credit_limit) === 0 ? 'Illimite' : formatCurrency(account.credit_limit)}
+                <span className="text-xs text-gray-400">(modifier)</span>
+              </p>
+            )}
           </div>
           <div>
             <span className="text-sm text-gray-500 dark:text-gray-400">Solde</span>

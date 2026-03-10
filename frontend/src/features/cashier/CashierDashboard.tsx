@@ -5,7 +5,7 @@ import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreStore } from '@/store-context/store-store';
 import StatusBadge from '@/components/shared/StatusBadge';
-import { DollarSign, Clock, AlertCircle, Banknote, Lock, CheckCircle, Smartphone, Building2, CreditCard, History } from 'lucide-react';
+import { DollarSign, Clock, AlertCircle, Banknote, Lock, CheckCircle, Smartphone, Building2, CreditCard, History, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/lib/toast';
@@ -373,6 +373,15 @@ export default function CashierDashboard() {
             <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatCurrency(shift.totals.total_credit_payments)}</p>
           </div>
         </div>
+        {parseFloat(shift.totals.total_refunds ?? '0') > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-red-200 dark:border-red-700 p-4 flex items-center gap-3">
+            <RotateCcw size={20} className="text-red-600" />
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Remboursements ({shift.totals.refund_count ?? 0})</p>
+              <p className="text-lg font-bold text-red-600">-{formatCurrency(shift.totals.total_refunds)}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Session info */}

@@ -877,6 +877,9 @@ export interface CashShiftTotals {
   total_mobile_payments: string;
   total_bank_payments: string;
   total_credit_payments: string;
+  total_refunds?: string;
+  refund_count?: number;
+  net_sales?: string;
 }
 
 export type ShiftStatus = 'OPEN' | 'CLOSED';

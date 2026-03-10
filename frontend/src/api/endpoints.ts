@@ -869,6 +869,9 @@ export const creditApi = {
   getAccount: (id: string) =>
     apiClient.get<CustomerAccount>(`credit-accounts/${id}/`).then((r) => r.data),
 
+  updateAccount: (id: string, data: Partial<CustomerAccount>) =>
+    apiClient.patch<CustomerAccount>(`credit-accounts/${id}/`, data).then((r) => r.data),
+
   ledger: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<CreditLedgerEntry>>('credit-ledger/', { params }).then((r) => r.data),
 

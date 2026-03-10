@@ -326,7 +326,8 @@ def process_payment(
             account = CustomerAccount.objects.filter(
                 store=sale.store, customer_id=sale.customer_id, is_active=True,
             ).first()
-            if account and account.available_credit < credit_total:
+            # credit_limit == 0 means unlimited credit (consistent with record_credit_sale)
+            if account and account.credit_limit > 0 and account.available_credit < credit_total:
                 raise ValueError(
                     f"Limite de credit insuffisante. "
                     f"Disponible: {account.available_credit}, demande: {credit_total}."
@@ -586,6 +587,25 @@ def calculate_shift_totals(shift: CashShift) -> dict[str, Decimal]:
         .aggregate(total=Sum("amount"))["total"]
     ) or Decimal("0")
 
+    # Calculate refunds during this shift
+    total_refunds = Decimal("0")
+    refund_count = 0
+    try:
+        from sales.models import Refund
+        end = shift.closed_at or timezone.now()
+        shift_refunds = Refund.objects.filter(
+            store=shift.store,
+            created_at__gte=shift.opened_at,
+            created_at__lt=end,
+        )
+        total_refunds = (
+            shift_refunds.aggregate(total=Sum("amount"))["total"]
+            or Decimal("0")
+        )
+        refund_count = shift_refunds.count()
+    except Exception:
+        pass
+
     return {
         "total_sales": total_sales,
         "total_cash": total_cash,
@@ -594,6 +614,9 @@ def calculate_shift_totals(shift: CashShift) -> dict[str, Decimal]:
         "total_credit": total_credit,
         "total_cheque": total_cheque,
         "payment_count": payments.count(),
+        "total_refunds": total_refunds,
+        "refund_count": refund_count,
+        "net_sales": total_sales - total_refunds,
     }
 
 

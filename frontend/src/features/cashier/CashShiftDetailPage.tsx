@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { cashShiftApi, saleApi } from '@/api/endpoints';
 import { formatCurrency } from '@/lib/currency';
-import { ArrowLeft, Clock, Banknote, CreditCard, Smartphone, Receipt, FileText } from 'lucide-react';
+import { ArrowLeft, Clock, Banknote, CreditCard, Smartphone, Receipt, FileText, RotateCcw } from 'lucide-react';
 import type { Sale } from '@/api/types';
 
 export default function CashShiftDetailPage() {
@@ -165,6 +165,20 @@ export default function CashShiftDetailPage() {
               <span className="text-gray-500 dark:text-gray-400">Ventes totales</span>
               <span className="text-gray-900 dark:text-gray-100 font-medium">{formatCurrency(totals.total_sales)}</span>
             </div>
+            {parseFloat(totals.total_refunds ?? '0') > 0 && (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2 text-red-500">
+                    <RotateCcw size={14} /> Remboursements ({totals.refund_count ?? 0})
+                  </span>
+                  <span className="text-red-600 font-medium">-{formatCurrency(totals.total_refunds)}</span>
+                </div>
+                <div className="flex justify-between border-t border-gray-100 dark:border-gray-700 pt-3">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">Ventes nettes</span>
+                  <span className="text-gray-900 dark:text-gray-100 font-bold">{formatCurrency(totals.net_sales)}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

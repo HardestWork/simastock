@@ -78,30 +78,37 @@ def check_pending_payments():
 
     alert_count = 0
 
+    alert_data_list = []
+    
     for sale in pending_sales:
         sale_id = str(sale.pk)
         if sale_id in existing_sale_ids:
             continue
         hours_waiting = (timezone.now() - sale.submitted_at).total_seconds() / 3600
-        create_alert(
-            store=sale.store,
-            alert_type=Alert.Type.PENDING_PAYMENT_TIMEOUT,
-            severity=Alert.Severity.WARNING,
-            title=f"Paiement en attente : {sale.invoice_number}",
-            message=(
+        alert_data_list.append({
+            "store": sale.store,
+            "alert_type": Alert.Type.PENDING_PAYMENT_TIMEOUT,
+            "severity": Alert.Severity.WARNING,
+            "title": f"Paiement en attente : {sale.invoice_number}",
+            "message": (
                 f"La vente {sale.invoice_number} est en attente de paiement "
                 f"depuis {hours_waiting:.1f} heures (seuil: {threshold_hours}h). "
                 f"Vendeur : {sale.seller.get_full_name()}."
             ),
-            payload={
+            "payload": {
                 "sale_id": sale_id,
                 "invoice_number": sale.invoice_number,
                 "total": str(sale.total),
                 "hours_waiting": round(hours_waiting, 1),
             },
-        )
+        })
         existing_sale_ids.add(sale_id)
-        alert_count += 1
+
+    if alert_data_list:
+        from alerts.services import bulk_create_alerts
+        bulk_create_alerts(alert_data_list)
+        
+    alert_count = len(alert_data_list)
 
     logger.info("check_pending_payments completed: %d alerts created.", alert_count)
     return f"{alert_count} alerts created"
@@ -136,32 +143,39 @@ def check_abnormal_discounts():
 
     alert_count = 0
 
+    alert_data_list = []
+
     for sale in sales:
         if check_discount_anomaly(sale):
             sale_id = str(sale.pk)
             if sale_id in existing_sale_ids:
                 continue
-            create_alert(
-                store=sale.store,
-                alert_type=Alert.Type.ABNORMAL_DISCOUNT,
-                severity=Alert.Severity.WARNING,
-                title=f"Remise anormale : {sale.invoice_number}",
-                message=(
+            alert_data_list.append({
+                "store": sale.store,
+                "alert_type": Alert.Type.ABNORMAL_DISCOUNT,
+                "severity": Alert.Severity.WARNING,
+                "title": f"Remise anormale : {sale.invoice_number}",
+                "message": (
                     f"La vente {sale.invoice_number} a une remise de "
                     f"{sale.discount_percent}% ({sale.discount_amount} "
                     f"{getattr(settings, 'CURRENCY', 'FCFA')}). "
                     f"Vendeur : {sale.seller.get_full_name()}."
                 ),
-                payload={
+                "payload": {
                     "sale_id": sale_id,
                     "invoice_number": sale.invoice_number,
                     "discount_percent": str(sale.discount_percent),
                     "discount_amount": str(sale.discount_amount),
                     "seller": sale.seller.get_full_name(),
                 },
-            )
+            })
             existing_sale_ids.add(sale_id)
-            alert_count += 1
+
+    if alert_data_list:
+        from alerts.services import bulk_create_alerts
+        bulk_create_alerts(alert_data_list)
+        
+    alert_count = len(alert_data_list)
 
     logger.info("check_abnormal_discounts completed: %d alerts created.", alert_count)
     return f"{alert_count} alerts created"
@@ -198,6 +212,8 @@ def check_cash_variance():
 
     alert_count = 0
 
+    alert_data_list = []
+
     for shift in closed_shifts:
         shift_id = str(shift.pk)
         if shift_id in existing_shift_ids:
@@ -208,27 +224,32 @@ def check_cash_variance():
             if abs_variance > Decimal("20000")
             else Alert.Severity.WARNING
         )
-        create_alert(
-            store=shift.store,
-            alert_type=Alert.Type.CASH_VARIANCE,
-            severity=severity,
-            title=f"Ecart de caisse : {shift.cashier.get_full_name()}",
-            message=(
+        alert_data_list.append({
+            "store": shift.store,
+            "alert_type": Alert.Type.CASH_VARIANCE,
+            "severity": severity,
+            "title": f"Ecart de caisse : {shift.cashier.get_full_name()}",
+            "message": (
                 f"La session de caisse de {shift.cashier.get_full_name()} "
                 f"fermee le {shift.closed_at:%d/%m/%Y %H:%M} presente un "
                 f"ecart de {shift.variance} "
                 f"{getattr(settings, 'CURRENCY', 'FCFA')}."
             ),
-            payload={
+            "payload": {
                 "shift_id": shift_id,
                 "cashier": shift.cashier.get_full_name(),
                 "variance": str(shift.variance),
                 "expected_cash": str(shift.expected_cash),
                 "closing_cash": str(shift.closing_cash),
             },
-        )
+        })
         existing_shift_ids.add(shift_id)
-        alert_count += 1
+
+    if alert_data_list:
+        from alerts.services import bulk_create_alerts
+        bulk_create_alerts(alert_data_list)
+        
+    alert_count = len(alert_data_list)
 
     logger.info("check_cash_variance completed: %d alerts created.", alert_count)
     return f"{alert_count} alerts created"

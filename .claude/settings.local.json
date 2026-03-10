@@ -54,7 +54,20 @@
       "Bash(for category in chat clinic crm crypto filemanager hospital hotel hrms inventory invoice job pos rental school service time)",
       "Bash(do echo \"=== $category ===\" find \"c:/Users/amado/Desktop/Systeme de gestion boutique/preadmin-v3.6.9/html/html/$category\" -maxdepth 1 -name \"*.html\" -type f)",
       "Bash(done)",
-      "Bash(xargs -I {} basename {})"
+      "Bash(xargs -I {} basename {})",
+      "Bash(xargs grep -l \"url\\\\|path\\\\|route\")",
+      "Bash(xargs grep -l objective)",
+      "Bash(xargs grep -l \"whatsapp\\\\|wa\\\\.me\\\\|WhatsApp\")",
+      "Bash(xargs grep -l \"invoice\\\\|receipt\\\\|pdf\")",
+      "Bash(npm install -D vite-plugin-pwa)",
+      "Bash(pip install Pillow -q)",
+      "Bash(DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose build frontend)",
+      "Bash(npm install -D vitest jsdom fake-indexeddb)",
+      "Bash(npx vitest run src/__tests__/offline-db.test.ts)",
+      "Bash(npx vitest run)",
+      "Bash(npx vitest run src/__tests__/token-storage.test.ts src/__tests__/auth-store.test.ts)",
+      "Bash(npx vitest run src/__tests__/auth-store.test.ts --tb=short)",
+      "Bash(npx vitest run src/__tests__/auth-store.test.ts)"
     ]
   }
 }

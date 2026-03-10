@@ -142,6 +142,46 @@ def create_alert(store, alert_type, severity, title, message, payload=None):
     return alert
 
 
+def bulk_create_alerts(alert_data_list):
+    """Create multiple alerts in a single bulk insert and optionally trigger push notifications.
+
+    Parameters
+    ----------
+    alert_data_list : list of dict
+        Each dict must contain:
+        - store: Store instance
+        - alert_type: str
+        - severity: str
+        - title: str
+        - message: str
+        - payload: dict (optional)
+        
+    Returns
+    -------
+    list of Alert
+        The created Alert instances (note: IDs may not be populated depending on the DB backend).
+    """
+    alerts_to_create = []
+    for data in alert_data_list:
+        alerts_to_create.append(
+            Alert(
+                store=data["store"],
+                alert_type=data["alert_type"],
+                severity=data["severity"],
+                title=data["title"],
+                message=data["message"],
+                payload=data.get("payload", {}),
+            )
+        )
+        
+    if not alerts_to_create:
+        return []
+        
+    created_alerts = Alert.objects.bulk_create(alerts_to_create)
+    logger.info("Bulk created %d alerts", len(created_alerts))
+    return created_alerts
+
+
 def create_stock_level_alert_for_product_stock(product_stock, existing_today_keys=None):
     """Create a low/out-of-stock alert for one ProductStock row.
 

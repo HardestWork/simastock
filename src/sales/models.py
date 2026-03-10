@@ -326,10 +326,11 @@ class Sale(TimeStampedModel):
         Call this after adding/removing/updating items.  Does **not** call
         ``save()`` -- the caller is responsible for persisting changes.
         """
-        items = self.items.all()
-        self.subtotal = sum(
-            (item.line_total for item in items), Decimal("0.00")
-        )
+        from django.db.models import Sum
+        
+        # Use database aggregation instead of fetching all items to memory
+        agg = self.items.aggregate(total=Sum("line_total"))
+        self.subtotal = agg["total"] or Decimal("0.00")
 
         # Apply sale-level discount
         if self.discount_percent > 0:
@@ -492,10 +493,11 @@ class SaleItem(TimeStampedModel):
 
         super().save(*args, **kwargs)
 
-        # Keep sale totals in sync for any direct quantity/price/discount edit.
-        from sales.services import recalculate_sale
+        if not kwargs.get("skip_recalculate", False):
+            # Keep sale totals in sync for any direct quantity/price/discount edit.
+            from sales.services import recalculate_sale
 
-        recalculate_sale(self.sale)
+            recalculate_sale(self.sale)
 
     def delete(self, *args, **kwargs):
         sale = self.sale
@@ -788,10 +790,11 @@ class Quote(TimeStampedModel):
         Same logic as Sale.recalculate_totals() but without amount_paid/due.
         Does **not** call ``save()`` -- the caller persists changes.
         """
-        items = self.items.all()
-        self.subtotal = sum(
-            (item.line_total for item in items), Decimal("0.00")
-        )
+        from django.db.models import Sum
+
+        # Use database aggregation instead of fetching all items to memory
+        agg = self.items.aggregate(total=Sum("line_total"))
+        self.subtotal = agg["total"] or Decimal("0.00")
 
         if self.discount_percent > 0:
             self.discount_amount = (
