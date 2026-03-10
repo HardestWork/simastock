@@ -185,7 +185,7 @@ def _get_product_stock(params: dict, store) -> dict:
             "prix_vente": str(p.selling_price or 0),
             "prix_achat": str(p.cost_price or 0),
             "stock": stock.quantity if stock else 0,
-            "stock_min": stock.min_quantity if stock else 0,
+            "stock_min": stock.min_qty if stock else 0,
             "categorie": p.category.name if p.category else "",
         })
 
@@ -269,7 +269,7 @@ def _get_low_stock_products(params: dict, store) -> dict:
         ProductStock.objects.filter(
             store=store,
             product__is_active=True,
-            quantity__lte=F("min_quantity"),
+            quantity__lte=F("min_qty"),
         )
         .select_related("product")
         .order_by("quantity")[:limit]
@@ -280,8 +280,8 @@ def _get_low_stock_products(params: dict, store) -> dict:
             {
                 "nom": ps.product.name,
                 "stock": ps.quantity,
-                "seuil_min": ps.min_quantity,
-                "ecart": ps.quantity - ps.min_quantity,
+                "seuil_min": ps.min_qty,
+                "ecart": ps.quantity - ps.min_qty,
             }
             for ps in low
         ],
