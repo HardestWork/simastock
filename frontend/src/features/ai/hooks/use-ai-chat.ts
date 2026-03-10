@@ -2,6 +2,8 @@
 import { useCallback, useRef } from 'react';
 import { useAIStore } from '../ai-store';
 import apiClient from '@/api/client';
+import { getCsrfToken } from '@/auth/csrf-storage';
+import { getAccessToken } from '@/auth/token-storage';
 import type { AIStreamEvent, AIChatResponse, AIConversation } from '../types';
 
 const BASE = '/api/v1/';
@@ -34,23 +36,30 @@ export function useAIChat() {
     setStreaming(true);
     resetStreamContent();
 
-    // Get auth token from cookie or localStorage
-    const token = document.cookie
-      .split('; ')
-      .find(c => c.startsWith('access_token='))
-      ?.split('=')[1];
-
+    // Build headers with auth + CSRF
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+
+    // Auth token (Bearer)
+    const accessToken = getAccessToken();
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    } else {
+      // Fallback: try cookie
+      const cookieToken = document.cookie
+        .split('; ')
+        .find(c => c.startsWith('access_token='))
+        ?.split('=')[1];
+      if (cookieToken) {
+        headers['Authorization'] = `Bearer ${cookieToken}`;
+      }
     }
 
-    // Also try to get from apiClient defaults
-    const authHeader = (apiClient.defaults.headers.common as Record<string, string>)?.['Authorization'];
-    if (authHeader) {
-      headers['Authorization'] = authHeader;
+    // CSRF token (required for POST with credentials)
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
     }
 
     const controller = new AbortController();

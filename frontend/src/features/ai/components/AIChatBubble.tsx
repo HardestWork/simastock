@@ -1,15 +1,28 @@
 /** Floating AI chat bubble — appears on all authenticated pages. */
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import { useAIStore } from '../ai-store';
 
 const AIChatPanel = lazy(() => import('./AIChatPanel'));
 
 export default function AIChatBubble() {
-  const { isOpen, toggleOpen } = useAIStore();
+  const { isOpen, toggleOpen, setOpen } = useAIStore();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close on click outside
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen, setOpen]);
 
   return (
-    <>
+    <div ref={containerRef}>
       {/* Floating button */}
       <button
         onClick={toggleOpen}
@@ -37,6 +50,6 @@ export default function AIChatBubble() {
           <AIChatPanel />
         </Suspense>
       )}
-    </>
+    </div>
   );
 }
