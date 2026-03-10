@@ -234,11 +234,9 @@ def _get_sales_summary(params: dict, store) -> dict:
         status__in=["PAID", "PARTIALLY_PAID"],
     )
 
-    agg = sales.aggregate(
-        total=Sum("total"),
-        count=Count("id"),
-        avg_basket=Avg("total"),
-    )
+    total_sum = sales.aggregate(s=Sum("total"))["s"] or 0
+    sale_count = sales.count()
+    avg_basket = total_sum / sale_count if sale_count else 0
 
     # Top 5 products
     from sales.models import SaleItem
@@ -251,9 +249,9 @@ def _get_sales_summary(params: dict, store) -> dict:
 
     return {
         "periode": period,
-        "total_ventes": str(agg["total"] or 0),
-        "nombre_ventes": agg["count"] or 0,
-        "panier_moyen": str(round(agg["avg_basket"] or 0, 0)),
+        "total_ventes": str(total_sum),
+        "nombre_ventes": sale_count,
+        "panier_moyen": str(round(avg_basket, 0)),
         "top_produits": [
             {"nom": t["product__name"], "quantite": t["qty"], "chiffre_affaires": str(t["revenue"])}
             for t in top
