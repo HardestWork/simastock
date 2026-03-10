@@ -6,6 +6,7 @@ from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from .models import (
@@ -16,6 +17,18 @@ from .services.assistant import chat, stream_chat
 
 logger = logging.getLogger("boutique")
 
+MAX_MESSAGE_LENGTH = 2000  # chars — prevents token abuse
+
+
+class AIChatThrottle(UserRateThrottle):
+    """Strict rate limit for AI chat endpoints (costly API calls)."""
+    scope = "ai_chat"
+
+
+class AICreditThrottle(UserRateThrottle):
+    """Rate limit for credit operations."""
+    scope = "ai_credit"
+
 
 # ---------------------------------------------------------------------------
 # Chat endpoint (non-streaming)
@@ -25,6 +38,7 @@ class AIChatView(APIView):
     """Send a message to the AI assistant and get a complete response."""
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AIChatThrottle]
 
     def post(self, request):
         store = getattr(request, "current_store", None)
@@ -38,6 +52,12 @@ class AIChatView(APIView):
         if not message:
             return Response(
                 {"detail": "Le message est requis."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if len(message) > MAX_MESSAGE_LENGTH:
+            return Response(
+                {"detail": f"Le message ne peut pas depasser {MAX_MESSAGE_LENGTH} caracteres."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -54,7 +74,7 @@ class AIChatView(APIView):
         except Exception as e:
             logger.exception("AI chat error: %s", e)
             return Response(
-                {"detail": f"Erreur IA: {str(e)}"},
+                {"detail": "Une erreur est survenue avec l'assistant IA. Veuillez reessayer."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -67,6 +87,7 @@ class AIChatStreamView(APIView):
     """Stream a chat response via Server-Sent Events."""
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AIChatThrottle]
 
     def post(self, request):
         store = getattr(request, "current_store", None)
@@ -83,6 +104,12 @@ class AIChatStreamView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if len(message) > MAX_MESSAGE_LENGTH:
+            return Response(
+                {"detail": f"Le message ne peut pas depasser {MAX_MESSAGE_LENGTH} caracteres."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         conversation_id = request.data.get("conversation_id")
 
         def event_stream():
@@ -95,7 +122,7 @@ class AIChatStreamView(APIView):
                 )
             except Exception as e:
                 logger.exception("AI stream error: %s", e)
-                yield f'data: {json.dumps({"type": "error", "detail": str(e)})}\n\n'
+                yield f'data: {json.dumps({"type": "error", "detail": "Une erreur est survenue. Veuillez reessayer."})}\n\n'
 
         response = StreamingHttpResponse(
             event_stream(),
@@ -289,6 +316,7 @@ class AICreditAddView(APIView):
     """Add AI credits to an enterprise (admin only)."""
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AICreditThrottle]
 
     def post(self, request):
         user = request.user

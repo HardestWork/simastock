@@ -342,6 +342,8 @@ REST_FRAMEWORK = {
         # Password reset is stricter to limit email enumeration / spam
         "password_reset": env("DRF_THROTTLE_PASSWORD_RESET", default="5/min"),
         "document_verify": "15/min",
+        "ai_chat": "20/min",
+        "ai_credit": "10/min",
     },
 }
 

@@ -57,6 +57,10 @@ export default function AICreditPage() {
       setPaymentRef('');
       setAmountFcfa('');
     },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail || "Erreur lors de l'ajout des credits.";
+      alert(detail);
+    },
   });
 
   return (
