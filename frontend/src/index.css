@@ -63,6 +63,13 @@ body {
 .pread-card:hover {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
+.dark .pread-card {
+  background: #1f2937;
+  border-color: #374151;
+}
+.dark .pread-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
 
 /* ── Table base ── */
 .pread-table th {
@@ -75,6 +82,10 @@ body {
   padding: 10px 20px;
   white-space: nowrap;
 }
+.dark .pread-table th {
+  background-color: #1f2937;
+  color: #9ca3af;
+}
 .pread-table td {
   padding: 10px 20px;
   vertical-align: middle;
@@ -82,11 +93,18 @@ body {
   color: #212B36;
   border-bottom: 1px solid #F3F4F6;
 }
+.dark .pread-table td {
+  color: #e5e7eb;
+  border-bottom-color: #374151;
+}
 .pread-table tr:last-child td {
   border-bottom: none;
 }
 .pread-table tr:hover td {
   background-color: #FAFAFA;
+}
+.dark .pread-table tr:hover td {
+  background-color: #1f2937;
 }
 
 @media print {
