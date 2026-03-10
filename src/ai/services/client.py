@@ -96,7 +96,7 @@ def check_and_consume_credits(enterprise, amount: int = 1):
 
     balance, _ = AICreditBalance.objects.get_or_create(
         enterprise=enterprise,
-        defaults={"balance": 0},
+        defaults={"balance": 100},
     )
     balance.consume(amount)
 

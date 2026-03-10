@@ -304,7 +304,7 @@ class AICreditBalanceView(APIView):
 
         balance, _ = AICreditBalance.objects.get_or_create(
             enterprise=enterprise,
-            defaults={"balance": 0},
+            defaults={"balance": 100},
         )
         return Response({
             "balance": balance.balance,
@@ -345,7 +345,7 @@ class AICreditAddView(APIView):
 
         balance, _ = AICreditBalance.objects.get_or_create(
             enterprise=enterprise,
-            defaults={"balance": 0},
+            defaults={"balance": 100},
         )
         balance.add(amount)
 
