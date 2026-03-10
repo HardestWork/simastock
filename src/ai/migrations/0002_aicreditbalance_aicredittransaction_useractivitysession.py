@@ -70,8 +70,8 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'sessions activite',
                 'ordering': ['-date', '-last_heartbeat'],
                 'indexes': [
-                    models.Index(fields=['user', 'date'], name='ai_useracti_user_id_idx'),
-                    models.Index(fields=['store', 'date'], name='ai_useracti_store_i_idx'),
+                    models.Index(fields=['user', 'date'], name='ai_useracti_user_id_ef35ac_idx'),
+                    models.Index(fields=['store', 'date'], name='ai_useracti_store_i_0299a8_idx'),
                 ],
             },
         ),
