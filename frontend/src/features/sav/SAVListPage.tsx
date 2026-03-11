@@ -2,12 +2,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { savApi } from '@/api/endpoints';
-import type { SAVTicket, SAVStatus, SAVPriority } from '@/api/types';
+import type { SAVTicket } from '@/api/types';
 import { toast } from '@/lib/toast';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/currency';
 import {
-  Search, Plus, X, ChevronRight, Wrench, Clock, CheckCircle2, AlertTriangle,
-  XCircle, Package, RotateCcw, Eye, UserPlus, ClipboardList, ArrowRight,
+  Search, Plus, X, Wrench, Clock, AlertTriangle,
+  Package, ClipboardList, ArrowRight,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -88,7 +88,7 @@ export default function SAVListPage() {
   });
 
   const createMut = useMutation({
-    mutationFn: (d: typeof form) => savApi.create(d),
+    mutationFn: (d: typeof form) => savApi.create(d as unknown as Partial<SAVTicket>),
     onSuccess: () => {
       toast.success('Dossier SAV cree');
       qc.invalidateQueries({ queryKey: ['sav-tickets'] });
