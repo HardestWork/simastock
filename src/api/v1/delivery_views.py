@@ -223,6 +223,7 @@ class DeliverySerializer(serializers.ModelSerializer):
             "id", "store", "sale", "sale_invoice", "agent", "agent_name", "agent_phone",
             "zone", "zone_name", "zone_fee", "status",
             "delivery_address", "recipient_name", "recipient_phone",
+            "collector_name", "collector_phone",
             "scheduled_at", "picked_up_at", "delivered_at",
             "confirmation_code", "notes", "metadata",
             "payout_amount", "expense", "expense_number",
@@ -247,6 +248,7 @@ class DeliveryCreateSerializer(serializers.ModelSerializer):
         fields = [
             "sale", "agent", "zone",
             "delivery_address", "recipient_name", "recipient_phone",
+            "collector_name", "collector_phone",
             "scheduled_at", "notes", "payout_amount",
             "pickup_location", "pickup_notes",
         ]
@@ -259,6 +261,8 @@ class DeliveryCreateSerializer(serializers.ModelSerializer):
             "payout_amount": {"required": False, "allow_null": True},
             "pickup_location": {"required": False, "allow_null": True},
             "pickup_notes": {"required": False},
+            "collector_name": {"required": False},
+            "collector_phone": {"required": False},
         }
 
 

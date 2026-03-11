@@ -192,6 +192,8 @@ function DeliveriesTab({ storeId }: { storeId: string }) {
   const [formRecipient, setFormRecipient] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formAddress, setFormAddress] = useState('');
+  const [formCollectorName, setFormCollectorName] = useState('');
+  const [formCollectorPhone, setFormCollectorPhone] = useState('');
   const [formZone, setFormZone] = useState('');
   const [formAgent, setFormAgent] = useState('');
   const [formNotes, setFormNotes] = useState('');
@@ -252,6 +254,8 @@ function DeliveriesTab({ storeId }: { storeId: string }) {
         recipient_name: formRecipient.trim(),
         recipient_phone: formPhone.trim(),
         delivery_address: formAddress.trim(),
+        collector_name: formCollectorName.trim() || undefined,
+        collector_phone: formCollectorPhone.trim() || undefined,
         zone: formZone || undefined,
         agent: formAgent || undefined,
         notes: formNotes.trim(),
@@ -276,6 +280,8 @@ function DeliveriesTab({ storeId }: { storeId: string }) {
     setFormRecipient('');
     setFormPhone('');
     setFormAddress('');
+    setFormCollectorName('');
+    setFormCollectorPhone('');
     setFormZone('');
     setFormAgent('');
     setFormNotes('');
@@ -566,6 +572,13 @@ function DeliveriesTab({ storeId }: { storeId: string }) {
                 <p className="text-gray-500 dark:text-gray-400">Adresse</p>
                 <p className="font-medium text-gray-900 dark:text-gray-100">{d.delivery_address}</p>
               </div>
+              {d.collector_name && (
+                <div>
+                  <p className="text-gray-500 dark:text-gray-400">Recuperateur</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{d.collector_name}</p>
+                  {d.collector_phone && <p className="text-xs text-gray-500">{d.collector_phone}</p>}
+                </div>
+              )}
               <div>
                 <p className="text-gray-500 dark:text-gray-400">Zone</p>
                 <p className="font-medium text-gray-900 dark:text-gray-100">
@@ -962,6 +975,18 @@ function DeliveriesTab({ storeId }: { storeId: string }) {
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Adresse de livraison *</label>
                     <input type="text" value={formAddress} onChange={(e) => setFormAddress(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Recuperateur (si different du destinataire)</label>
+                    <input type="text" value={formCollectorName} onChange={(e) => setFormCollectorName(e.target.value)}
+                      placeholder="Nom de la personne qui recupere"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Tel. recuperateur</label>
+                    <input type="text" value={formCollectorPhone} onChange={(e) => setFormCollectorPhone(e.target.value)}
+                      placeholder="Telephone du recuperateur"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-gray-100" />
                   </div>
                   <div>

@@ -2955,6 +2955,8 @@ export interface Delivery {
   delivery_address: string;
   recipient_name: string;
   recipient_phone: string;
+  collector_name: string;
+  collector_phone: string;
   scheduled_at: string | null;
   picked_up_at: string | null;
   delivered_at: string | null;

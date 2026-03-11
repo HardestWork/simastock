@@ -213,6 +213,19 @@ class Delivery(TimeStampedModel):
         related_name="deliveries",
         verbose_name="emplacement de recuperation",
     )
+    collector_name = models.CharField(
+        "nom du recuperateur",
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Personne qui vient recuperer le colis (si different du destinataire).",
+    )
+    collector_phone = models.CharField(
+        "telephone du recuperateur",
+        max_length=30,
+        blank=True,
+        default="",
+    )
     pickup_notes = models.TextField("notes de recuperation", blank=True, default="")
     pickup_code = models.CharField(
         "code de recuperation",

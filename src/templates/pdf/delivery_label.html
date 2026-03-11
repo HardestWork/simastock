@@ -18,7 +18,6 @@
             justify-content: space-between;
             align-items: center;
         }
-        .header-left { }
         .header-left .company { font-size: 15pt; font-weight: 800; letter-spacing: 0.5px; }
         .header-left .store { font-size: 8pt; margin-top: 1mm; opacity: 0.85; }
         .header-left .phone { font-size: 8pt; margin-top: 0.5mm; opacity: 0.85; }
@@ -42,7 +41,7 @@
         /* ── Main content: 2 columns ── */
         .content {
             display: flex;
-            min-height: 80mm;
+            min-height: 82mm;
         }
         .col-left {
             width: 55%;
@@ -65,22 +64,22 @@
             border-bottom: 1px solid #eee;
             padding-bottom: 1.5mm;
         }
-        .section { margin-bottom: 4mm; }
+        .section { margin-bottom: 5mm; }
 
-        /* ── Destinataire ── */
-        .dest-name {
+        /* ── Person block ── */
+        .person-name {
             font-size: 15pt;
             font-weight: 900;
             color: #111;
             line-height: 1.2;
         }
-        .dest-phone {
+        .person-phone {
             font-size: 11pt;
             font-weight: 700;
             color: #333;
             margin-top: 1.5mm;
         }
-        .dest-address {
+        .person-address {
             font-size: 9pt;
             color: #444;
             margin-top: 2mm;
@@ -96,6 +95,25 @@
             font-weight: 800;
             margin-top: 3mm;
             letter-spacing: 0.5px;
+        }
+
+        /* ── Collector (smaller) ── */
+        .collector-name {
+            font-size: 12pt;
+            font-weight: 800;
+            color: #111;
+        }
+        .collector-phone {
+            font-size: 10pt;
+            font-weight: 600;
+            color: #333;
+            margin-top: 1mm;
+        }
+        .collector-note {
+            font-size: 7.5pt;
+            color: #888;
+            margin-top: 1.5mm;
+            font-style: italic;
         }
 
         /* ── Codes ── */
@@ -135,32 +153,21 @@
             color: #555;
         }
 
-        /* ── Contenu colis (table) ── */
-        .items table { width: 100%; border-collapse: collapse; }
-        .items th {
-            font-size: 7pt;
-            text-transform: uppercase;
-            color: #888;
-            text-align: left;
-            padding: 1.5mm 0;
-            border-bottom: 1px solid #ddd;
-            letter-spacing: 0.5px;
-        }
-        .items th.right { text-align: right; }
-        .items td {
-            font-size: 8.5pt;
-            padding: 2mm 0;
-            color: #333;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .items td.right { text-align: right; }
-        .items .total-row td {
-            font-weight: 900;
-            font-size: 10pt;
-            border-top: 2px solid #333;
-            border-bottom: none;
-            padding-top: 2.5mm;
+        /* ── Livreur ── */
+        .agent-name {
+            font-size: 11pt;
+            font-weight: 700;
             color: #111;
+        }
+        .agent-phone {
+            font-size: 9pt;
+            color: #555;
+            margin-top: 1mm;
+        }
+        .agent-vehicle {
+            font-size: 8pt;
+            color: #888;
+            margin-top: 1mm;
         }
 
         /* ── Notes ── */
@@ -208,27 +215,34 @@
         <!-- ═══ Content: 2 columns ═══ -->
         <div class="content">
 
-            <!-- Left column: Destinataire + Codes -->
+            <!-- Left column: Destinataire + Recuperateur -->
             <div class="col-left">
+
+                <!-- Destinataire (client final) -->
                 <div class="section">
                     <div class="section-title">Destinataire</div>
-                    <div class="dest-name">{{ delivery.recipient_name }}</div>
-                    <div class="dest-phone">{{ delivery.recipient_phone }}</div>
-                    <div class="dest-address">{{ delivery.delivery_address }}</div>
+                    <div class="person-name">{{ delivery.recipient_name }}</div>
+                    <div class="person-phone">{{ delivery.recipient_phone }}</div>
+                    <div class="person-address">{{ delivery.delivery_address }}</div>
                     {% if delivery.zone %}
                     <span class="zone-badge">{{ delivery.zone.name }}</span>
                     {% endif %}
                 </div>
 
-                <div class="codes">
-                    <div class="code-box">
-                        <div class="code-label">Code confirmation</div>
-                        <div class="code-value">{{ delivery.confirmation_code }}</div>
-                    </div>
-                    <div class="code-box pickup">
-                        <div class="code-label">Code recuperation</div>
-                        <div class="code-value">{{ delivery.pickup_code }}</div>
-                    </div>
+                <!-- Recuperateur (personne qui vient chercher) -->
+                <div class="section">
+                    <div class="section-title">Recuperateur du colis</div>
+                    {% if delivery.collector_name %}
+                        <div class="collector-name">{{ delivery.collector_name }}</div>
+                        {% if delivery.collector_phone %}
+                        <div class="collector-phone">{{ delivery.collector_phone }}</div>
+                        {% endif %}
+                        <div class="collector-note">Personne autorisee a recuperer le colis</div>
+                    {% else %}
+                        <div class="collector-name">{{ delivery.recipient_name }}</div>
+                        <div class="collector-phone">{{ delivery.recipient_phone }}</div>
+                        <div class="collector-note">Le destinataire recupere lui-meme</div>
+                    {% endif %}
                 </div>
 
                 {% if delivery.notes %}
@@ -238,51 +252,45 @@
                 {% endif %}
             </div>
 
-            <!-- Right column: Contenu du colis -->
+            <!-- Right column: Codes + Livreur -->
             <div class="col-right">
-                {% if items %}
-                <div class="section items">
-                    <div class="section-title">Contenu du colis ({{ total_qty }} article{{ total_qty|pluralize }})</div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Article</th>
-                                <th class="right">Qte</th>
-                                <th class="right">Montant</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in items %}
-                            <tr>
-                                <td>{{ item.product_name }}</td>
-                                <td class="right">{{ item.quantity }}</td>
-                                <td class="right">{{ item.line_total|floatformat:0 }}</td>
-                            </tr>
-                            {% endfor %}
-                            <tr class="total-row">
-                                <td>TOTAL</td>
-                                <td class="right">{{ total_qty }}</td>
-                                <td class="right">{{ total_amount }} FCFA</td>
-                            </tr>
-                        </tbody>
-                    </table>
+
+                <!-- Codes -->
+                <div class="section">
+                    <div class="section-title">Codes de verification</div>
+                    <div class="codes">
+                        <div class="code-box">
+                            <div class="code-label">Confirmation livraison</div>
+                            <div class="code-value">{{ delivery.confirmation_code }}</div>
+                        </div>
+                    </div>
+                    <div class="codes">
+                        <div class="code-box pickup">
+                            <div class="code-label">Recuperation (interne)</div>
+                            <div class="code-value">{{ delivery.pickup_code }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Livreur -->
+                {% if delivery.agent %}
+                <div class="section">
+                    <div class="section-title">Livreur assigne</div>
+                    <div class="agent-name">{{ delivery.agent.name }}</div>
+                    {% if delivery.agent.phone %}
+                    <div class="agent-phone">{{ delivery.agent.phone }}</div>
+                    {% endif %}
+                    {% if delivery.agent.vehicle_type %}
+                    <div class="agent-vehicle">{{ delivery.agent.get_vehicle_type_display }}</div>
+                    {% endif %}
                 </div>
                 {% else %}
                 <div class="section">
-                    <div class="section-title">Contenu du colis</div>
-                    <p style="font-size: 8pt; color: #888; margin-top: 3mm;">Aucun article lie</p>
+                    <div class="section-title">Livreur</div>
+                    <div style="font-size: 9pt; color: #888; font-style: italic;">Non assigne</div>
                 </div>
                 {% endif %}
 
-                {% if delivery.agent %}
-                <div class="section" style="margin-top: 3mm;">
-                    <div class="section-title">Livreur</div>
-                    <div style="font-size: 10pt; font-weight: 700;">{{ delivery.agent.name }}</div>
-                    {% if delivery.agent.phone %}
-                    <div style="font-size: 8pt; color: #555;">{{ delivery.agent.phone }}</div>
-                    {% endif %}
-                </div>
-                {% endif %}
             </div>
 
         </div>
