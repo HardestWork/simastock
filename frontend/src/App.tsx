@@ -119,6 +119,9 @@ const VerifyDocumentPage = lazyRetry(() => import('@/features/verify/VerifyDocum
 const DeliveryListPage = lazyRetry(() => import('@/features/delivery/DeliveryListPage'));
 const DeliveryTrackPage = lazyRetry(() => import('@/features/delivery/DeliveryTrackPage'));
 
+// SAV
+const SAVListPage = lazyRetry(() => import('@/features/sav/SAVListPage'));
+
 // Communications
 const CommunicationPage = lazyRetry(() => import('@/features/communications/CommunicationPage'));
 
@@ -435,6 +438,17 @@ export default function App() {
                   }
                 >
                   <Route path="/delivery" element={<Suspense fallback={<PageLoader />}><DeliveryListPage /></Suspense>} />
+                </Route>
+
+                {/* SAV */}
+                <Route
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={['ADMIN', 'MANAGER', 'STOCKER', 'SALES', 'SALES_CASHIER']}
+                    />
+                  }
+                >
+                  <Route path="/sav" element={<Suspense fallback={<PageLoader />}><SAVListPage /></Suspense>} />
                 </Route>
 
                 {/* Communications */}

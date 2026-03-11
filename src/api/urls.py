@@ -13,6 +13,7 @@ from api.v1 import dg_views as dg_views
 from api.v1 import hrm_views as hrm_api_views
 from api.v1 import delivery_views as delivery_api_views
 from api.v1 import communication_views as communication_api_views
+from api.v1 import sav_views as sav_api_views
 from ai import views as ai_views
 from api.auth_views import (
     CookieTokenObtainPairView,
@@ -122,6 +123,10 @@ router.register(r'delivery/pickup-locations', delivery_api_views.DeliveryPickupL
 router.register(r'communications/templates', communication_api_views.MessageTemplateViewSet, basename='communication-template')
 router.register(r'communications/logs', communication_api_views.MessageLogViewSet, basename='communication-log')
 router.register(r'communications/campaigns', communication_api_views.CampaignViewSet, basename='communication-campaign')
+
+# SAV (Service Apres-Vente)
+router.register(r'sav/tickets', sav_api_views.SAVTicketViewSet, basename='sav-ticket')
+router.register(r'sav/quotes', sav_api_views.SAVQuoteViewSet, basename='sav-quote')
 
 # Accounting (SYSCOHADA)
 # Phase 3 — Améliorations modules existants

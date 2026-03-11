@@ -432,6 +432,13 @@ const navItems: NavItem[] = [
     roles: ['ADMIN', 'MANAGER', 'SALES', 'SALES_CASHIER', 'STOCKER', 'DELIVERY'],
   },
   {
+    section: 'LOGISTIQUE',
+    path: '/sav',
+    label: 'SAV',
+    icon: <Wrench size={16} />,
+    roles: ['ADMIN', 'MANAGER', 'STOCKER', 'SALES', 'SALES_CASHIER'],
+  },
+  {
     section: 'RH',
     path: '/hrm',
     label: 'Ressources Humaines',

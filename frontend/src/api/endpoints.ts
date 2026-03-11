@@ -159,6 +159,8 @@ import type {
   RecurringSale,
   RecurringSaleItem,
   CashShiftDenomination,
+  SAVTicket,
+  SAVDashboard,
 } from './types';
 import type { Capability } from './types';
 
@@ -1954,4 +1956,37 @@ export const denominationsApi = {
     apiClient.get<PaginatedResponse<CashShiftDenomination>>(`cash-shifts/${shiftId}/denominations/`).then(r => r.data),
   save: (shiftId: string, data: { denomination: number; count: number }) =>
     apiClient.post<CashShiftDenomination>(`cash-shifts/${shiftId}/denominations/`, data).then(r => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// SAV (Service Apres-Vente)
+// ---------------------------------------------------------------------------
+
+export const savApi = {
+  list: (params?: Record<string, string>) =>
+    apiClient.get<PaginatedResponse<SAVTicket>>('sav/tickets/', { params }).then(r => r.data),
+  get: (id: string) =>
+    apiClient.get<SAVTicket>(`sav/tickets/${id}/`).then(r => r.data),
+  create: (data: Partial<SAVTicket>) =>
+    apiClient.post<SAVTicket>('sav/tickets/', data).then(r => r.data),
+  update: (id: string, data: Partial<SAVTicket>) =>
+    apiClient.patch<SAVTicket>(`sav/tickets/${id}/`, data).then(r => r.data),
+  delete: (id: string) =>
+    apiClient.delete(`sav/tickets/${id}/`),
+  updateStatus: (id: string, data: { status: string; reason?: string }) =>
+    apiClient.post<SAVTicket>(`sav/tickets/${id}/update-status/`, data).then(r => r.data),
+  assignTechnician: (id: string, technicianId: string) =>
+    apiClient.post<SAVTicket>(`sav/tickets/${id}/assign-technician/`, { technician: technicianId }).then(r => r.data),
+  diagnose: (id: string, data: Record<string, unknown>) =>
+    apiClient.post<SAVTicket>(`sav/tickets/${id}/diagnose/`, data).then(r => r.data),
+  addRepairAction: (id: string, data: { description: string; duration_minutes?: number; notes?: string }) =>
+    apiClient.post(`sav/tickets/${id}/add-repair-action/`, data).then(r => r.data),
+  usePart: (id: string, data: { product: string; quantity: number; unit_cost?: number; repair_action?: string }) =>
+    apiClient.post(`sav/tickets/${id}/use-part/`, data).then(r => r.data),
+  confirmReturn: (id: string, data: { code: string; returned_to?: string; return_notes?: string }) =>
+    apiClient.post<SAVTicket>(`sav/tickets/${id}/confirm-return/`, data).then(r => r.data),
+  uploadPhoto: (id: string, formData: FormData) =>
+    apiClient.post(`sav/tickets/${id}/upload-photo/`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  dashboard: () =>
+    apiClient.get<SAVDashboard>('sav/tickets/dashboard/').then(r => r.data),
 };

@@ -3260,3 +3260,172 @@ export interface CashShiftDenomination {
   amount: number;
 }
 
+// ---------------------------------------------------------------------------
+// SAV (Service Apres-Vente)
+// ---------------------------------------------------------------------------
+
+export type SAVStatus =
+  | 'RECEIVED' | 'DIAGNOSING' | 'AWAITING_CLIENT' | 'IN_REPAIR'
+  | 'AWAITING_PART' | 'REPAIRED' | 'NOT_REPAIRABLE' | 'READY'
+  | 'RETURNED' | 'CLOSED' | 'REFUSED';
+
+export type SAVPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type SAVWarranty = 'UNDER' | 'OUT' | 'UNKNOWN';
+export type SAVCondition = 'GOOD' | 'SCRATCHED' | 'DAMAGED' | 'BROKEN';
+
+export interface SAVStatusHistory {
+  id: string;
+  from_status: string;
+  to_status: string;
+  changed_by: string | null;
+  changed_by_name: string | null;
+  reason: string;
+  created_at: string;
+}
+
+export interface SAVPhoto {
+  id: string;
+  ticket: string;
+  image: string;
+  caption: string;
+  phase: string;
+  created_at: string;
+}
+
+export interface SAVDiagnosisPart {
+  id: string;
+  product: string | null;
+  product_name: string | null;
+  description: string;
+  quantity: number;
+  unit_cost: number;
+  in_stock: boolean;
+}
+
+export interface SAVDiagnosis {
+  id: string;
+  ticket: string;
+  technician: string | null;
+  technician_name: string | null;
+  diagnosis: string;
+  probable_cause: string;
+  proposed_solution: string;
+  estimated_cost: number;
+  estimated_days: number;
+  is_repairable: boolean;
+  notes: string;
+  parts_needed: SAVDiagnosisPart[];
+  created_at: string;
+}
+
+export interface SAVQuoteLine {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_type: string;
+  line_total: number;
+}
+
+export interface SAVQuote {
+  id: string;
+  ticket: string;
+  reference: string;
+  status: string;
+  parts_total: number;
+  labor_cost: number;
+  total: number;
+  valid_until: string;
+  accepted_at: string | null;
+  refused_at: string | null;
+  client_notes: string;
+  created_by: string | null;
+  created_by_name: string | null;
+  lines: SAVQuoteLine[];
+  created_at: string;
+}
+
+export interface SAVRepairAction {
+  id: string;
+  ticket: string;
+  technician: string | null;
+  technician_name: string | null;
+  description: string;
+  duration_minutes: number | null;
+  notes: string;
+  created_at: string;
+}
+
+export interface SAVPartUsed {
+  id: string;
+  ticket: string;
+  repair_action: string | null;
+  product: string | null;
+  product_name: string | null;
+  quantity: number;
+  unit_cost: number;
+  movement: string | null;
+  created_at: string;
+}
+
+export interface SAVTicket {
+  id: string;
+  store: string;
+  reference: string;
+  status: SAVStatus;
+  status_display: string;
+  priority: SAVPriority;
+  priority_display: string;
+  customer: string | null;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  customer_display: string;
+  product: string | null;
+  product_name: string | null;
+  brand_name: string;
+  model_name: string;
+  serial_number: string;
+  product_condition: SAVCondition;
+  condition_display: string;
+  warranty_status: SAVWarranty;
+  warranty_display: string;
+  warranty_end_date: string | null;
+  declared_issue: string;
+  accessories: string;
+  received_by: string | null;
+  received_by_name: string | null;
+  technician: string | null;
+  technician_name: string | null;
+  diagnosed_at: string | null;
+  repair_started_at: string | null;
+  repaired_at: string | null;
+  returned_at: string | null;
+  closed_at: string | null;
+  return_code: string;
+  returned_to: string;
+  return_notes: string;
+  is_paid_repair: boolean;
+  total_cost: number;
+  sale: string | null;
+  notes: string;
+  metadata: Record<string, unknown>;
+  status_history: SAVStatusHistory[];
+  photos: SAVPhoto[];
+  diagnosis: SAVDiagnosis | null;
+  quotes: SAVQuote[];
+  repair_actions: SAVRepairAction[];
+  parts_used: SAVPartUsed[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SAVDashboard {
+  month_received: number;
+  total_active: number;
+  by_status: Record<string, number>;
+  avg_repair_days: number | null;
+  repair_rate: number;
+  top_brands: { brand_name: string; count: number }[];
+}
+

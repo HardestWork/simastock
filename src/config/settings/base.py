@@ -88,6 +88,7 @@ LOCAL_APPS = [
     "accounting",
     "delivery",
     "communications",
+    "sav",
     "ai",
     "api",
 ]
