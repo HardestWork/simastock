@@ -231,6 +231,9 @@ urlpatterns = [
     # Public invoice PDF download (no auth — for WhatsApp sharing)
     path('invoices/dl/<str:token>/', v1_views.InvoiceDownloadView.as_view(), name='invoice-download'),
 
+    # Public delivery tracking (no auth required)
+    path('delivery/track/<str:code>/', delivery_api_views.DeliveryTrackView.as_view(), name='delivery-track'),
+
     # (Phase 3 denominations are handled as an action on CashShiftViewSet)
 
     # AI Assistant

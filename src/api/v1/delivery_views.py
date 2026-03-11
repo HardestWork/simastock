@@ -5,8 +5,9 @@ from django.utils import timezone
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from api.v1.permissions import IsManagerOrAdmin, ModuleDeliveryEnabled
 from api.v1.views import _user_store_ids
@@ -522,9 +523,12 @@ class DeliveryViewSet(viewsets.ModelViewSet):
                     body = render_template(tpl.body, ctx)
                     channel = tpl.channel
                 elif new_status == Delivery.Status.IN_TRANSIT:
+                    from django.conf import settings as dj_settings
+                    track_url = f"{dj_settings.FRONTEND_URL}/track/{delivery.confirmation_code}"
                     body = (
                         f"Bonjour {delivery.recipient_name}, votre colis est en route vers "
-                        f"{delivery.delivery_address}. Code de confirmation: {delivery.confirmation_code}"
+                        f"{delivery.delivery_address}. Code de confirmation: {delivery.confirmation_code}\n"
+                        f"Suivez votre colis: {track_url}"
                     )
                     channel = "SMS"
                 else:
@@ -893,6 +897,55 @@ class AgentObjectiveViewSet(viewsets.ModelViewSet):
         agent, period, store = instance.agent, instance.period, instance.store
         instance.delete()
         _recompute_agent_stats(agent, period, store)
+
+
+class DeliveryTrackView(APIView):
+    """Public (no auth) endpoint for customers to track their delivery."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, code):
+        delivery = (
+            Delivery.objects.filter(confirmation_code=code)
+            .select_related("zone", "store", "agent")
+            .prefetch_related("status_history")
+            .first()
+        )
+        if not delivery:
+            return Response(
+                {"detail": "Aucune livraison trouvée avec ce code."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Status timeline from history
+        timeline = [
+            {
+                "from_status": h.from_status,
+                "to_status": h.to_status,
+                "label": dict(Delivery.Status.choices).get(h.to_status, h.to_status),
+                "date": h.created_at.isoformat(),
+                "reason": h.reason,
+            }
+            for h in delivery.status_history.all().order_by("created_at")
+        ]
+
+        data = {
+            "confirmation_code": delivery.confirmation_code,
+            "status": delivery.status,
+            "status_display": delivery.get_status_display(),
+            "recipient_name": delivery.recipient_name,
+            "delivery_address": delivery.delivery_address,
+            "store_name": delivery.store.name if delivery.store else None,
+            "zone_name": delivery.zone.name if delivery.zone else None,
+            "agent_name": delivery.agent.name if delivery.agent else None,
+            "scheduled_at": delivery.scheduled_at.isoformat() if delivery.scheduled_at else None,
+            "picked_up_at": delivery.picked_up_at.isoformat() if delivery.picked_up_at else None,
+            "delivered_at": delivery.delivered_at.isoformat() if delivery.delivered_at else None,
+            "created_at": delivery.created_at.isoformat(),
+            "timeline": timeline,
+        }
+        return Response(data)
 
 
 class DeliveryPickupLocationViewSet(viewsets.ModelViewSet):
