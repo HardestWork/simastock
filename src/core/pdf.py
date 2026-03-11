@@ -476,6 +476,46 @@ def generate_quote_pdf(quote, store):
     return render_pdf(template_name, context, filename)
 
 
+def generate_delivery_label_pdf(delivery, store):
+    """Generate a shipping label PDF (100x150mm) for a delivery."""
+    from django.utils import timezone
+
+    invoice_config = _build_invoice_config(store)
+
+    # Sale items
+    items = []
+    total_qty = 0
+    total_amount = Decimal("0")
+    if delivery.sale_id:
+        items = list(delivery.sale.items.select_related("product").all())
+        for item in items:
+            total_qty += item.quantity
+            total_amount += item.line_total or Decimal("0")
+
+    status_class_map = {
+        "PENDING": "pending",
+        "PREPARING": "preparing",
+        "READY": "ready",
+        "IN_TRANSIT": "transit",
+    }
+
+    context = {
+        "delivery": delivery,
+        "store": store,
+        "business_name": invoice_config.get("business_name", store.name),
+        "store_phone": invoice_config.get("phone", ""),
+        "primary_color": invoice_config.get("primary_color", "#0F4C9A"),
+        "items": items,
+        "total_qty": total_qty,
+        "total_amount": f"{total_amount:,.0f}".replace(",", " "),
+        "status_class": status_class_map.get(delivery.status, "pending"),
+        "now": timezone.now(),
+    }
+    code = delivery.confirmation_code or str(delivery.pk)[:8]
+    filename = _safe_pdf_filename(f"COLIS-{code}", fallback="etiquette-livraison")
+    return render_pdf("pdf/delivery_label.html", context, filename)
+
+
 def generate_cashier_operations_report_pdf(
     *,
     store,

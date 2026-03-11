@@ -1816,6 +1816,8 @@ export const deliveryApi = {
       apiClient.post<Delivery>(`delivery/deliveries/${id}/mark-ready/`).then(r => r.data),
     confirmPickup: (id: string, data: { code: string }) =>
       apiClient.post<Delivery>(`delivery/deliveries/${id}/confirm-pickup/`, data).then(r => r.data),
+    printLabel: (id: string) =>
+      apiClient.get<Blob>(`delivery/deliveries/${id}/print-label/`, { responseType: 'blob' }).then(r => r.data),
   },
 };
 

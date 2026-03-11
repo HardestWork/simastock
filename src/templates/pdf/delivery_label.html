@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A5 landscape; margin: 6mm; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #111; }
+
+        .label { width: 100%; border: 2.5px solid #111; overflow: hidden; }
+
+        /* ── Header band ── */
+        .header {
+            background: {{ primary_color|default:"#0F4C9A" }};
+            color: #fff;
+            padding: 5mm 7mm;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-left { }
+        .header-left .company { font-size: 15pt; font-weight: 800; letter-spacing: 0.5px; }
+        .header-left .store { font-size: 8pt; margin-top: 1mm; opacity: 0.85; }
+        .header-left .phone { font-size: 8pt; margin-top: 0.5mm; opacity: 0.85; }
+        .header-right { text-align: right; }
+        .header-right .status {
+            display: inline-block;
+            padding: 2mm 5mm;
+            border-radius: 3px;
+            font-size: 9pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            background: rgba(255,255,255,0.25);
+            color: #fff;
+        }
+        .header-right .date {
+            font-size: 7pt;
+            margin-top: 2mm;
+            opacity: 0.7;
+        }
+
+        /* ── Main content: 2 columns ── */
+        .content {
+            display: flex;
+            min-height: 80mm;
+        }
+        .col-left {
+            width: 55%;
+            padding: 5mm 6mm;
+            border-right: 2px dashed #bbb;
+        }
+        .col-right {
+            width: 45%;
+            padding: 5mm 6mm;
+        }
+
+        /* ── Section styling ── */
+        .section-title {
+            font-size: 7pt;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 2mm;
+            font-weight: 700;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1.5mm;
+        }
+        .section { margin-bottom: 4mm; }
+
+        /* ── Destinataire ── */
+        .dest-name {
+            font-size: 15pt;
+            font-weight: 900;
+            color: #111;
+            line-height: 1.2;
+        }
+        .dest-phone {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #333;
+            margin-top: 1.5mm;
+        }
+        .dest-address {
+            font-size: 9pt;
+            color: #444;
+            margin-top: 2mm;
+            line-height: 1.4;
+        }
+        .zone-badge {
+            display: inline-block;
+            background: {{ primary_color|default:"#0F4C9A" }};
+            color: #fff;
+            border-radius: 3px;
+            padding: 1.5mm 4mm;
+            font-size: 9pt;
+            font-weight: 800;
+            margin-top: 3mm;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Codes ── */
+        .codes {
+            display: flex;
+            gap: 4mm;
+            margin-bottom: 4mm;
+        }
+        .code-box {
+            flex: 1;
+            text-align: center;
+            border: 2px solid #333;
+            border-radius: 4px;
+            padding: 3mm 2mm;
+        }
+        .code-box.pickup {
+            border-style: dashed;
+            border-color: #888;
+            background: #f9f9f9;
+        }
+        .code-box .code-label {
+            font-size: 6.5pt;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 1.5mm;
+        }
+        .code-box .code-value {
+            font-size: 20pt;
+            font-weight: 900;
+            letter-spacing: 3px;
+            font-family: 'Courier New', monospace;
+            color: #111;
+        }
+        .code-box.pickup .code-value {
+            font-size: 16pt;
+            color: #555;
+        }
+
+        /* ── Contenu colis (table) ── */
+        .items table { width: 100%; border-collapse: collapse; }
+        .items th {
+            font-size: 7pt;
+            text-transform: uppercase;
+            color: #888;
+            text-align: left;
+            padding: 1.5mm 0;
+            border-bottom: 1px solid #ddd;
+            letter-spacing: 0.5px;
+        }
+        .items th.right { text-align: right; }
+        .items td {
+            font-size: 8.5pt;
+            padding: 2mm 0;
+            color: #333;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .items td.right { text-align: right; }
+        .items .total-row td {
+            font-weight: 900;
+            font-size: 10pt;
+            border-top: 2px solid #333;
+            border-bottom: none;
+            padding-top: 2.5mm;
+            color: #111;
+        }
+
+        /* ── Notes ── */
+        .notes {
+            margin-top: 3mm;
+            padding: 2mm 3mm;
+            background: #f8f8f8;
+            border-radius: 2px;
+            font-size: 7.5pt;
+            color: #666;
+            font-style: italic;
+            line-height: 1.4;
+        }
+
+        /* ── Footer bar ── */
+        .footer-bar {
+            background: #f4f4f4;
+            border-top: 1px solid #ddd;
+            padding: 2.5mm 7mm;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 7pt;
+            color: #888;
+        }
+        .footer-bar .ref { font-weight: 700; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="label">
+
+        <!-- ═══ Header ═══ -->
+        <div class="header">
+            <div class="header-left">
+                <div class="company">{{ business_name }}</div>
+                <div class="store">{{ store.name }}</div>
+                {% if store_phone %}<div class="phone">Tel: {{ store_phone }}</div>{% endif %}
+            </div>
+            <div class="header-right">
+                <div class="status">{{ delivery.get_status_display }}</div>
+                <div class="date">{{ now|date:"d/m/Y H:i" }}</div>
+            </div>
+        </div>
+
+        <!-- ═══ Content: 2 columns ═══ -->
+        <div class="content">
+
+            <!-- Left column: Destinataire + Codes -->
+            <div class="col-left">
+                <div class="section">
+                    <div class="section-title">Destinataire</div>
+                    <div class="dest-name">{{ delivery.recipient_name }}</div>
+                    <div class="dest-phone">{{ delivery.recipient_phone }}</div>
+                    <div class="dest-address">{{ delivery.delivery_address }}</div>
+                    {% if delivery.zone %}
+                    <span class="zone-badge">{{ delivery.zone.name }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="codes">
+                    <div class="code-box">
+                        <div class="code-label">Code confirmation</div>
+                        <div class="code-value">{{ delivery.confirmation_code }}</div>
+                    </div>
+                    <div class="code-box pickup">
+                        <div class="code-label">Code recuperation</div>
+                        <div class="code-value">{{ delivery.pickup_code }}</div>
+                    </div>
+                </div>
+
+                {% if delivery.notes %}
+                <div class="notes">
+                    <strong>Notes:</strong> {{ delivery.notes }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right column: Contenu du colis -->
+            <div class="col-right">
+                {% if items %}
+                <div class="section items">
+                    <div class="section-title">Contenu du colis ({{ total_qty }} article{{ total_qty|pluralize }})</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Article</th>
+                                <th class="right">Qte</th>
+                                <th class="right">Montant</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.product_name }}</td>
+                                <td class="right">{{ item.quantity }}</td>
+                                <td class="right">{{ item.line_total|floatformat:0 }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="total-row">
+                                <td>TOTAL</td>
+                                <td class="right">{{ total_qty }}</td>
+                                <td class="right">{{ total_amount }} FCFA</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="section">
+                    <div class="section-title">Contenu du colis</div>
+                    <p style="font-size: 8pt; color: #888; margin-top: 3mm;">Aucun article lie</p>
+                </div>
+                {% endif %}
+
+                {% if delivery.agent %}
+                <div class="section" style="margin-top: 3mm;">
+                    <div class="section-title">Livreur</div>
+                    <div style="font-size: 10pt; font-weight: 700;">{{ delivery.agent.name }}</div>
+                    {% if delivery.agent.phone %}
+                    <div style="font-size: 8pt; color: #555;">{{ delivery.agent.phone }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- ═══ Footer ═══ -->
+        <div class="footer-bar">
+            <div>
+                {% if delivery.sale and delivery.sale.invoice_number %}
+                <span class="ref">Ref: {{ delivery.sale.invoice_number }}</span>
+                {% endif %}
+                {% if delivery.scheduled_at %}
+                &nbsp;&middot;&nbsp; Prevu: {{ delivery.scheduled_at|date:"d/m/Y H:i" }}
+                {% endif %}
+            </div>
+            <div>
+                Imprime le {{ now|date:"d/m/Y" }} a {{ now|date:"H:i" }}
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

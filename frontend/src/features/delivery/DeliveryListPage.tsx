@@ -12,7 +12,7 @@ import Pagination from '@/components/shared/Pagination';
 import {
   Truck, MapPin, Users, Plus, Search, X,
   Package, Clock, CheckCircle, AlertTriangle,
-  Bell, BarChart2, Target, Radio, UserCheck, KeyRound,
+  Bell, BarChart2, Target, Radio, UserCheck, KeyRound, Printer,
 } from 'lucide-react';
 import type {
   Delivery, DeliveryZone, DeliveryAgent, DeliveryPickupLocation,
@@ -526,6 +526,21 @@ function DeliveriesTab({ storeId }: { storeId: string }) {
                   </svg>
                   {d.agent_name ? 'WhatsApp livreur' : 'Partager WhatsApp'}
                 </a>
+                <button
+                  onClick={async () => {
+                    try {
+                      const blob = await deliveryApi.deliveries.printLabel(d.id);
+                      const url = URL.createObjectURL(blob);
+                      window.open(url, '_blank');
+                    } catch (err) {
+                      toast.error(extractApiError(err));
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-50 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100 dark:bg-gray-700/30 dark:text-gray-300 dark:border-gray-600"
+                >
+                  <Printer size={14} />
+                  Etiquette colis
+                </button>
                 <button
                   onClick={() => { setEscalateTarget(d); setEscalateReason(''); }}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800"

@@ -853,6 +853,13 @@ class DeliveryViewSet(viewsets.ModelViewSet):
             "broadcast": qs.filter(is_broadcast=True, agent__isnull=True).count(),
         })
 
+    @action(detail=True, methods=["get"], url_path="print-label")
+    def print_label(self, request, pk=None):
+        """Generate a printable shipping label (A5 landscape) for a delivery."""
+        delivery = self.get_object()
+        from core.pdf import generate_delivery_label_pdf
+        return generate_delivery_label_pdf(delivery, delivery.store)
+
 
 class AgentObjectiveViewSet(viewsets.ModelViewSet):
     serializer_class = AgentObjectiveSerializer
