@@ -1,5 +1,6 @@
 /** SAV (Service Apres-Vente) — Page complete avec gestion des dossiers. */
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { savApi } from '@/api/endpoints';
 import type { SAVTicket, SAVDashboard } from '@/api/types';
@@ -904,9 +905,10 @@ function CreateTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucc
 // ---------------------------------------------------------------------------
 
 function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className={`bg-card rounded-xl shadow-2xl ${wide ? 'w-full max-w-2xl' : 'w-full max-w-lg'} max-h-[90vh] overflow-y-auto`}>
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ isolation: 'isolate' }}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative bg-card rounded-xl shadow-2xl ${wide ? 'w-full max-w-2xl' : 'w-full max-w-lg'} max-h-[90vh] overflow-y-auto`}>
         <div className="sticky top-0 z-10 bg-card border-b px-5 py-4 flex items-center justify-between rounded-t-xl">
           <h2 className="text-lg font-bold text-foreground">{title}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-accent transition-colors">
@@ -915,7 +917,8 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
         </div>
         <div className="p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
