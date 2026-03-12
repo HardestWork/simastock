@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A4; margin: 20mm; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #333; line-height: 1.5; }
+
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid {{ primary_color|default:"#2563eb" }}; }
+        .company-info h1 { font-size: 24pt; color: {{ primary_color|default:"#2563eb" }}; margin-bottom: 5px; }
+        .company-info p { font-size: 9pt; color: #666; }
+        .doc-meta { text-align: right; }
+        .doc-meta h2 { font-size: 18pt; color: #333; margin-bottom: 10px; }
+        .doc-meta .label { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .doc-meta .value { font-size: 11pt; font-weight: bold; color: #333; }
+
+        .parties { display: flex; justify-content: space-between; margin-bottom: 25px; }
+        .party { width: 48%; }
+        .party h3 { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .party p { font-size: 10pt; }
+
+        .section { margin-bottom: 20px; }
+        .section h3 { font-size: 11pt; color: {{ primary_color|default:"#2563eb" }}; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid #e2e8f0; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        thead th { background: #f8fafc; padding: 10px 12px; text-align: left; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.5px; color: #666; border-bottom: 2px solid #e2e8f0; }
+        thead th.right { text-align: right; }
+        tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 10pt; }
+        tbody td.right { text-align: right; }
+        tbody tr:nth-child(even) { background: #fafbfc; }
+
+        .info-grid { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-bottom: 15px; }
+        .info-item { flex: 0 0 45%; }
+        .info-item .lbl { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        .info-item .val { font-size: 10pt; font-weight: 500; }
+
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 9pt; font-weight: bold; }
+        .status-returned { background: #dcfce7; color: #166534; }
+        .status-not-repairable { background: #fee2e2; color: #991b1b; }
+
+        .totals { width: 340px; margin-left: auto; }
+        .totals .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 10pt; }
+        .totals .row.total { border-top: 2px solid #333; padding-top: 10px; margin-top: 5px; font-size: 14pt; font-weight: bold; color: {{ primary_color|default:"#2563eb" }}; }
+        .totals .row .label { color: #666; }
+
+        .timeline { position: relative; padding-left: 20px; margin-bottom: 20px; }
+        .timeline::before { content: ''; position: absolute; left: 6px; top: 4px; bottom: 4px; width: 2px; background: #e2e8f0; }
+        .timeline-item { position: relative; margin-bottom: 12px; }
+        .timeline-item::before { content: ''; position: absolute; left: -17px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: {{ primary_color|default:"#2563eb" }}; }
+        .timeline-item .date { font-size: 8pt; color: #999; }
+        .timeline-item .event { font-size: 10pt; }
+
+        .signature-area { display: flex; justify-content: space-between; margin-top: 40px; }
+        .signature-block { width: 45%; text-align: center; }
+        .signature-block .sig-label { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: 1px; border-top: 1px solid #ccc; padding-top: 8px; margin-top: 60px; }
+
+        .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #e2e8f0; }
+        .footer p { font-size: 8pt; color: #999; text-align: center; white-space: pre-line; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-info">
+            {% if invoice_config.logo_uri %}
+            <p style="margin-bottom: 8px;">
+                <img src="{{ invoice_config.logo_uri }}" alt="Logo" style="height:72px; width:auto; max-width:220px;">
+            </p>
+            {% endif %}
+            <h1>{{ invoice_config.business_name }}</h1>
+            {% if invoice_config.address %}<p>{{ invoice_config.address }}</p>{% endif %}
+            <p>
+                {% if invoice_config.phone %}Tel: {{ invoice_config.phone }}{% endif %}
+                {% if invoice_config.phone and invoice_config.email %} &middot; {% endif %}
+                {% if invoice_config.email %}{{ invoice_config.email }}{% endif %}
+            </p>
+            {% if invoice_config.registration_number %}<p>RCCM: {{ invoice_config.registration_number }}</p>{% endif %}
+            {% if invoice_config.tax_id %}<p>NIF: {{ invoice_config.tax_id }}</p>{% endif %}
+        </div>
+        <div class="doc-meta">
+            <h2>FICHE DE RESTITUTION SAV</h2>
+            <div><span class="label">Reference</span> <span class="value">{{ ticket.reference }}</span></div>
+            <div><span class="label">Date de restitution</span> <span class="value">{{ ticket.returned_at|date:"d/m/Y H:i" }}</span></div>
+            <div style="margin-top: 8px;">
+                {% if ticket.status == "NOT_REPAIRABLE" %}
+                <span class="status-badge status-not-repairable">NON REPARABLE</span>
+                {% else %}
+                <span class="status-badge status-returned">RESTITUE</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="parties">
+        <div class="party">
+            <h3>Client</h3>
+            <p><strong>{{ ticket.customer_name }}</strong></p>
+            {% if ticket.customer_phone %}<p>Tel: {{ ticket.customer_phone }}</p>{% endif %}
+            {% if ticket.customer_email %}<p>{{ ticket.customer_email }}</p>{% endif %}
+        </div>
+        <div class="party">
+            <h3>Restitution</h3>
+            <p>Remis a: <strong>{{ ticket.returned_to|default:ticket.customer_name }}</strong></p>
+            <p>Boutique: {{ store.name }}</p>
+            <p>Date de depot: {{ ticket.created_at|date:"d/m/Y" }}</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>Appareil</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="lbl">Marque</div>
+                <div class="val">{{ ticket.brand_name }}</div>
+            </div>
+            <div class="info-item">
+                <div class="lbl">Modele</div>
+                <div class="val">{{ ticket.model_name }}</div>
+            </div>
+            {% if ticket.serial_number %}
+            <div class="info-item">
+                <div class="lbl">N° Serie / IMEI</div>
+                <div class="val">{{ ticket.serial_number }}</div>
+            </div>
+            {% endif %}
+            <div class="info-item">
+                <div class="lbl">Garantie</div>
+                <div class="val">{{ ticket.get_warranty_status_display }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>Panne declaree</h3>
+        <p style="font-size: 10pt;">{{ ticket.declared_issue }}</p>
+    </div>
+
+    {% if diagnosis %}
+    <div class="section">
+        <h3>Diagnostic</h3>
+        <p style="font-size: 10pt; margin-bottom: 6px;"><strong>Resultat :</strong> {{ diagnosis.diagnosis }}</p>
+        {% if diagnosis.probable_cause %}
+        <p style="font-size: 10pt; margin-bottom: 6px;"><strong>Cause probable :</strong> {{ diagnosis.probable_cause }}</p>
+        {% endif %}
+        {% if diagnosis.proposed_solution %}
+        <p style="font-size: 10pt; margin-bottom: 6px;"><strong>Solution :</strong> {{ diagnosis.proposed_solution }}</p>
+        {% endif %}
+        <p style="font-size: 10pt;">
+            <strong>Reparable :</strong> {% if diagnosis.is_repairable %}Oui{% else %}Non{% endif %}
+        </p>
+    </div>
+    {% endif %}
+
+    {% if repair_actions %}
+    <div class="section">
+        <h3>Actions de reparation</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Date</th>
+                    <th style="width: 20%;">Technicien</th>
+                    <th style="width: 45%;">Description</th>
+                    <th style="width: 20%;">Duree</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for action in repair_actions %}
+                <tr>
+                    <td>{{ action.created_at|date:"d/m/Y" }}</td>
+                    <td>{{ action.technician.get_full_name|default:"-" }}</td>
+                    <td>{{ action.description }}</td>
+                    <td>{% if action.duration_minutes %}{{ action.duration_minutes }} min{% else %}-{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if parts_used %}
+    <div class="section">
+        <h3>Pieces utilisees</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Designation</th>
+                    <th style="width: 15%;">Quantite</th>
+                    <th class="right" style="width: 20%;">Cout unitaire</th>
+                    <th class="right" style="width: 25%;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for part in parts_used %}
+                <tr>
+                    <td>{{ part.product.name|default:"Piece" }}</td>
+                    <td>{{ part.quantity }}</td>
+                    <td class="right">{{ part.unit_cost|floatformat:0 }} {{ currency }}</td>
+                    <td class="right">{{ part.line_total|floatformat:0 }} {{ currency }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if ticket.is_paid_repair %}
+    <div class="totals">
+        {% if parts_total %}
+        <div class="row">
+            <span class="label">Total pieces</span>
+            <span>{{ parts_total|floatformat:0 }} {{ currency }}</span>
+        </div>
+        {% endif %}
+        {% if labor_cost %}
+        <div class="row">
+            <span class="label">Main d'oeuvre</span>
+            <span>{{ labor_cost|floatformat:0 }} {{ currency }}</span>
+        </div>
+        {% endif %}
+        <div class="row total">
+            <span>TOTAL</span>
+            <span>{{ ticket.total_cost|floatformat:0 }} {{ currency }}</span>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if status_history %}
+    <div class="section" style="margin-top: 25px;">
+        <h3>Historique du dossier</h3>
+        <div class="timeline">
+            {% for entry in status_history %}
+            <div class="timeline-item">
+                <div class="date">{{ entry.created_at|date:"d/m/Y H:i" }}</div>
+                <div class="event">{{ entry.from_status }} &rarr; {{ entry.to_status }}{% if entry.reason %} — {{ entry.reason }}{% endif %}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if ticket.return_notes %}
+    <div class="section">
+        <h3>Notes de restitution</h3>
+        <p style="font-size: 10pt;">{{ ticket.return_notes }}</p>
+    </div>
+    {% endif %}
+
+    <div class="signature-area">
+        <div class="signature-block">
+            <div class="sig-label">Signature du client ({{ ticket.returned_to|default:ticket.customer_name }})</div>
+        </div>
+        <div class="signature-block">
+            <div class="sig-label">Signature du responsable boutique</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        {% if invoice_config.footer %}
+        <p>{{ invoice_config.footer }}</p>
+        {% else %}
+        <p>{{ invoice_config.business_name }}{% if invoice_config.address %} &middot; {{ invoice_config.address }}{% endif %}</p>
+        {% endif %}
+        <p>Document genere le {{ now|date:"d/m/Y a H:i" }}</p>
+    </div>
+</body>
+</html>

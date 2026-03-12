@@ -64,6 +64,8 @@ class Alert(TimeStampedModel):
         SELF_CHECKOUT = "SELF_CHECKOUT", "Auto-encaissement"
         SUBSCRIPTION_EXPIRING = "SUBSCRIPTION_EXPIRING", "Abonnement bientot expire"
         DELIVERY_LATE = "DELIVERY_LATE", "Livraison en retard"
+        SAV_OVERDUE = "SAV_OVERDUE", "SAV en retard"
+        SAV_READY = "SAV_READY", "SAV pret a restituer"
 
     class Severity(models.TextChoices):
         INFO = "INFO", "Information"

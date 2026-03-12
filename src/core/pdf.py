@@ -516,6 +516,76 @@ def generate_delivery_label_pdf(delivery, store):
     return render_pdf("pdf/delivery_label.html", context, filename)
 
 
+def generate_sav_depot_receipt_pdf(ticket, store):
+    """Generate SAV depot receipt PDF for a ticket."""
+    from django.utils import timezone
+
+    invoice_config = _build_invoice_config(store)
+    received_by_name = ""
+    if ticket.received_by:
+        received_by_name = ticket.received_by.get_full_name() or ticket.received_by.email
+
+    context = {
+        "ticket": ticket,
+        "store": store,
+        "invoice_config": invoice_config,
+        "primary_color": invoice_config.get("primary_color", "#2563eb"),
+        "received_by_name": received_by_name,
+        "now": timezone.now(),
+    }
+    filename = _safe_pdf_filename(f"SAV-DEPOT-{ticket.reference}", fallback="sav-depot")
+    return render_pdf("pdf/sav_depot_receipt.html", context, filename)
+
+
+def generate_sav_return_receipt_pdf(ticket, store):
+    """Generate SAV return/restitution receipt PDF for a ticket."""
+    from django.utils import timezone
+    from django.conf import settings as django_settings
+
+    invoice_config = _build_invoice_config(store)
+    currency = getattr(django_settings, "CURRENCY_SYMBOL", "FCFA")
+
+    # Fetch related data
+    diagnosis = getattr(ticket, "diagnosis", None)
+    try:
+        diagnosis = ticket.diagnosis
+    except Exception:
+        diagnosis = None
+
+    repair_actions = list(ticket.repair_actions.select_related("technician").all())
+    parts_used = list(ticket.parts_used.select_related("product").all())
+    status_history = list(ticket.status_history.select_related("changed_by").all())
+
+    # Compute parts line totals
+    for part in parts_used:
+        part.line_total = part.quantity * part.unit_cost
+
+    # Compute totals from accepted quote if exists
+    parts_total = Decimal("0")
+    labor_cost = Decimal("0")
+    accepted_quote = ticket.quotes.filter(status="ACCEPTED").first()
+    if accepted_quote:
+        parts_total = accepted_quote.parts_total
+        labor_cost = accepted_quote.labor_cost
+
+    context = {
+        "ticket": ticket,
+        "store": store,
+        "invoice_config": invoice_config,
+        "primary_color": invoice_config.get("primary_color", "#2563eb"),
+        "currency": currency,
+        "diagnosis": diagnosis,
+        "repair_actions": repair_actions,
+        "parts_used": parts_used,
+        "parts_total": parts_total,
+        "labor_cost": labor_cost,
+        "status_history": status_history,
+        "now": timezone.now(),
+    }
+    filename = _safe_pdf_filename(f"SAV-RESTITUTION-{ticket.reference}", fallback="sav-restitution")
+    return render_pdf("pdf/sav_return_receipt.html", context, filename)
+
+
 def generate_cashier_operations_report_pdf(
     *,
     store,

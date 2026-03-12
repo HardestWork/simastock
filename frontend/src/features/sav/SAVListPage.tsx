@@ -12,7 +12,7 @@ import {
   Search, Plus, X, Wrench, Clock, AlertTriangle, Phone, Mail, User,
   Package, ClipboardList, ArrowRight, Shield, Tag,
   ChevronDown, ChevronUp, CheckCircle, XCircle,
-  RotateCcw, UserPlus, FileText,
+  RotateCcw, UserPlus, FileText, Download,
   Calendar, TrendingUp, Activity, BarChart3, Star,
 } from 'lucide-react';
 
@@ -545,6 +545,24 @@ function TicketDetail({ ticket: t, onClose }: { ticket: SAVTicket; onClose: () =
           {t.repaired_at && <DateItem label="Repare" value={t.repaired_at} />}
           {t.returned_at && <DateItem label="Restitue" value={t.returned_at} />}
           {t.closed_at && <DateItem label="Cloture" value={t.closed_at} />}
+        </div>
+
+        {/* PDF Downloads */}
+        <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
+          <button
+            onClick={() => window.open(`/api/v1/sav/tickets/${t.id}/depot-receipt/`, '_blank')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" /> Fiche de depot
+          </button>
+          {t.returned_at && (
+            <button
+              onClick={() => window.open(`/api/v1/sav/tickets/${t.id}/return-receipt/`, '_blank')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" /> Fiche de restitution
+            </button>
+          )}
         </div>
 
         {/* Actions */}

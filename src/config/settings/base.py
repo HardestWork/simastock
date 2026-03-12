@@ -293,6 +293,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "communications.tasks.process_campaign",
         "schedule": 3600,  # every hour (for scheduled campaigns)
     },
+    "sav-check-overdue": {
+        "task": "alerts.tasks.check_sav_overdue",
+        "schedule": 3600,  # every hour
+    },
 }
 
 # AI (Claude)

@@ -586,6 +586,25 @@ class SAVTicketViewSet(viewsets.ModelViewSet):
             ),
         })
 
+    @action(detail=True, methods=["get"], url_path="depot-receipt")
+    def depot_receipt(self, request, pk=None):
+        """Generate depot receipt PDF for this SAV ticket."""
+        ticket = self.get_object()
+        from core.pdf import generate_sav_depot_receipt_pdf
+        return generate_sav_depot_receipt_pdf(ticket, ticket.store)
+
+    @action(detail=True, methods=["get"], url_path="return-receipt")
+    def return_receipt(self, request, pk=None):
+        """Generate return/restitution receipt PDF for this SAV ticket."""
+        ticket = self.get_object()
+        if not ticket.returned_at:
+            return Response(
+                {"detail": "Ce dossier n'a pas encore ete restitue."},
+                status=400,
+            )
+        from core.pdf import generate_sav_return_receipt_pdf
+        return generate_sav_return_receipt_pdf(ticket, ticket.store)
+
     # ---- Helpers ----
 
     def _notify_client(self, ticket, new_status):

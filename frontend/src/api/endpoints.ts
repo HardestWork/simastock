@@ -1989,4 +1989,6 @@ export const savApi = {
     apiClient.post(`sav/tickets/${id}/upload-photo/`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
   dashboard: () =>
     apiClient.get<SAVDashboard>('sav/tickets/dashboard/').then(r => r.data),
+  depotReceiptUrl: (id: string) => `sav/tickets/${id}/depot-receipt/`,
+  returnReceiptUrl: (id: string) => `sav/tickets/${id}/return-receipt/`,
 };

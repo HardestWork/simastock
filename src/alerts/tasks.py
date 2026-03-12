@@ -391,3 +391,133 @@ def check_overdue_credits():
 
     logger.info("check_overdue_credits completed: %d alerts created.", alert_count)
     return f"{alert_count} alerts created"
+
+
+@shared_task(name="alerts.tasks.check_sav_overdue")
+def check_sav_overdue():
+    """Find SAV tickets that have been open too long without progress.
+
+    Creates SAV_OVERDUE alerts for tickets in active statuses that have not
+    been updated for more than ``settings.SAV_OVERDUE_DAYS`` days (default 3).
+    Also creates SAV_READY alerts for tickets in READY status that have not
+    been picked up for more than ``settings.SAV_READY_PICKUP_DAYS`` days (default 7).
+    """
+    from alerts.services import create_alert
+    from alerts.models import Alert
+    from sav.models import SAVTicket
+
+    today = date.today()
+    alert_count = 0
+
+    # --- SAV_OVERDUE: tickets stagnating in active statuses ---
+    overdue_days = getattr(settings, "SAV_OVERDUE_DAYS", 3)
+    cutoff = timezone.now() - timedelta(days=overdue_days)
+
+    active_statuses = [
+        SAVTicket.Status.RECEIVED,
+        SAVTicket.Status.DIAGNOSING,
+        SAVTicket.Status.IN_REPAIR,
+        SAVTicket.Status.AWAITING_PART,
+        SAVTicket.Status.AWAITING_CLIENT,
+    ]
+
+    stale_tickets = list(
+        SAVTicket.objects.filter(
+            status__in=active_statuses,
+            updated_at__lte=cutoff,
+        ).select_related("store", "technician")
+    )
+
+    existing_ticket_refs = set(
+        Alert.objects.filter(
+            alert_type=Alert.Type.SAV_OVERDUE,
+            payload__ticket_ref__in=[t.reference for t in stale_tickets],
+            created_at__date=today,
+        ).values_list("payload__ticket_ref", flat=True)
+    )
+
+    for ticket in stale_tickets:
+        if ticket.reference in existing_ticket_refs:
+            continue
+
+        days_stale = (timezone.now() - ticket.updated_at).days
+        severity = (
+            Alert.Severity.CRITICAL if days_stale > 7
+            else Alert.Severity.WARNING
+        )
+        tech_name = ""
+        if ticket.technician:
+            tech_name = ticket.technician.get_full_name() or ticket.technician.email
+
+        create_alert(
+            store=ticket.store,
+            alert_type=Alert.Type.SAV_OVERDUE,
+            severity=severity,
+            title=f"SAV en retard : {ticket.reference}",
+            message=(
+                f"Le dossier SAV {ticket.reference} ({ticket.brand_name} {ticket.model_name}) "
+                f"est en statut '{ticket.get_status_display()}' depuis {days_stale} jour(s). "
+                f"Client : {ticket.customer_name}."
+                f"{f' Technicien : {tech_name}.' if tech_name else ''}"
+            ),
+            payload={
+                "ticket_ref": ticket.reference,
+                "ticket_id": str(ticket.pk),
+                "status": ticket.status,
+                "customer_name": ticket.customer_name,
+                "brand": ticket.brand_name,
+                "model": ticket.model_name,
+                "days_stale": days_stale,
+            },
+        )
+        existing_ticket_refs.add(ticket.reference)
+        alert_count += 1
+
+    # --- SAV_READY: tickets ready for pickup but not collected ---
+    pickup_days = getattr(settings, "SAV_READY_PICKUP_DAYS", 7)
+    pickup_cutoff = timezone.now() - timedelta(days=pickup_days)
+
+    ready_tickets = list(
+        SAVTicket.objects.filter(
+            status__in=[SAVTicket.Status.READY, SAVTicket.Status.REPAIRED],
+            updated_at__lte=pickup_cutoff,
+        ).select_related("store")
+    )
+
+    existing_ready_refs = set(
+        Alert.objects.filter(
+            alert_type=Alert.Type.SAV_READY,
+            payload__ticket_ref__in=[t.reference for t in ready_tickets],
+            created_at__date=today,
+        ).values_list("payload__ticket_ref", flat=True)
+    )
+
+    for ticket in ready_tickets:
+        if ticket.reference in existing_ready_refs:
+            continue
+
+        days_waiting = (timezone.now() - ticket.updated_at).days
+        create_alert(
+            store=ticket.store,
+            alert_type=Alert.Type.SAV_READY,
+            severity=Alert.Severity.INFO,
+            title=f"SAV pret non recupere : {ticket.reference}",
+            message=(
+                f"L'appareil {ticket.brand_name} {ticket.model_name} "
+                f"(dossier {ticket.reference}) est pret depuis {days_waiting} jour(s) "
+                f"mais n'a pas ete recupere par {ticket.customer_name}. "
+                f"Tel: {ticket.customer_phone}."
+            ),
+            payload={
+                "ticket_ref": ticket.reference,
+                "ticket_id": str(ticket.pk),
+                "customer_name": ticket.customer_name,
+                "customer_phone": ticket.customer_phone,
+                "days_waiting": days_waiting,
+            },
+        )
+        existing_ready_refs.add(ticket.reference)
+        alert_count += 1
+
+    logger.info("check_sav_overdue completed: %d alerts created.", alert_count)
+    return f"{alert_count} alerts created"
