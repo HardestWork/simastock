@@ -3427,5 +3427,9 @@ export interface SAVDashboard {
   avg_repair_days: number | null;
   repair_rate: number;
   top_brands: { brand_name: string; count: number }[];
+  monthly_trend: { month: string; received: number; closed: number }[];
+  warranty_breakdown: { under: number; out: number; unknown: number };
+  revenue_month: number;
+  revenue_total: number;
 }
 

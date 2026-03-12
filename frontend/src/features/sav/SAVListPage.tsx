@@ -12,9 +12,12 @@ import {
   Search, Plus, X, Wrench, Clock, AlertTriangle, Phone, Mail, User,
   Package, ClipboardList, ArrowRight, Shield, Tag,
   ChevronDown, ChevronUp, CheckCircle, XCircle,
-  RotateCcw, UserPlus, FileText, Download,
-  Calendar, TrendingUp, Activity, BarChart3, Star,
+  RotateCcw, UserPlus, FileText, Download, Camera, Image, Upload,
+  Calendar, TrendingUp, Activity, BarChart3, Star, DollarSign,
 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+} from 'recharts';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -32,6 +35,13 @@ const STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
   RETURNED:        { label: 'Restitue',          classes: 'bg-gray-100 text-gray-600 dark:bg-gray-700/30 dark:text-gray-400' },
   CLOSED:          { label: 'Cloture',           classes: 'bg-gray-50 text-gray-500 dark:bg-gray-800/30 dark:text-gray-500' },
   REFUSED:         { label: 'Refuse',            classes: 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' },
+};
+
+const PHASE_LABELS: Record<string, string> = {
+  RECEPTION: 'Reception',
+  DIAGNOSTIC: 'Diagnostic',
+  REPAIR: 'Reparation',
+  RETURN: 'Restitution',
 };
 
 const PRIORITY_CONFIG: Record<string, { label: string; classes: string; dot: string }> = {
@@ -307,6 +317,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: SAVTicket; onClose: () =
   const [showDiagnoseModal, setShowDiagnoseModal] = useState(false);
   const [showRepairModal, setShowRepairModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [expandTimeline, setExpandTimeline] = useState(false);
 
   const statusMut = useMutation({
@@ -392,6 +403,37 @@ function TicketDetail({ ticket: t, onClose }: { ticket: SAVTicket; onClose: () =
             </div>
           )}
         </InfoCard>
+
+        {/* Photos */}
+        {t.photos.length > 0 && (
+          <InfoCard title={`Photos (${t.photos.length})`} icon={Camera}>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {t.photos.map(p => (
+                <div key={p.id} className="relative group">
+                  <img
+                    src={p.image.startsWith('http') ? p.image : `/media/${p.image}`}
+                    alt={p.caption || 'Photo SAV'}
+                    className="w-full h-20 object-cover rounded-lg border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => window.open(p.image.startsWith('http') ? p.image : `/media/${p.image}`, '_blank')}
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5 rounded-b-lg truncate">
+                    {PHASE_LABELS[p.phase] || p.phase}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </InfoCard>
+        )}
+
+        {/* Photo upload button */}
+        {!['RETURNED', 'CLOSED'].includes(t.status) && (
+          <button
+            onClick={() => setShowPhotoModal(true)}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+          >
+            <Upload className="w-4 h-4" /> Ajouter une photo
+          </button>
+        )}
 
         {/* Diagnosis */}
         {t.diagnosis && (
@@ -610,6 +652,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: SAVTicket; onClose: () =
       {showDiagnoseModal && <DiagnoseModal ticketId={t.id} onClose={() => setShowDiagnoseModal(false)} />}
       {showRepairModal && <RepairActionModal ticketId={t.id} onClose={() => setShowRepairModal(false)} />}
       {showReturnModal && <ReturnModal ticketId={t.id} onClose={() => setShowReturnModal(false)} />}
+      {showPhotoModal && <PhotoUploadModal ticketId={t.id} currentStatus={t.status} onClose={() => setShowPhotoModal(false)} />}
     </div>
   );
 }
@@ -618,22 +661,61 @@ function TicketDetail({ ticket: t, onClose }: { ticket: SAVTicket; onClose: () =
 // Dashboard View
 // ---------------------------------------------------------------------------
 
+const MONTH_LABELS: Record<string, string> = {
+  '01': 'Jan', '02': 'Fev', '03': 'Mar', '04': 'Avr', '05': 'Mai', '06': 'Jun',
+  '07': 'Jul', '08': 'Aou', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec',
+};
+
 function DashboardView({ dash, isLoading }: { dash: SAVDashboard | undefined; isLoading: boolean }) {
   if (isLoading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   if (!dash) return null;
 
+  const trendData = (dash.monthly_trend || []).map(m => ({
+    ...m,
+    label: MONTH_LABELS[m.month.split('-')[1]] || m.month,
+  }));
+
+  const warrantyTotal = (dash.warranty_breakdown?.under || 0) + (dash.warranty_breakdown?.out || 0) + (dash.warranty_breakdown?.unknown || 0);
+
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
         <DashCard label="Recus ce mois" value={dash.month_received} icon={Package} color="text-blue-600" />
         <DashCard label="En cours" value={dash.total_active} icon={Activity} color="text-primary" />
         <DashCard label="En diagnostic" value={dash.by_status.diagnosing || 0} icon={ClipboardList} color="text-purple-600" />
         <DashCard label="En reparation" value={dash.by_status.in_repair || 0} icon={Wrench} color="text-orange-600" />
         <DashCard label="Prets" value={dash.by_status.ready || 0} icon={CheckCircle} color="text-green-600" />
         <DashCard label="Taux reparation" value={`${dash.repair_rate}%`} icon={TrendingUp} color="text-teal-600" />
+        <DashCard label="CA ce mois" value={formatCurrency(dash.revenue_month)} icon={DollarSign} color="text-emerald-600" />
+        <DashCard label="CA total" value={formatCurrency(dash.revenue_total)} icon={DollarSign} color="text-emerald-700" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Monthly trend chart */}
+      {trendData.length > 0 && (
+        <div className="bg-card rounded-xl border p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" /> Tendance mensuelle (6 derniers mois)
+          </h3>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={trendData} barGap={4}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border, #e5e7eb)" />
+              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={30} />
+              <Tooltip
+                contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                formatter={(value: number, name: string) => [value, name === 'received' ? 'Recus' : 'Clotures']}
+                labelFormatter={(l: string) => `Mois : ${l}`}
+              />
+              <Legend formatter={(v: string) => v === 'received' ? 'Recus' : 'Clotures'} />
+              <Bar dataKey="received" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="closed" fill="#10b981" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Status breakdown */}
         <div className="bg-card rounded-xl border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -683,15 +765,50 @@ function DashboardView({ dash, isLoading }: { dash: SAVDashboard | undefined; is
             </div>
           )}
         </div>
-      </div>
 
-      {dash.avg_repair_days !== null && (
-        <div className="bg-card rounded-xl border p-5 flex items-center gap-2 text-sm">
-          <Clock className="w-4 h-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Duree moyenne de reparation :</span>
-          <span className="font-bold text-foreground">{dash.avg_repair_days} jour{dash.avg_repair_days > 1 ? 's' : ''}</span>
+        {/* Warranty breakdown + avg repair */}
+        <div className="bg-card rounded-xl border p-5 space-y-5">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-primary" /> Repartition garantie
+            </h3>
+            {warrantyTotal === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucune donnee</p>
+            ) : (
+              <div className="space-y-3">
+                {[
+                  { key: 'under', label: 'Sous garantie', color: 'bg-green-500' },
+                  { key: 'out', label: 'Hors garantie', color: 'bg-red-500' },
+                  { key: 'unknown', label: 'Inconnue', color: 'bg-gray-400' },
+                ].map(({ key, label, color }) => {
+                  const count = dash.warranty_breakdown?.[key as keyof typeof dash.warranty_breakdown] || 0;
+                  if (count === 0) return null;
+                  const pct = Math.round((count / warrantyTotal) * 100);
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="text-foreground">{label}</span>
+                        <span className="font-semibold">{count} <span className="text-muted-foreground font-normal">({pct}%)</span></span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {dash.avg_repair_days !== null && (
+            <div className="pt-3 border-t flex items-center gap-2 text-sm">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Duree moy. reparation :</span>
+              <span className="font-bold text-foreground">{dash.avg_repair_days} jour{dash.avg_repair_days > 1 ? 's' : ''}</span>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -819,6 +936,79 @@ function ReturnModal({ ticketId, onClose }: { ticketId: string; onClose: () => v
           {mut.isPending ? 'Verification...' : 'Confirmer la restitution'}
         </button>
       </form>
+    </Modal>
+  );
+}
+
+function PhotoUploadModal({ ticketId, currentStatus, onClose }: { ticketId: string; currentStatus: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [caption, setCaption] = useState('');
+  const [phase, setPhase] = useState(() => {
+    if (['RECEIVED'].includes(currentStatus)) return 'RECEPTION';
+    if (['DIAGNOSING', 'AWAITING_CLIENT'].includes(currentStatus)) return 'DIAGNOSTIC';
+    if (['IN_REPAIR', 'AWAITING_PART'].includes(currentStatus)) return 'REPAIR';
+    return 'RECEPTION';
+  });
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) {
+      setFile(f);
+      const reader = new FileReader();
+      reader.onloadend = () => setPreview(reader.result as string);
+      reader.readAsDataURL(f);
+    }
+  };
+
+  const mut = useMutation({
+    mutationFn: () => {
+      const fd = new FormData();
+      fd.append('image', file!);
+      fd.append('caption', caption);
+      fd.append('phase', phase);
+      return savApi.uploadPhoto(ticketId, fd);
+    },
+    onSuccess: () => { toast.success('Photo ajoutee'); qc.invalidateQueries({ queryKey: ['sav-tickets'] }); onClose(); },
+    onError: (err) => toast.error(extractApiError(err)),
+  });
+
+  return (
+    <Modal title="Ajouter une photo" onClose={onClose}>
+      <div className="space-y-4">
+        {!preview ? (
+          <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors">
+            <Camera className="w-8 h-8 text-muted-foreground mb-2" />
+            <span className="text-sm text-muted-foreground">Cliquez pour choisir une photo</span>
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+          </label>
+        ) : (
+          <div className="relative">
+            <img src={preview} alt="Preview" className="w-full h-48 object-cover rounded-xl border" />
+            <button onClick={() => { setFile(null); setPreview(null); }}
+              className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/70">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Phase</label>
+          <select value={phase} onChange={e => setPhase(e.target.value)}
+            className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
+            <option value="RECEPTION">Reception</option>
+            <option value="DIAGNOSTIC">Diagnostic</option>
+            <option value="REPAIR">Reparation</option>
+            <option value="RETURN">Restitution</option>
+          </select>
+        </div>
+        <input placeholder="Legende (optionnel)" value={caption} onChange={e => setCaption(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+        <button onClick={() => mut.mutate()} disabled={!file || mut.isPending}
+          className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">
+          {mut.isPending ? 'Envoi...' : 'Envoyer la photo'}
+        </button>
+      </div>
     </Modal>
   );
 }

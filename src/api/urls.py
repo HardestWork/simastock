@@ -239,6 +239,9 @@ urlpatterns = [
     # Public delivery tracking (no auth required)
     path('delivery/track/<str:code>/', delivery_api_views.DeliveryTrackView.as_view(), name='delivery-track'),
 
+    # Public SAV tracking (no auth required)
+    path('sav/track/<str:reference>/', sav_api_views.SAVTrackView.as_view(), name='sav-track'),
+
     # (Phase 3 denominations are handled as an action on CashShiftViewSet)
 
     # AI Assistant

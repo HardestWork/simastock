@@ -2,13 +2,13 @@
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, Q, Sum, F, ExpressionWrapper, DurationField
 from django.utils import timezone
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -539,7 +539,6 @@ class SAVTicketViewSet(viewsets.ModelViewSet):
         month_qs = qs.filter(created_at__year=today.year, created_at__month=today.month)
 
         # Average repair time (received → repaired) in days
-        from django.db.models import F, ExpressionWrapper, DurationField
         repaired = qs.filter(repaired_at__isnull=False)
         avg_repair = None
         if repaired.exists():
@@ -557,12 +556,45 @@ class SAVTicketViewSet(viewsets.ModelViewSet):
         total_not_repairable = qs.filter(status=SAVTicket.Status.NOT_REPAIRABLE).count()
         repair_rate = round(total_closed / max(total_closed + total_not_repairable, 1) * 100, 1)
 
-        # Top issues (from declared_issue keywords — simple approach)
         active_statuses = [
             SAVTicket.Status.RECEIVED, SAVTicket.Status.DIAGNOSING,
             SAVTicket.Status.IN_REPAIR, SAVTicket.Status.AWAITING_PART,
             SAVTicket.Status.AWAITING_CLIENT,
         ]
+
+        # Monthly trend (last 6 months)
+        from datetime import timedelta
+        monthly_trend = []
+        for i in range(5, -1, -1):
+            d = today.replace(day=1) - timedelta(days=i * 28)
+            m_qs = qs.filter(created_at__year=d.year, created_at__month=d.month)
+            closed_qs = qs.filter(
+                status__in=[SAVTicket.Status.CLOSED, SAVTicket.Status.RETURNED],
+                closed_at__year=d.year, closed_at__month=d.month,
+            ) | qs.filter(
+                status__in=[SAVTicket.Status.CLOSED, SAVTicket.Status.RETURNED],
+                returned_at__year=d.year, returned_at__month=d.month,
+            )
+            monthly_trend.append({
+                "month": f"{d.year}-{d.month:02d}",
+                "received": m_qs.count(),
+                "closed": closed_qs.distinct().count(),
+            })
+
+        # Warranty breakdown
+        warranty_breakdown = {
+            "under": qs.filter(warranty_status="UNDER").count(),
+            "out": qs.filter(warranty_status="OUT").count(),
+            "unknown": qs.filter(warranty_status="UNKNOWN").count(),
+        }
+
+        # Revenue from paid repairs
+        revenue_month = month_qs.filter(is_paid_repair=True).aggregate(
+            total=Sum("total_cost")
+        )["total"] or 0
+        revenue_total = qs.filter(is_paid_repair=True).aggregate(
+            total=Sum("total_cost")
+        )["total"] or 0
 
         return Response({
             "month_received": month_qs.count(),
@@ -584,6 +616,10 @@ class SAVTicketViewSet(viewsets.ModelViewSet):
                 .annotate(count=Count("id"))
                 .order_by("-count")[:5]
             ),
+            "monthly_trend": monthly_trend,
+            "warranty_breakdown": warranty_breakdown,
+            "revenue_month": float(revenue_month),
+            "revenue_total": float(revenue_total),
         })
 
     @action(detail=True, methods=["get"], url_path="depot-receipt")
@@ -680,3 +716,57 @@ class SAVQuoteViewSet(viewsets.ModelViewSet):
         )
 
         return Response(SAVQuoteSerializer(quote).data)
+
+
+class SAVTrackView(APIView):
+    """Public (no auth) endpoint for clients to track their SAV ticket."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, reference):
+        ticket = (
+            SAVTicket.objects.filter(reference__iexact=reference)
+            .select_related("store")
+            .prefetch_related("status_history")
+            .first()
+        )
+        if not ticket:
+            return Response(
+                {"detail": "Aucun dossier SAV trouve avec cette reference."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        status_choices = dict(SAVTicket.Status.choices)
+
+        timeline = [
+            {
+                "from_status": h.from_status,
+                "to_status": h.to_status,
+                "label": status_choices.get(h.to_status, h.to_status),
+                "date": h.created_at.isoformat(),
+                "reason": h.reason,
+            }
+            for h in ticket.status_history.all().order_by("created_at")
+        ]
+
+        data = {
+            "reference": ticket.reference,
+            "status": ticket.status,
+            "status_display": ticket.get_status_display(),
+            "brand_name": ticket.brand_name,
+            "model_name": ticket.model_name,
+            "customer_name": ticket.customer_name,
+            "store_name": ticket.store.name if ticket.store else None,
+            "declared_issue": ticket.declared_issue,
+            "warranty_status": ticket.warranty_status,
+            "warranty_display": ticket.get_warranty_status_display(),
+            "is_paid_repair": ticket.is_paid_repair,
+            "total_cost": str(ticket.total_cost) if ticket.total_cost else "0",
+            "created_at": ticket.created_at.isoformat(),
+            "diagnosed_at": ticket.diagnosed_at.isoformat() if ticket.diagnosed_at else None,
+            "repaired_at": ticket.repaired_at.isoformat() if ticket.repaired_at else None,
+            "returned_at": ticket.returned_at.isoformat() if ticket.returned_at else None,
+            "timeline": timeline,
+        }
+        return Response(data)

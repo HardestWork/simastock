@@ -118,6 +118,7 @@ const VerifyDocumentPage = lazyRetry(() => import('@/features/verify/VerifyDocum
 // Delivery & Logistics
 const DeliveryListPage = lazyRetry(() => import('@/features/delivery/DeliveryListPage'));
 const DeliveryTrackPage = lazyRetry(() => import('@/features/delivery/DeliveryTrackPage'));
+const SAVTrackPage = lazyRetry(() => import('@/features/sav/SAVTrackPage'));
 
 // SAV
 const SAVListPage = lazyRetry(() => import('@/features/sav/SAVListPage'));
@@ -175,6 +176,7 @@ export default function App() {
             <Route path="/reset-password" element={<Suspense fallback={<PageLoader />}><ResetPasswordPage /></Suspense>} />
             <Route path="/verify/:token" element={<Suspense fallback={<PageLoader />}><VerifyDocumentPage /></Suspense>} />
             <Route path="/track/:code" element={<Suspense fallback={<PageLoader />}><DeliveryTrackPage /></Suspense>} />
+            <Route path="/track-sav/:reference" element={<Suspense fallback={<PageLoader />}><SAVTrackPage /></Suspense>} />
 
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
