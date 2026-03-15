@@ -437,6 +437,12 @@ def process_payment(
             sale.status = Sale.Status.PARTIALLY_PAID
             sale.save()
 
+            # Decrement stock on first partial payment (customer takes the goods)
+            if not sale.stock_decremented:
+                _decrement_stock_for_sale(sale, cashier)
+                sale.stock_decremented = True
+                sale.save(update_fields=["stock_decremented"])
+
             # Optionally reserve stock for partially paid sales
             if sale.reserve_stock:
                 _sync_reserved_stock_for_sale_products(sale)

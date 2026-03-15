@@ -80,19 +80,19 @@ def open_shift(store, admin_user):
 # -----------------------------------------------------------------------
 
 @pytest.mark.django_db
-class TestStockDecrementAtSubmission:
-    """Stock must be decremented when a sale is submitted, not at payment."""
+class TestStockDecrementAtPayment:
+    """Stock must be decremented when payment is processed (full or partial)."""
 
-    def test_stock_decremented_on_submit(self, draft_sale, product_stock, admin_user):
+    def test_stock_not_decremented_on_submit(self, draft_sale, product_stock, admin_user):
         from sales.services import submit_sale_to_cashier
         submit_sale_to_cashier(draft_sale, admin_user)
 
         product_stock.refresh_from_db()
-        assert product_stock.quantity == 47  # 50 - 3
+        assert product_stock.quantity == 50  # unchanged at submission
         draft_sale.refresh_from_db()
-        assert draft_sale.stock_decremented is True
+        assert draft_sale.stock_decremented is False
 
-    def test_no_double_decrement_on_payment(self, draft_sale, product_stock, admin_user, open_shift):
+    def test_stock_decremented_on_full_payment(self, draft_sale, product_stock, admin_user, open_shift):
         from sales.services import submit_sale_to_cashier
         from cashier.services import process_payment
 
@@ -107,8 +107,29 @@ class TestStockDecrementAtSubmission:
         )
 
         product_stock.refresh_from_db()
-        # Still 47, not 44 (no double decrement)
-        assert product_stock.quantity == 47
+        assert product_stock.quantity == 47  # 50 - 3
+        draft_sale.refresh_from_db()
+        assert draft_sale.stock_decremented is True
+
+    def test_stock_decremented_on_partial_payment(self, draft_sale, product_stock, admin_user, open_shift):
+        from sales.services import submit_sale_to_cashier
+        from cashier.services import process_payment
+
+        submit_sale_to_cashier(draft_sale, admin_user)
+        draft_sale.refresh_from_db()
+
+        process_payment(
+            sale=draft_sale,
+            payments_data=[{"method": "CASH", "amount": "10000"}],
+            cashier=admin_user,
+            shift=open_shift,
+        )
+
+        product_stock.refresh_from_db()
+        assert product_stock.quantity == 47  # 50 - 3 (decremented on first partial payment)
+        draft_sale.refresh_from_db()
+        assert draft_sale.stock_decremented is True
+        assert draft_sale.status == "PARTIALLY_PAID"
 
 
 # -----------------------------------------------------------------------

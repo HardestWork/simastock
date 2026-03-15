@@ -308,8 +308,9 @@ def submit_sale_to_cashier(sale: Sale, actor) -> Sale:
         "updated_at",
     ]
 
-    # Always decrement stock at submission to prevent overselling
-    if not sale.stock_decremented:
+    # Optionally decrement stock at validation (instead of at payment)
+    store = sale.store
+    if getattr(store, "stock_decrement_on", "PAYMENT") == "VALIDATION":
         from cashier.services import _decrement_stock_for_sale
         _decrement_stock_for_sale(sale, actor)
         sale.stock_decremented = True
