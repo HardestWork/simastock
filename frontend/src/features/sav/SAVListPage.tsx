@@ -12,7 +12,7 @@ import {
   Search, Plus, X, Wrench, Clock, AlertTriangle, Phone, Mail, User,
   Package, ClipboardList, ArrowRight, Shield, Tag,
   ChevronDown, ChevronUp, CheckCircle, XCircle,
-  RotateCcw, UserPlus, FileText, Download, Camera, Image, Upload,
+  RotateCcw, UserPlus, FileText, Download, Camera, Upload,
   Calendar, TrendingUp, Activity, BarChart3, Star, DollarSign,
 } from 'lucide-react';
 import {
@@ -704,8 +704,8 @@ function DashboardView({ dash, isLoading }: { dash: SAVDashboard | undefined; is
               <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={30} />
               <Tooltip
                 contentStyle={{ borderRadius: 8, fontSize: 12 }}
-                formatter={(value: number, name: string) => [value, name === 'received' ? 'Recus' : 'Clotures']}
-                labelFormatter={(l: string) => `Mois : ${l}`}
+                formatter={(value: unknown, name: unknown) => [String(value), String(name) === 'received' ? 'Recus' : 'Clotures']}
+                labelFormatter={(l: unknown) => `Mois : ${String(l)}`}
               />
               <Legend formatter={(v: string) => v === 'received' ? 'Recus' : 'Clotures'} />
               <Bar dataKey="received" fill="#6366f1" radius={[4, 4, 0, 0]} />
