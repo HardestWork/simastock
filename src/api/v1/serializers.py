@@ -1278,12 +1278,15 @@ class CashShiftSerializer(serializers.ModelSerializer):
         from cashier.services import calculate_shift_totals
         computed = calculate_shift_totals(obj)
         return {
-            'total_sales': str(obj.total_sales),
+            'total_sales': str(computed.get('total_sales', obj.total_sales)),
             'total_cash_payments': str(obj.total_cash_payments),
             'total_mobile_payments': str(obj.total_mobile_payments),
             'total_bank_payments': str(obj.total_bank_payments),
             'total_credit_payments': str(obj.total_credit_payments),
             'total_refunds': str(computed.get('total_refunds', '0')),
+            'total_cash_refunds': str(computed.get('total_cash_refunds', '0')),
+            'total_mobile_refunds': str(computed.get('total_mobile_refunds', '0')),
+            'total_bank_refunds': str(computed.get('total_bank_refunds', '0')),
             'refund_count': computed.get('refund_count', 0),
             'net_sales': str(computed.get('net_sales', obj.total_sales)),
         }

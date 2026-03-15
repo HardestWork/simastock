@@ -606,8 +606,29 @@ def calculate_shift_totals(shift: CashShift) -> dict[str, Decimal]:
     except Exception:
         pass
 
+    # Exclude credit from total_sales (credit is not cash received)
+    effective_sales = total_sales - total_credit
+
+    # Per-method refunds
+    total_cash_refunds = Decimal("0")
+    total_mobile_refunds = Decimal("0")
+    total_bank_refunds = Decimal("0")
+    try:
+        from sales.models import Refund
+        end = shift.closed_at or timezone.now()
+        base_qs = Refund.objects.filter(
+            store=shift.store,
+            created_at__gte=shift.opened_at,
+            created_at__lt=end,
+        )
+        total_cash_refunds = base_qs.filter(refund_method="CASH").aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        total_mobile_refunds = base_qs.filter(refund_method="MOBILE_MONEY").aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        total_bank_refunds = base_qs.filter(refund_method="BANK_TRANSFER").aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    except Exception:
+        pass
+
     return {
-        "total_sales": total_sales,
+        "total_sales": effective_sales,
         "total_cash": total_cash,
         "total_mobile": total_mobile,
         "total_bank": total_bank,
@@ -615,8 +636,11 @@ def calculate_shift_totals(shift: CashShift) -> dict[str, Decimal]:
         "total_cheque": total_cheque,
         "payment_count": payments.count(),
         "total_refunds": total_refunds,
+        "total_cash_refunds": total_cash_refunds,
+        "total_mobile_refunds": total_mobile_refunds,
+        "total_bank_refunds": total_bank_refunds,
         "refund_count": refund_count,
-        "net_sales": total_sales - total_refunds,
+        "net_sales": effective_sales - total_refunds,
     }
 
 
@@ -794,23 +818,46 @@ def _update_shift_totals(shift: CashShift, payments: list[Payment]):
     """Incrementally update shift totals with newly created payments.
 
     This is more efficient than recalculating all totals from scratch
-    for every payment.
+    for every payment.  Credit payments are tracked separately and
+    excluded from ``total_sales`` (they are not cash received).
     """
     for payment in payments:
-        shift.total_sales += payment.amount
-
         if payment.method == Payment.Method.CASH:
+            shift.total_sales += payment.amount
             shift.total_cash_payments += payment.amount
         elif payment.method == Payment.Method.MOBILE_MONEY:
+            shift.total_sales += payment.amount
             shift.total_mobile_payments += payment.amount
         elif payment.method == Payment.Method.BANK_TRANSFER:
+            shift.total_sales += payment.amount
             shift.total_bank_payments += payment.amount
         elif payment.method == Payment.Method.CREDIT:
+            # Credit is NOT real cash received — track separately
             shift.total_credit_payments += payment.amount
-        # CHEQUE payments are not tracked in a separate shift total field
-        # but are included in total_sales
+        else:
+            # CHEQUE or other methods: include in total_sales
+            shift.total_sales += payment.amount
 
     # Recalculate expected cash
+    shift.calculate_expected_cash()
+    shift.save()
+
+
+def update_shift_refund_totals(store, refund_amount: Decimal, refund_method: str):
+    """Update the current open shift with a refund, tracked by method."""
+    shift = CashShift.objects.filter(store=store, status=CashShift.Status.OPEN).first()
+    if not shift:
+        return
+
+    shift.total_refunds = (shift.total_refunds or Decimal("0")) + refund_amount
+
+    if refund_method == "CASH":
+        shift.total_cash_refunds = (shift.total_cash_refunds or Decimal("0")) + refund_amount
+    elif refund_method == "MOBILE_MONEY":
+        shift.total_mobile_refunds = (shift.total_mobile_refunds or Decimal("0")) + refund_amount
+    elif refund_method == "BANK_TRANSFER":
+        shift.total_bank_refunds = (shift.total_bank_refunds or Decimal("0")) + refund_amount
+
     shift.calculate_expected_cash()
     shift.save()
 

@@ -118,6 +118,32 @@ class CashShift(TimeStampedModel):
         validators=[MinValueValidator(0)],
     )
 
+    # Refund totals by method
+    total_refunds = models.DecimalField(
+        "total remboursements",
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+    )
+    total_cash_refunds = models.DecimalField(
+        "total remboursements especes",
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+    )
+    total_mobile_refunds = models.DecimalField(
+        "total remboursements mobile",
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+    )
+    total_bank_refunds = models.DecimalField(
+        "total remboursements bancaires",
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+    )
+
     notes = models.TextField("notes", blank=True, default="")
 
     class Meta:

@@ -571,7 +571,7 @@ export default function SaleListPage() {
                         >
                           Facture
                         </a>
-                        {(sale.status === 'PAID' || sale.status === 'PARTIALLY_PAID') && (
+                        {(sale.status === 'PAID' || sale.status === 'PARTIALLY_PAID' || sale.status === 'REFUNDED') && (
                           <a
                             className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
                             href={`/api/v1/sales/${sale.id}/receipt/`}

@@ -308,9 +308,8 @@ def submit_sale_to_cashier(sale: Sale, actor) -> Sale:
         "updated_at",
     ]
 
-    # Optionally decrement stock at validation (instead of at payment)
-    store = sale.store
-    if getattr(store, "stock_decrement_on", "PAYMENT") == "VALIDATION":
+    # Always decrement stock at submission to prevent overselling
+    if not sale.stock_decremented:
         from cashier.services import _decrement_stock_for_sale
         _decrement_stock_for_sale(sale, actor)
         sale.stock_decremented = True
@@ -731,6 +730,13 @@ def create_refund(
         except ImportError:
             logger.exception("Stock service indisponible pendant le remboursement %s", refund.pk)
             raise ValueError("Impossible de remettre le stock: service stock indisponible.")
+
+    # Update shift totals with refund (tracked by method)
+    try:
+        from cashier.services import update_shift_refund_totals
+        update_shift_refund_totals(sale.store, amount, refund_method)
+    except Exception:
+        logger.warning("Could not update shift refund totals for refund %s", refund.pk)
 
     _create_audit_log(
         actor=processed_by or approved_by,
