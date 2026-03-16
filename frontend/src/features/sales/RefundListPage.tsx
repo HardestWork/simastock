@@ -1,8 +1,9 @@
 /** Sales refunds list page. */
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { RotateCcw, FileText } from 'lucide-react';
+import { RotateCcw, FileText, Loader2 } from 'lucide-react';
 import { refundApi } from '@/api/endpoints';
+import apiClient from '@/api/client';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreStore } from '@/store-context/store-store';
 import Pagination from '@/components/shared/Pagination';
@@ -45,6 +46,20 @@ export default function RefundListPage() {
   });
 
   const totalPages = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownloadReceipt = async (refundId: string) => {
+    setDownloadingId(refundId);
+    try {
+      const response = await apiClient.get(`refunds/${refundId}/receipt/`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+    } catch {
+      alert('Erreur lors du telechargement du recu.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   return (
     <div>
@@ -128,15 +143,14 @@ export default function RefundListPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <a
-                      href={refundApi.receiptUrl(refund.id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition"
+                    <button
+                      onClick={() => handleDownloadReceipt(refund.id)}
+                      disabled={downloadingId === refund.id}
+                      className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition disabled:opacity-50"
                       title="Telecharger le recu"
                     >
-                      <FileText size={16} />
-                    </a>
+                      {downloadingId === refund.id ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                    </button>
                   </td>
                 </tr>
               ))}
