@@ -4,6 +4,14 @@ import * as faceapi from 'face-api.js';
 
 const MODEL_URL = '/models/face-api';
 
+/**
+ * Recognition thresholds — tuned for TinyFaceDetector + face-api.js 128-dim descriptors.
+ * MATCH_THRESHOLD: maximum average distance to accept a match (lower = stricter).
+ * MARGIN: best match must beat the second-best by at least this amount.
+ */
+const MATCH_THRESHOLD = 0.38;
+const MARGIN = 0.05;
+
 export interface FaceEmbedding {
   descriptor: Float32Array;
 }
@@ -40,7 +48,7 @@ export function useFaceApi() {
     input: HTMLVideoElement | HTMLCanvasElement | HTMLImageElement,
   ): Promise<faceapi.WithFaceDescriptor<faceapi.WithFaceLandmarks<faceapi.WithFaceDetection<{}>>> | null> => {
     const result = await faceapi
-      .detectSingleFace(input, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+      .detectSingleFace(input, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
       .withFaceLandmarks()
       .withFaceDescriptor();
     return result ?? null;
@@ -49,7 +57,7 @@ export function useFaceApi() {
   /** Detect face with expressions (for liveness: detect mouth open, eyes). */
   const detectFaceWithExpressions = async (input: HTMLVideoElement) => {
     const result = await faceapi
-      .detectSingleFace(input, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+      .detectSingleFace(input, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
       .withFaceLandmarks()
       .withFaceDescriptor()
       .withFaceExpressions();
@@ -61,28 +69,63 @@ export function useFaceApi() {
     return faceapi.euclideanDistance(Array.from(d1), Array.from(d2));
   };
 
-  /** Match a descriptor against a list of known profiles. Returns best match. */
+  /**
+   * Match a descriptor against known profiles.
+   *
+   * Uses **average distance** across all embeddings per profile (not best single),
+   * applies a strict threshold, and requires a margin between best and second-best
+   * to avoid false positives.
+   */
   const findBestMatch = (
     descriptor: Float32Array,
     profiles: Array<{ employee_id: string; employee_name: string; embeddings: number[][] }>,
-    threshold = 0.5,
+    threshold = MATCH_THRESHOLD,
   ): { employee_id: string; employee_name: string; distance: number } | null => {
-    let bestMatch: { employee_id: string; employee_name: string; distance: number } | null = null;
+    const descArr = Array.from(descriptor);
+
+    // Compute average distance to each profile
+    const scored: Array<{ employee_id: string; employee_name: string; avgDist: number }> = [];
 
     for (const profile of profiles) {
+      if (!profile.embeddings.length) continue;
+
+      let total = 0;
       for (const embedding of profile.embeddings) {
-        const dist = faceapi.euclideanDistance(Array.from(descriptor), embedding);
-        if (dist < threshold && (!bestMatch || dist < bestMatch.distance)) {
-          bestMatch = {
-            employee_id: profile.employee_id,
-            employee_name: profile.employee_name,
-            distance: dist,
-          };
-        }
+        total += faceapi.euclideanDistance(descArr, embedding);
+      }
+      const avgDist = total / profile.embeddings.length;
+
+      scored.push({
+        employee_id: profile.employee_id,
+        employee_name: profile.employee_name,
+        avgDist,
+      });
+    }
+
+    // Sort by average distance (ascending)
+    scored.sort((a, b) => a.avgDist - b.avgDist);
+
+    if (scored.length === 0) return null;
+
+    const best = scored[0];
+
+    // Must be under threshold
+    if (best.avgDist >= threshold) return null;
+
+    // Margin check: best must be clearly better than second-best
+    if (scored.length > 1) {
+      const secondBest = scored[1];
+      if (secondBest.avgDist - best.avgDist < MARGIN) {
+        // Too close — ambiguous match, reject
+        return null;
       }
     }
 
-    return bestMatch;
+    return {
+      employee_id: best.employee_id,
+      employee_name: best.employee_name,
+      distance: best.avgDist,
+    };
   };
 
   return {

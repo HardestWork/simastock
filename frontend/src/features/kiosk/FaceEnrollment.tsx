@@ -1,4 +1,4 @@
-/** Face enrollment component — capture 3 photos to create a face profile. */
+/** Face enrollment component — capture 5 photos to create a robust face profile. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Camera, CheckCircle, RotateCcw, Save, Loader2, X } from 'lucide-react';
@@ -6,6 +6,7 @@ import * as faceapi from 'face-api.js';
 import apiClient from '@/api/client';
 
 const MODEL_URL = '/models/face-api';
+const REQUIRED_PHOTOS = 5;
 
 interface Props {
   employeeId: string;
@@ -47,7 +48,7 @@ export default function FaceEnrollment({ employeeId, employeeName, onClose, onSu
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 360 } },
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
       });
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
@@ -70,7 +71,7 @@ export default function FaceEnrollment({ employeeId, employeeName, onClose, onSu
 
     try {
       const detection = await faceapi
-        .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+        .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
         .withFaceLandmarks()
         .withFaceDescriptor();
 
@@ -78,6 +79,18 @@ export default function FaceEnrollment({ employeeId, employeeName, onClose, onSu
         alert('Aucun visage detecte. Rapprochez-vous de la camera.');
         setCapturing(false);
         return;
+      }
+
+      // Check consistency with previous captures (same person)
+      if (photos.length > 0) {
+        const newDesc = Array.from(detection.descriptor);
+        const firstDesc = photos[0].descriptor;
+        const dist = faceapi.euclideanDistance(newDesc, firstDesc);
+        if (dist > 0.45) {
+          alert('Visage different detecte. Assurez-vous que c\'est la meme personne.');
+          setCapturing(false);
+          return;
+        }
       }
 
       // Capture frame as blob
@@ -90,12 +103,13 @@ export default function FaceEnrollment({ employeeId, employeeName, onClose, onSu
         canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.85),
       );
 
-      setPhotos((prev) => [
-        ...prev,
+      const newPhotos = [
+        ...photos,
         { blob, descriptor: Array.from(detection.descriptor) },
-      ]);
+      ];
+      setPhotos(newPhotos);
 
-      if (photos.length + 1 >= 3) {
+      if (newPhotos.length >= REQUIRED_PHOTOS) {
         setStep('DONE');
       }
     } finally {
@@ -111,8 +125,8 @@ export default function FaceEnrollment({ employeeId, employeeName, onClose, onSu
       formData.append('embeddings', JSON.stringify(photos.map((p) => p.descriptor)));
       formData.append('is_active', 'true');
       if (photos[0]) formData.append('photo_1', photos[0].blob, 'face1.jpg');
-      if (photos[1]) formData.append('photo_2', photos[1].blob, 'face2.jpg');
-      if (photos[2]) formData.append('photo_3', photos[2].blob, 'face3.jpg');
+      if (photos[2]) formData.append('photo_2', photos[2].blob, 'face2.jpg');
+      if (photos[4]) formData.append('photo_3', photos[4].blob, 'face3.jpg');
 
       return apiClient.post('hrm/face-profiles/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -133,8 +147,10 @@ export default function FaceEnrollment({ employeeId, employeeName, onClose, onSu
 
   const instructions = [
     'Regardez la camera de face',
-    'Tournez legerement la tete a droite',
-    'Tournez legerement la tete a gauche',
+    'Tournez legerement a droite',
+    'Tournez legerement a gauche',
+    'Levez legerement le menton',
+    'Baissez legerement le menton',
   ];
 
   return (
@@ -178,7 +194,7 @@ export default function FaceEnrollment({ employeeId, employeeName, onClose, onSu
                 {step === 'CAMERA' && (
                   <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                     <p className="text-white text-center text-sm">
-                      Photo {photos.length + 1}/3 : {instructions[photos.length] || ''}
+                      Photo {photos.length + 1}/{REQUIRED_PHOTOS} : {instructions[photos.length] || ''}
                     </p>
                   </div>
                 )}
@@ -186,11 +202,11 @@ export default function FaceEnrollment({ employeeId, employeeName, onClose, onSu
               <canvas ref={canvasRef} className="hidden" />
 
               {/* Photo thumbnails */}
-              <div className="flex gap-3 mb-4">
-                {[0, 1, 2].map((i) => (
+              <div className="flex gap-2 mb-4">
+                {Array.from({ length: REQUIRED_PHOTOS }, (_, i) => (
                   <div
                     key={i}
-                    className={`flex-1 h-20 rounded-lg border-2 flex items-center justify-center ${
+                    className={`flex-1 h-16 rounded-lg border-2 flex items-center justify-center ${
                       photos[i]
                         ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
                         : i === photos.length
@@ -199,9 +215,9 @@ export default function FaceEnrollment({ employeeId, employeeName, onClose, onSu
                     }`}
                   >
                     {photos[i] ? (
-                      <CheckCircle size={24} className="text-emerald-500" />
+                      <CheckCircle size={20} className="text-emerald-500" />
                     ) : (
-                      <Camera size={20} className={i === photos.length ? 'text-primary' : 'text-gray-300'} />
+                      <Camera size={16} className={i === photos.length ? 'text-primary' : 'text-gray-300'} />
                     )}
                   </div>
                 ))}
